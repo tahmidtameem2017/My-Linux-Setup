@@ -1,17 +1,21 @@
 binds {
     // Applications
-    Mod+Return      { spawn-sh "alacritty --config-file $NIRICONF/alacritty/default.toml"; }
-    Mod+Ctrl+Return { spawn-sh "fuzzel --config $NIRICONF/fuzzel/fuzzel.ini"; }
-    Mod+B           { spawn-sh "firefox"; }
+    Mod+Return      { spawn-sh "alacritty --config-file /home/me/niri-setup/alacritty/default.toml"; }
+    Mod+Ctrl+Return { spawn-sh "fuzzel --config /home/me/niri-setup/fuzzel/fuzzel.ini"; }
+    Alt+Space       { spawn-sh "walker"; }
+    Mod+B           { spawn-sh "/usr/bin/brave"; }
     Mod+E           { spawn-sh "nautilus"; }
-    Mod+L           { spawn-sh "$NIRICONF/scripts/swaylock.sh"; }
-    Mod+C           { spawn-sh "cliphist list | fuzzel --dmenu --config $NIRICONF/fuzzel/clipboard.ini | cliphist decode | wl-copy"; }
-    Mod+I           { spawn-sh "$NIRICONF/scripts/change-idle-time.sh"; }
-    Mod+P           { spawn-sh "$NIRICONF/scripts/change-power-profile.sh"; }
-    Mod+U           { spawn-sh "alacritty --title 'Updater' --config-file $NIRICONF/alacritty/float.toml -e $NIRICONF/waybar/modules/install-updates.sh"; }
-    Mod+W           { spawn-sh "$NIRICONF/scripts/toggle-waybar.sh"; }
-    Mod+Ctrl+W      { spawn-sh "alacritty --title 'Wallpaper Selector' --config-file $NIRICONF/alacritty/float.toml -e $NIRICONF/scripts/change-wallpaper.sh"; }
-    Mod+Backspace   { spawn-sh "$NIRICONF/scripts/wlogout.sh"; }
+    Mod+L           { spawn-sh "/home/me/niri-setup/scripts/swaylock.sh"; }
+    Mod+C           { spawn-sh "cliphist list | fuzzel --dmenu --config /home/me/niri-setup/fuzzel/clipboard.ini | cliphist decode | wl-copy"; }
+    Mod+I           { spawn-sh "/home/me/niri-setup/scripts/change-idle-time.sh"; }
+    Mod+P           { spawn-sh "/home/me/niri-setup/scripts/change-power-profile.sh"; }
+    Mod+U           { spawn-sh "alacritty --title 'Updater' --config-file /home/me/niri-setup/alacritty/float.toml -e /home/me/niri-setup/waybar/modules/install-updates.sh"; }
+    Mod+W           { spawn-sh "/home/me/niri-setup/scripts/toggle-waybar.sh"; }
+    Mod+Ctrl+W      { spawn-sh "alacritty --title 'Wallpaper Selector' --config-file /home/me/niri-setup/alacritty/float.toml -e /home/me/niri-setup/scripts/change-wallpaper.sh"; }
+    Mod+Backspace   { spawn-sh "/home/me/niri-setup/scripts/wlogout.sh"; }
+    Mod+Shift+S     { spawn-sh "grim -g \"$(slurp)\" - | wl-copy"; }
+    Mod+N           { spawn-sh "dunstctl set-paused toggle && notify-send -a dunst 'Dunst' \"$(dunstctl is-paused && echo 'Do Not Disturb ON' || echo 'Do Not Disturb OFF')\""; }
+    Mod+Ctrl+R      { spawn-sh "niri msg action reload-config"; }
 
     // Backlight and Audio
     XF86MonBrightnessUp   allow-when-locked=true { spawn-sh "brightnessctl set +5%" ; }
@@ -33,6 +37,10 @@ binds {
     Mod+Right            { focus-column-right; }
     Mod+Down             { focus-window-down; }
     Mod+Up               { focus-window-up; }
+    Mod+H                { focus-column-left; }
+    Mod+J                { focus-window-down; }
+    Mod+K                { focus-window-up; }
+    Mod+Shift+H          { focus-column-right; }
     Mod+Ctrl+Left        { move-column-left; }
     Mod+Ctrl+Right       { move-column-right; }
     Mod+Ctrl+Down        { move-window-down; }
@@ -55,6 +63,16 @@ binds {
     Mod+Page_Up        { focus-workspace-up; }
     Mod+Ctrl+Page_Down { move-column-to-workspace-down; }
     Mod+Ctrl+Page_Up   { move-column-to-workspace-up; }
+    Mod+1              { focus-workspace 1; }
+    Mod+2              { focus-workspace 2; }
+    Mod+3              { focus-workspace 3; }
+    Mod+4              { focus-workspace 4; }
+    Mod+5              { focus-workspace 5; }
+    Mod+6              { focus-workspace 6; }
+    Mod+7              { focus-workspace 7; }
+    Mod+8              { focus-workspace 8; }
+    Mod+9              { focus-workspace 9; }
+    Mod+0              { focus-workspace 10; }
     Mod+Ctrl+1         { move-column-to-workspace 1; }
     Mod+Ctrl+2         { move-column-to-workspace 2; }
     Mod+Ctrl+3         { move-column-to-workspace 3; }

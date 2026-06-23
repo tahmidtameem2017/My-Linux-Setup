@@ -1,13 +1,37 @@
 // Window rules let you adjust behavior for individual windows.
 // Find more information on the wiki:
 // https://github.com/YaLTeR/niri/wiki/Configuration:-Window-Rules
+
+// System-wide transparency for all windows
+window-rule {
+    opacity 0.85
+}
+
+// Nautilus specific transparency
+window-rule {
+    match app-id="org.gnome.Nautilus"
+    opacity 0.85
+}
+
+// Settings windows transparency
+window-rule {
+    match app-id="org.gnome.Settings"
+    opacity 0.85
+}
+
+// Control Center transparency
+window-rule {
+    match app-id="org.gnome.ControlCenter"
+    opacity 0.85
+}
+
 window-rule {
     geometry-corner-radius 10
     clip-to-geometry true
 }
 
 window-rule {
-    match app-id="firefox"
+    match app-id="brave"
     match app-id="code"
     match app-id="dev.zed.Zed"
     open-maximized-to-edges true
@@ -23,4 +47,41 @@ window-rule {
     shadow {
         on
     }
+}
+
+// Firefox - open maximized
+window-rule {
+    match app-id="org.mozilla.firefox"
+    open-maximized-to-edges true
+}
+
+// Discord - open maximized
+window-rule {
+    match app-id="com.discordapp.Discord"
+    open-maximized-to-edges true
+}
+
+// Spotify - open maximized
+window-rule {
+    match app-id="com.spotify.Client"
+    open-maximized-to-edges true
+}
+
+// Telegram - open maximized
+window-rule {
+    match app-id="org.telegram.desktop"
+    open-maximized-to-edges true
+}
+
+// File chooser dialogs - floating
+window-rule {
+    match app-id="xdg-desktop-portal-gtk"
+    open-floating true
+}
+
+// Picture-in-Picture floating
+window-rule {
+    match title="Picture-in-Picture"
+    open-floating true
+    geometry-corner-radius 12
 }

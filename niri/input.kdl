@@ -7,9 +7,13 @@ input {
             layout "us"
         }
     }
+    mouse {
+        accel-speed 0.3
+        natural-scroll
+    }
     touchpad {
         tap
         natural-scroll
+        drag-lock
     }
-    focus-follows-mouse
 }

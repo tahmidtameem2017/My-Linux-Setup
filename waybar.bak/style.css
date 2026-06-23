@@ -1,0 +1,176 @@
+/* NEO-BRUTALIST WAYBAR - SUNSET ORANGE AMOLED */
+* {
+    border: none;
+    font-size: 13px;
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+}
+
+window#waybar {
+    background: #000000;
+    color: #F7C7A1;
+}
+
+/* Container styling */
+.modules-left > widget > box,
+.modules-center > widget > box,
+.modules-right > widget > box {
+    background: #0a0a0a;
+    margin: 6px 4px;
+    padding: 4px 12px;
+    border-radius: 0;
+    border: 1px solid #3D2B24;
+}
+
+/* Logo */
+#custom-logo {
+    font-size: 18px;
+    color: #E85D2F;
+    padding: 0 8px;
+}
+
+#custom-logo:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 10px #FF8B4A;
+}
+
+/* Workspaces */
+#niri-workspaces button {
+    padding: 2px 8px;
+    color: #555555;
+    border-radius: 0;
+    font-weight: bold;
+    min-width: 24px;
+}
+
+#niri-workspaces button.active {
+    color: #000000;
+    background: #E85D2F;
+}
+
+#niri-workspaces button:hover {
+    color: #F7C7A1;
+    background: #3D2B24;
+}
+
+/* Window title */
+#custom-window {
+    padding: 0 14px;
+    color: #7C8A6A;
+    font-weight: 500;
+}
+
+/* Clock */
+#clock {
+    font-weight: 600;
+    color: #F7C7A1;
+    font-size: 14px;
+}
+
+/* Status modules */
+#cpu {
+    color: #E85D2F;
+    padding: 0 10px;
+}
+
+#cpu:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 8px #FF8B4A;
+}
+
+#memory {
+    color: #FF8B4A;
+    padding: 0 10px;
+}
+
+#memory:hover {
+    color: #F7C7A1;
+    text-shadow: 0 0 8px #F7C7A1;
+}
+
+#pulseaudio {
+    color: #7C8A6A;
+    padding: 0 10px;
+}
+
+#pulseaudio:hover {
+    color: #9aab8a;
+    text-shadow: 0 0 8px #7C8A6A;
+}
+
+#battery {
+    color: #F7C7A1;
+    padding: 0 10px;
+}
+
+#battery:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 8px #FF8B4A;
+}
+
+#battery.warning {
+    color: #FF8B4A;
+}
+
+#battery.critical {
+    color: #E85D2F;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+#network {
+    color: #7C8A6A;
+    padding: 0 10px;
+}
+
+#network:hover {
+    color: #9aab8a;
+    text-shadow: 0 0 8px #7C8A6A;
+}
+
+/* Media player */
+#custom-media {
+    color: #E85D2F;
+    padding: 0 14px;
+    margin: 0 6px;
+    background: #1a1210;
+    border: 1px solid #3D2B24;
+}
+
+#custom-media:hover {
+    background: #3D2B24;
+    border-color: #E85D2F;
+    color: #FF8B4A;
+}
+
+/* Tray */
+#tray {
+    padding: 0 8px;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+    background: #3D2B24;
+}
+
+/* Tooltips */
+tooltip {
+    background: #000000;
+    border: 2px solid #E85D2F;
+    border-radius: 0;
+}
+
+tooltip label {
+    color: #F7C7A1;
+    padding: 10px 12px;
+}

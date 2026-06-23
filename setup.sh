@@ -39,12 +39,17 @@ if [ "$SKIP_INSTALL" = false ]; then
   pkgs=(
     alacritty
     brightnessctl
+    btop
     cliphist
     dunst
     fuzzel
+    hyprpicker
+    jq
     niri
     niriswitcher
+    networkmanager
     pamixer
+    pavucontrol
     power-profiles-daemon
     polkit-gnome
     pwvucontrol
@@ -54,6 +59,7 @@ if [ "$SKIP_INSTALL" = false ]; then
     swaylock-effects
     swww
     waybar
+    wl-clipboard
     wlogout
     xwayland-satellite
   )
@@ -82,7 +88,27 @@ sed -i "s|\$NIRICONF|$config_folder|g" $(realpath "$config_folder/scripts/swayid
 sed -i "s|\$NIRICONF|$config_folder|g" $(realpath "$config_folder/scripts/toggle-waybar.sh")
 sed -i "s|\$NIRICONF|$config_folder|g" $(realpath "$config_folder/scripts/wlogout.sh")
 sed -i "s|\$NIRICONF|$config_folder|g" $(realpath "$config_folder/waybar/config")
-sed -i "s|\$NIRICONF|$config_folder|g" $(realpath "$config_folder/waybar/modules.jsonc")
+sed -i "s|\$NIRICONF|$config_folder|g" $(realpath "$config_folder/waybar/style.css")
+sed -i "s|\$NIRICONF|$config_folder|g" $(realpath "$config_folder/waybar/scripts/weather.sh")
+sed -i "s|\$NIRICONF|$config_folder|g" $(realpath "$config_folder/waybar/scripts/colorpicker.sh")
+sed -i "s|\$NIRICONF|$config_folder|g" $(realpath "$config_folder/waybar/scripts/powerdraw.sh")
+sed -i "s|\$NIRICONF|$config_folder|g" $(realpath "$config_folder/waybar/style-macos.css")
+sed -i "s|\$NIRICONF|$config_folder|g" $(realpath "$config_folder/scripts/set-volume.sh")
+sed -i "s|\$NIRICONF|$config_folder|g" $(realpath "$config_folder/waybar/config")
+
+# Install CPU performance sudoers rule
+if [ -f "$config_folder/scripts/sudoers-cpu" ]; then
+  echo "[INFO] installing CPU frequency sudoers rule..."
+  sudo cp "$config_folder/scripts/sudoers-cpu" /etc/sudoers.d/cpu-freq
+  sudo chmod 440 /etc/sudoers.d/cpu-freq
+fi
+
+# Install polkit rule for CPU frequency
+if [ -f "$config_folder/scripts/50-cpu-freq.rules" ]; then
+  echo "[INFO] installing CPU frequency polkit rule..."
+  sudo mkdir -p /etc/polkit-1/rules.d
+  sudo cp "$config_folder/scripts/50-cpu-freq.rules" /etc/polkit-1/rules.d/50-cpu-freq.rules
+fi
 
 if niri validate &>/dev/null; then
   echo "[INFO] niri setup all completed"

@@ -1,0 +1,7 @@
+[polkit Rule to allow setting CPU governor without password
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.niri.cpufreq.set" &&
+        subject.isInGroup("users")) {
+        return polkit.Result.YES;
+    }
+});

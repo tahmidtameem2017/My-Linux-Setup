@@ -1,0 +1,9 @@
+{
+	"niri/workspaces": {
+		"format": "{index}",
+		"on-click": "activate",
+		"sort-by-number": true,
+		"all-outputs": false,
+		"active-only": false
+	}
+}

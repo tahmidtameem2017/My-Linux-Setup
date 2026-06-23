@@ -1,5 +1,5 @@
 #!/bin/bash
-lock="$NIRICONF/scripts/swaylock.sh"
+lock="/home/me/niri-setup/scripts/swaylock.sh"
 if [ ! -f $HOME/.local/state/idle-time ]; then
   # Default idle time
   echo "10 minutes" >$HOME/.local/state/idle-time
@@ -34,6 +34,8 @@ case $idle_time in
       timeout 3600 'systemctl suspend' \
       before-sleep $lock
     ;;
-  "infinity") ;;
+  "infinity")
+    swayidle -w before-sleep $lock
+    ;;
   *) ;;
 esac

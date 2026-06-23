@@ -1,0 +1,9 @@
+// polkit Rule to allow setting CPU frequency without password
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.policykit.exec" &&
+        action.lookup("command_line") != null &&
+        action.lookup("command_line").indexOf("/home/me/niri-setup/scripts/cpu-permanent.sh") !== -1 &&
+        subject.user == "me") {
+        return polkit.Result.YES;
+    }
+});

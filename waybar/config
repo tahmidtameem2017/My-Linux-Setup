@@ -1,30 +1,125 @@
 {
   "layer": "top",
+  "position": "top",
   "margin-top": 0,
-  "margin-bottom": 0,
   "margin-left": 0,
   "margin-right": 0,
   "spacing": 0,
-  "include": [
-    "$NIRICONF/waybar/modules.jsonc"
-  ],
   "modules-left": [
+    "custom/logo",
     "niri/workspaces",
-    "custom/media"
+    "custom/window"
   ],
   "modules-center": [
-    "niri/window"
+    "clock"
   ],
   "modules-right": [
-    "custom/updates",
-    "backlight",
+    "custom/media",
     "pulseaudio",
-    "battery",
     "network",
-    "cpu",
-    "memory",
-    "power-profiles-daemon",
-    "custom/swayidle",
-    "clock"
-  ]
+    "custom/clipboard",
+    "custom/wallpaper",
+    "battery",
+    "custom/power"
+  ],
+  "reload_style_on_change": true,
+
+  "custom/logo": {
+    "format": "󰣇",
+    "tooltip": true,
+    "tooltip-format": "Arch Linux\nClick to open launcher",
+    "on-click": "fuzzel"
+  },
+
+  "niri/workspaces": {
+    "format": "{index}",
+    "on-click": "activate",
+    "sort-by-number": true,
+    "all-outputs": false,
+    "active-only": false
+  },
+
+  "custom/window": {
+    "format": "{}",
+    "interval": 1,
+    "exec": "python3 /home/me/niri-setup/waybar/modules/window_info.py",
+    "return-type": "json"
+  },
+
+  "clock": {
+    "format": "{:%H:%M}",
+    "format-alt": "{:%a %d %b | %H:%M}",
+    "interval": 1,
+    "tooltip-format": "<span font_size='large' font_weight='bold'>{:%A, %d %B %Y}</span>\n<span font_size='large'>{:%H:%M:%S}</span>",
+    "on-click": "yad --calendar --title='Calendar' --fixed"
+  },
+
+  "custom/media": {
+    "format": "{}",
+    "return-type": "json",
+    "max-length": 35,
+    "exec": "python3 /home/me/niri-setup/waybar/modules/media-player.py 2> /dev/null",
+    "on-click": "playerctl play-pause",
+    "on-scroll-up": "playerctl next",
+    "on-scroll-down": "playerctl previous"
+  },
+
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-muted": "󰝟 {volume}%",
+    "format-icons": {
+      "headphones": "󰋋",
+      "headset": "󰋎",
+      "default": ["󰕿", "󰖀", "󰕾"]
+    },
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "on-click-right": "pavucontrol",
+    "on-scroll-down": "/home/me/niri-setup/scripts/set-volume.sh down",
+    "on-scroll-up": "/home/me/niri-setup/scripts/set-volume.sh up",
+    "tooltip-format": "Volume: {volume}%\nDevice: {desc}"
+  },
+
+  "network": {
+    "format-wifi": "󰤨",
+    "format-ethernet": "󰈀",
+    "format-disconnected": "󰤭",
+    "tooltip-format": "{essid} ({signalStrength}%)",
+    "on-click": "alacritty --title nmtui --config-file /home/me/niri-setup/alacritty/float.toml -e nmtui connect"
+  },
+
+  "custom/clipboard": {
+    "format": "󰅲",
+    "on-click": "/home/me/niri-setup/waybar/scripts/clipboard.sh",
+    "tooltip": true,
+    "tooltip-format": "Clipboard\nClick to view history"
+  },
+
+  "custom/wallpaper": {
+    "format": "󰸉",
+    "tooltip": true,
+    "tooltip-format": "Wallpaper\nLeft: Next | Right: Random",
+    "on-click": "/home/me/niri-setup/scripts/change-wallpaper-simple.sh next",
+    "on-click-right": "/home/me/niri-setup/scripts/change-wallpaper-simple.sh random"
+  },
+
+  "battery": {
+    "interval": 1,
+    "states": {
+      "good": 95,
+      "warning": 30,
+      "critical": 20
+    },
+    "format": "{icon} {capacity}%",
+    "format-charging": "󱐋 {capacity}%",
+    "format-icons": ["󰁹", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
+    "tooltip-format": "Power: {power}W\nTime: {time}",
+    "on-click": "alacritty --config-file /home/me/niri-setup/alacritty/float.toml -e btop"
+  },
+
+  "custom/power": {
+    "format": "󰤄",
+    "tooltip": true,
+    "tooltip-format": "Power Menu",
+    "on-click": "/home/me/niri-setup/scripts/wlogout.sh"
+  }
 }

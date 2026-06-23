@@ -1,110 +1,281 @@
-/*base background color*/
-@define-color bg_main rgba(25, 25, 25, 0.65);
-@define-color bg_main_tooltip rgba(0, 0, 0, 0.7);
-
-/*base background color of selections */
-@define-color bg_hover rgba(200, 200, 200, 0.3);
-/*base background color of active elements */
-@define-color bg_active rgba(100, 100, 100, 0.5);
-
-/*base border color*/
-@define-color border_main rgba(255, 255, 255, 0.2);
-
-/*text color for entries, views and content in general */
-@define-color content_main white;
-/*text color for entries that are unselected */
-@define-color content_inactive rgba(255, 255, 255, 0.25);
-
+/* CUSTOM WAYBAR - SUNSET ORANGE AMOLED */
 * {
-  text-shadow: none;
-  box-shadow: none;
-  border: none;
-  border-radius: 0;
-  font-family: "Ubuntu Mono Nerd Font", "Noto Sans Mono CJK TC";
-  font-weight: 300;
-  font-size: 16px;
-  padding-top: 1px;
-  padding-bottom: 1px;
+    border: none;
+    font-size: 13px;
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
 }
 
 window#waybar {
-  background: @bg_main;
-  border-top: 1px solid @border_main;
-  color: @content_main;
+    background: #000000;
+    color: #F7C7A1;
 }
 
-tooltip {
-  background: @bg_main_tooltip;
-  border-radius: 5px;
-  border-width: 1px;
-  border-style: solid;
-  border-color: @border_main;
-}
-tooltip label {
-  color: @content_main;
+/* Left section */
+.modules-left > widget > box {
+    background: #0a0a0a;
+    margin: 6px 4px;
+    padding: 4px 12px;
+    border-radius: 0;
+    border: 1px solid #3D2B24;
 }
 
-#workspaces {
-  color: transparent;
-  margin-right: 4px;
-  margin-left: 14px;
-}
-#workspaces button {
-  padding: 3px 3px;
-  transition: all 0.25s cubic-bezier(0.165, 0.84, 0.44, 1);
-}
-#workspaces button.active {
-  color: @content_main;
-}
-#workspaces button.focused {
-  color: @content_main;
-}
-#workspaces button.urgent {
-  background: rgba(255, 87, 51, 0.5);
-  color: @warning_color;
+/* Center section */
+.modules-center > widget > box {
+    background: #0a0a0a;
+    margin: 6px 4px;
+    padding: 4px 16px;
+    border-radius: 0;
+    border: 1px solid #3D2B24;
 }
 
-#custom-media,
-#custom-updates,
-#backlight,
-#pulseaudio,
-#battery,
-#network,
-#custom-weather,
-#cpu,
-#memory,
-#power-profiles-daemon,
-#custom-swayidle,
+/* Right section */
+.modules-right > widget > box {
+    background: #0a0a0a;
+    margin: 6px 4px;
+    padding: 4px 12px;
+    border-radius: 0;
+    border: 1px solid #3D2B24;
+}
+
+/* Logo */
+#custom-logo {
+    font-size: 18px;
+    color: #E85D2F;
+    padding: 0 6px;
+    transition: all 0.2s ease;
+}
+
+#custom-logo:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 10px #FF8B4A;
+}
+
+/* Workspaces */
+#niri-workspaces button {
+    padding: 2px 8px;
+    color: #555555;
+    border-radius: 0;
+    font-weight: bold;
+    min-width: 24px;
+    transition: all 0.2s ease;
+}
+
+#niri-workspaces button.active {
+    color: #000000;
+    background: #E85D2F;
+}
+
+#niri-workspaces button:hover {
+    color: #F7C7A1;
+    background: #3D2B24;
+}
+
+/* Window title */
+#custom-window {
+    padding: 0 14px;
+    color: #7C8A6A;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+#custom-window:hover {
+    color: #F7C7A1;
+}
+
+/* Clock */
 #clock {
-  margin: 0 10px 0 0;
-  padding: 2px 2px;
+    font-weight: 600;
+    color: #F7C7A1;
+    font-size: 14px;
+    transition: all 0.2s ease;
 }
 
-#power-profiles-daemon {
-  margin: 0 16px 0 0;
-  font-size: 19px;
+#clock:hover {
+    color: #FF8B4A;
 }
 
-#custom-swayidle {
-  margin: 0px 8px 0 0;
+/* Media */
+#custom-media {
+    color: #E85D2F;
+    padding: 0 12px;
+    transition: all 0.2s ease;
 }
 
-#battery.good {
-  color: #228b22;
+#custom-media:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 8px #FF8B4A;
+}
+
+/* Volume */
+#pulseaudio {
+    color: #7C8A6A;
+    padding: 0 10px;
+    transition: all 0.2s ease;
+}
+
+#pulseaudio:hover {
+    color: #9aab8a;
+    text-shadow: 0 0 8px #7C8A6A;
+}
+
+/* Network */
+#network {
+    color: #7C8A6A;
+    padding: 0 10px;
+    transition: all 0.2s ease;
+}
+
+#network:hover {
+    color: #9aab8a;
+    text-shadow: 0 0 8px #7C8A6A;
+}
+
+/* Clipboard */
+#custom-clipboard {
+    color: #FF8B4A;
+    padding: 0 10px;
+    transition: all 0.2s ease;
+}
+
+#custom-clipboard:hover {
+    color: #F7C7A1;
+    text-shadow: 0 0 8px #F7C7A1;
+}
+
+/* Wallpaper */
+#custom-wallpaper {
+    color: #E85D2F;
+    padding: 0 10px;
+    transition: all 0.2s ease;
+}
+
+#custom-wallpaper:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 8px #FF8B4A;
+}
+
+/* Battery */
+#battery {
+    color: #F7C7A1;
+    padding: 0 10px;
+    transition: all 0.2s ease;
+}
+
+#battery:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 8px #FF8B4A;
 }
 
 #battery.warning {
-  color: #fad104;
+    color: #FF8B4A;
 }
 
 #battery.critical {
-  color: #ee2e24;
+    color: #E85D2F;
 }
 
-#battery.charging {
-  color: #ffffff;
+/* Power */
+#custom-power {
+    color: #E85D2F;
+    padding: 0 10px;
+    transition: all 0.2s ease;
 }
 
-#custom-media {
-  color: #8968cd;
+#custom-power:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 8px #FF8B4A;
+}
+
+/* Tooltips */
+tooltip {
+    background: #000000;
+    border: 1px solid #3D2B24;
+    border-radius: 0;
+}
+
+tooltip label {
+    color: #F7C7A1;
+    padding: 8px 10px;
+}
+
+/* ===== HOVER EFFECTS ===== */
+
+/* Section glow on hover */
+.modules-left > widget > box:hover,
+.modules-center > widget > box:hover,
+.modules-right > widget > box:hover {
+    border-color: #E85D2F;
+    box-shadow: 0 0 12px rgba(232, 93, 47, 0.3);
+}
+
+/* Workspace hover glow */
+#niri-workspaces button:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 10px rgba(255, 139, 74, 0.6);
+}
+
+#niri-workspaces button.active {
+    text-shadow: 0 0 8px rgba(232, 93, 47, 0.5);
+}
+
+/* Logo intense glow */
+#custom-logo:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 15px rgba(255, 139, 74, 0.8), 0 0 30px rgba(232, 93, 47, 0.4);
+}
+
+/* Clock glow */
+#clock:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 12px rgba(255, 139, 74, 0.6), 0 0 24px rgba(232, 93, 47, 0.3);
+}
+
+/* Media glow */
+#custom-media:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 12px rgba(255, 139, 74, 0.7), 0 0 20px rgba(232, 93, 47, 0.3);
+}
+
+/* Volume glow */
+#pulseaudio:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 10px rgba(255, 139, 74, 0.6);
+}
+
+/* Network glow */
+#network:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 10px rgba(255, 139, 74, 0.6);
+}
+
+/* Clipboard intense glow */
+#custom-clipboard:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 15px rgba(255, 139, 74, 0.8), 0 0 30px rgba(232, 93, 47, 0.3);
+}
+
+/* Wallpaper intense glow */
+#custom-wallpaper:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 15px rgba(255, 139, 74, 0.8), 0 0 30px rgba(232, 93, 47, 0.3);
+}
+
+/* Battery glow */
+#battery:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 12px rgba(255, 139, 74, 0.6);
+}
+
+/* Power button intense glow */
+#custom-power:hover {
+    color: #FF8B4A;
+    text-shadow: 0 0 15px rgba(255, 139, 74, 0.9), 0 0 30px rgba(232, 93, 47, 0.5);
+}
+
+/* Tooltip glow */
+tooltip {
+    box-shadow: 0 0 20px rgba(232, 93, 47, 0.2);
 }

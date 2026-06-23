@@ -1,0 +1,5 @@
+# Allow passwordless CPU frequency adjustment for user 'me'
+# Install with: sudo cp ~/niri-setup/scripts/sudoers-cpu /etc/sudoers.d/cpu-freq
+# Then run: sudo chmod 440 /etc/sudoers.d/cpu-freq
+
+me ALL=(ALL) NOPASSWD: /home/me/niri-setup/scripts/cpu-permanent.sh

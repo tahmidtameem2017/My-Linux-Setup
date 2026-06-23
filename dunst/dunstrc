@@ -29,7 +29,7 @@
     frame_width = 2
     corner_radius = 12
     corners = all
-    gap_size = 0
+    gap_size = 5
     separator_color = frame
     sort = yes
 
@@ -39,14 +39,14 @@
     progress_bar_frame_width = 1
     progress_bar_min_width = 150
     progress_bar_max_width = 300
-    progress_bar_corner_radius = 0
+    progress_bar_corner_radius = 5
     progress_bar_corners = all
-    icon_corner_radius = 0
+    icon_corner_radius = 8
     icon_corners = all
     indicate_hidden = yes
 
     ### Text ###
-    font = Monospace 10
+    font = JetBrainsMono Nerd Font 11
     line_height = 0
     markup = full
     format = "<b>%s</b>\n%b"

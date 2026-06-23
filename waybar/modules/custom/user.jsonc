@@ -1,0 +1,9 @@
+{
+	"custom/user": {
+		"format": "󰣇",
+		"min-length": 4,
+		"max-length": 4,
+		"on-click": "fuzzel",
+		"tooltip-format": "Arch Linux\nClick to open application launcher"
+	}
+}

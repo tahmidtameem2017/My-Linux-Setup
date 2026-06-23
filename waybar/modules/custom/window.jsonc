@@ -1,0 +1,8 @@
+{
+	"custom/window": {
+		"format": "{}",
+		"interval": 1,
+		"exec": "python3 /home/me/niri-setup/waybar/modules/window_info.py",
+		"return-type": "json"
+	}
+}
