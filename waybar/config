@@ -11,7 +11,7 @@
     "custom/window"
   ],
   "modules-center": [
-    "clock"
+    "custom/clock"
   ],
   "modules-right": [
     "custom/media",
@@ -46,11 +46,11 @@
     "return-type": "json"
   },
 
-  "clock": {
-    "format": "{:%H:%M}",
-    "format-alt": "{:%a %d %b | %H:%M}",
+  "custom/clock": {
+    "format": "{}",
     "interval": 1,
-    "tooltip-format": "<span font_size='large' font_weight='bold'>{:%A, %d %B %Y}</span>\n<span font_size='large'>{:%H:%M:%S}</span>",
+    "exec": "/home/me/niri-setup/waybar/scripts/clock.sh",
+    "return-type": "json",
     "on-click": "yad --calendar --title='Calendar' --fixed"
   },
 

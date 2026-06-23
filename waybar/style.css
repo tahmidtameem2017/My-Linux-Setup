@@ -1,4 +1,4 @@
-/* CUSTOM WAYBAR - SUNSET ORANGE AMOLED */
+/* CUSTOM WAYBAR - SUNSET ORANGE AMOLED + CURSOR GLOW */
 * {
     border: none;
     font-size: 13px;
@@ -13,160 +13,246 @@ window#waybar {
     color: #F7C7A1;
 }
 
-/* Left section */
-.modules-left > widget > box {
-    background: #0a0a0a;
-    margin: 6px 4px;
-    padding: 4px 12px;
-    border-radius: 0;
-    border: 1px solid #3D2B24;
-}
+/* ===========================
+   SECTION CONTAINERS
+   =========================== */
 
-/* Center section */
-.modules-center > widget > box {
-    background: #0a0a0a;
-    margin: 6px 4px;
-    padding: 4px 16px;
-    border-radius: 0;
-    border: 1px solid #3D2B24;
-}
-
-/* Right section */
+.modules-left > widget > box,
+.modules-center > widget > box,
 .modules-right > widget > box {
     background: #0a0a0a;
     margin: 6px 4px;
     padding: 4px 12px;
     border-radius: 0;
-    border: 1px solid #3D2B24;
+    border: 1px solid #1a1210;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
-/* Logo */
+/* Section glow when any child is hovered */
+.modules-left > widget > box:hover {
+    border-color: rgba(232, 93, 47, 0.4);
+    box-shadow: 0 0 10px rgba(232, 93, 47, 0.15), 0 0 25px rgba(232, 93, 47, 0.08);
+    background: #0f0d0c;
+}
+
+.modules-center > widget > box:hover {
+    border-color: rgba(255, 139, 74, 0.4);
+    box-shadow: 0 0 10px rgba(255, 139, 74, 0.15), 0 0 25px rgba(255, 139, 74, 0.08);
+    background: #0f0d0c;
+}
+
+.modules-right > widget > box:hover {
+    border-color: rgba(232, 93, 47, 0.4);
+    box-shadow: 0 0 10px rgba(232, 93, 47, 0.15), 0 0 25px rgba(232, 93, 47, 0.08);
+    background: #0f0d0c;
+}
+
+/* ===========================
+   MODULE BASE STYLES
+   =========================== */
+
+#custom-logo,
+#niri-workspaces button,
+#custom-window,
+#custom-clock,
+#custom-media,
+#pulseaudio,
+#network,
+#custom-clipboard,
+#custom-wallpaper,
+#battery,
+#custom-power {
+    transition: color 0.15s ease, text-shadow 0.4s ease, background 0.2s ease, box-shadow 0.4s ease;
+}
+
+/* ===========================
+   LOGO
+   =========================== */
+
 #custom-logo {
     font-size: 18px;
     color: #E85D2F;
     padding: 0 6px;
-    transition: all 0.2s ease;
 }
 
 #custom-logo:hover {
     color: #FF8B4A;
-    text-shadow: 0 0 10px #FF8B4A;
+    text-shadow:
+        0 0 6px rgba(255, 139, 74, 0.9),
+        0 0 15px rgba(255, 139, 74, 0.6),
+        0 0 30px rgba(232, 93, 47, 0.4),
+        0 0 50px rgba(232, 93, 47, 0.2);
+    box-shadow: 0 0 8px rgba(255, 139, 74, 0.3), 0 0 20px rgba(232, 93, 47, 0.15);
 }
 
-/* Workspaces */
+/* ===========================
+   WORKSPACES
+   =========================== */
+
 #niri-workspaces button {
     padding: 2px 8px;
     color: #555555;
     border-radius: 0;
     font-weight: bold;
     min-width: 24px;
-    transition: all 0.2s ease;
 }
 
 #niri-workspaces button.active {
     color: #000000;
     background: #E85D2F;
+    text-shadow: 0 0 6px rgba(232, 93, 47, 0.5);
 }
 
 #niri-workspaces button:hover {
-    color: #F7C7A1;
+    color: #FF8B4A;
     background: #3D2B24;
+    text-shadow:
+        0 0 6px rgba(255, 139, 74, 0.8),
+        0 0 15px rgba(255, 139, 74, 0.4);
+    box-shadow: 0 0 6px rgba(255, 139, 74, 0.2);
 }
 
-/* Window title */
+/* ===========================
+   WINDOW TITLE
+   =========================== */
+
 #custom-window {
     padding: 0 14px;
     color: #7C8A6A;
     font-weight: 500;
-    transition: all 0.2s ease;
 }
 
 #custom-window:hover {
     color: #F7C7A1;
+    text-shadow: 0 0 8px rgba(124, 138, 106, 0.5);
 }
 
-/* Clock */
-#clock {
+/* ===========================
+   CLOCK
+   =========================== */
+
+#custom-clock {
     font-weight: 600;
     color: #F7C7A1;
     font-size: 14px;
-    transition: all 0.2s ease;
 }
 
-#clock:hover {
+#custom-clock:hover {
     color: #FF8B4A;
+    text-shadow:
+        0 0 6px rgba(255, 139, 74, 0.9),
+        0 0 18px rgba(255, 139, 74, 0.6),
+        0 0 35px rgba(232, 93, 47, 0.35),
+        0 0 60px rgba(232, 93, 47, 0.15);
+    box-shadow: 0 0 10px rgba(255, 139, 74, 0.25), 0 0 25px rgba(232, 93, 47, 0.1);
 }
 
-/* Media */
+/* ===========================
+   MEDIA
+   =========================== */
+
 #custom-media {
     color: #E85D2F;
     padding: 0 12px;
-    transition: all 0.2s ease;
 }
 
 #custom-media:hover {
     color: #FF8B4A;
-    text-shadow: 0 0 8px #FF8B4A;
+    text-shadow:
+        0 0 6px rgba(255, 139, 74, 0.9),
+        0 0 15px rgba(255, 139, 74, 0.5),
+        0 0 30px rgba(232, 93, 47, 0.3);
+    box-shadow: 0 0 8px rgba(255, 139, 74, 0.3), 0 0 20px rgba(232, 93, 47, 0.15);
 }
 
-/* Volume */
+/* ===========================
+   VOLUME
+   =========================== */
+
 #pulseaudio {
     color: #7C8A6A;
     padding: 0 10px;
-    transition: all 0.2s ease;
 }
 
 #pulseaudio:hover {
     color: #9aab8a;
-    text-shadow: 0 0 8px #7C8A6A;
+    text-shadow:
+        0 0 6px rgba(124, 138, 106, 0.8),
+        0 0 15px rgba(124, 138, 106, 0.4),
+        0 0 25px rgba(124, 138, 106, 0.2);
+    box-shadow: 0 0 8px rgba(124, 138, 106, 0.2);
 }
 
-/* Network */
+/* ===========================
+   NETWORK
+   =========================== */
+
 #network {
     color: #7C8A6A;
     padding: 0 10px;
-    transition: all 0.2s ease;
 }
 
 #network:hover {
     color: #9aab8a;
-    text-shadow: 0 0 8px #7C8A6A;
+    text-shadow:
+        0 0 6px rgba(124, 138, 106, 0.8),
+        0 0 15px rgba(124, 138, 106, 0.4),
+        0 0 25px rgba(124, 138, 106, 0.2);
+    box-shadow: 0 0 8px rgba(124, 138, 106, 0.2);
 }
 
-/* Clipboard */
+/* ===========================
+   CLIPBOARD
+   =========================== */
+
 #custom-clipboard {
     color: #FF8B4A;
     padding: 0 10px;
-    transition: all 0.2s ease;
 }
 
 #custom-clipboard:hover {
     color: #F7C7A1;
-    text-shadow: 0 0 8px #F7C7A1;
+    text-shadow:
+        0 0 6px rgba(255, 139, 74, 0.9),
+        0 0 18px rgba(255, 139, 74, 0.6),
+        0 0 35px rgba(247, 199, 161, 0.35);
+    box-shadow: 0 0 10px rgba(255, 139, 74, 0.3), 0 0 25px rgba(247, 199, 161, 0.15);
 }
 
-/* Wallpaper */
+/* ===========================
+   WALLPAPER
+   =========================== */
+
 #custom-wallpaper {
     color: #E85D2F;
     padding: 0 10px;
-    transition: all 0.2s ease;
 }
 
 #custom-wallpaper:hover {
     color: #FF8B4A;
-    text-shadow: 0 0 8px #FF8B4A;
+    text-shadow:
+        0 0 6px rgba(255, 139, 74, 0.9),
+        0 0 18px rgba(255, 139, 74, 0.6),
+        0 0 35px rgba(232, 93, 47, 0.35);
+    box-shadow: 0 0 10px rgba(255, 139, 74, 0.3), 0 0 25px rgba(232, 93, 47, 0.15);
 }
 
-/* Battery */
+/* ===========================
+   BATTERY
+   =========================== */
+
 #battery {
     color: #F7C7A1;
     padding: 0 10px;
-    transition: all 0.2s ease;
 }
 
 #battery:hover {
     color: #FF8B4A;
-    text-shadow: 0 0 8px #FF8B4A;
+    text-shadow:
+        0 0 6px rgba(255, 139, 74, 0.9),
+        0 0 15px rgba(255, 139, 74, 0.5),
+        0 0 30px rgba(247, 199, 161, 0.3);
+    box-shadow: 0 0 8px rgba(255, 139, 74, 0.25), 0 0 20px rgba(247, 199, 161, 0.1);
 }
 
 #battery.warning {
@@ -175,107 +261,44 @@ window#waybar {
 
 #battery.critical {
     color: #E85D2F;
+    text-shadow:
+        0 0 6px rgba(232, 93, 47, 0.9),
+        0 0 15px rgba(232, 93, 47, 0.6),
+        0 0 30px rgba(232, 93, 47, 0.3);
+    box-shadow: 0 0 10px rgba(232, 93, 47, 0.3), 0 0 25px rgba(232, 93, 47, 0.15);
 }
 
-/* Power */
+/* ===========================
+   POWER
+   =========================== */
+
 #custom-power {
     color: #E85D2F;
     padding: 0 10px;
-    transition: all 0.2s ease;
 }
 
 #custom-power:hover {
     color: #FF8B4A;
-    text-shadow: 0 0 8px #FF8B4A;
+    text-shadow:
+        0 0 6px rgba(255, 139, 74, 1),
+        0 0 18px rgba(255, 139, 74, 0.7),
+        0 0 40px rgba(232, 93, 47, 0.4),
+        0 0 65px rgba(232, 93, 47, 0.2);
+    box-shadow: 0 0 12px rgba(255, 139, 74, 0.35), 0 0 30px rgba(232, 93, 47, 0.2);
 }
 
-/* Tooltips */
+/* ===========================
+   TOOLTIPS
+   =========================== */
+
 tooltip {
     background: #000000;
     border: 1px solid #3D2B24;
     border-radius: 0;
+    box-shadow: 0 0 15px rgba(232, 93, 47, 0.15);
 }
 
 tooltip label {
     color: #F7C7A1;
     padding: 8px 10px;
-}
-
-/* ===== HOVER EFFECTS ===== */
-
-/* Section glow on hover */
-.modules-left > widget > box:hover,
-.modules-center > widget > box:hover,
-.modules-right > widget > box:hover {
-    border-color: #E85D2F;
-    box-shadow: 0 0 12px rgba(232, 93, 47, 0.3);
-}
-
-/* Workspace hover glow */
-#niri-workspaces button:hover {
-    color: #FF8B4A;
-    text-shadow: 0 0 10px rgba(255, 139, 74, 0.6);
-}
-
-#niri-workspaces button.active {
-    text-shadow: 0 0 8px rgba(232, 93, 47, 0.5);
-}
-
-/* Logo intense glow */
-#custom-logo:hover {
-    color: #FF8B4A;
-    text-shadow: 0 0 15px rgba(255, 139, 74, 0.8), 0 0 30px rgba(232, 93, 47, 0.4);
-}
-
-/* Clock glow */
-#clock:hover {
-    color: #FF8B4A;
-    text-shadow: 0 0 12px rgba(255, 139, 74, 0.6), 0 0 24px rgba(232, 93, 47, 0.3);
-}
-
-/* Media glow */
-#custom-media:hover {
-    color: #FF8B4A;
-    text-shadow: 0 0 12px rgba(255, 139, 74, 0.7), 0 0 20px rgba(232, 93, 47, 0.3);
-}
-
-/* Volume glow */
-#pulseaudio:hover {
-    color: #FF8B4A;
-    text-shadow: 0 0 10px rgba(255, 139, 74, 0.6);
-}
-
-/* Network glow */
-#network:hover {
-    color: #FF8B4A;
-    text-shadow: 0 0 10px rgba(255, 139, 74, 0.6);
-}
-
-/* Clipboard intense glow */
-#custom-clipboard:hover {
-    color: #FF8B4A;
-    text-shadow: 0 0 15px rgba(255, 139, 74, 0.8), 0 0 30px rgba(232, 93, 47, 0.3);
-}
-
-/* Wallpaper intense glow */
-#custom-wallpaper:hover {
-    color: #FF8B4A;
-    text-shadow: 0 0 15px rgba(255, 139, 74, 0.8), 0 0 30px rgba(232, 93, 47, 0.3);
-}
-
-/* Battery glow */
-#battery:hover {
-    color: #FF8B4A;
-    text-shadow: 0 0 12px rgba(255, 139, 74, 0.6);
-}
-
-/* Power button intense glow */
-#custom-power:hover {
-    color: #FF8B4A;
-    text-shadow: 0 0 15px rgba(255, 139, 74, 0.9), 0 0 30px rgba(232, 93, 47, 0.5);
-}
-
-/* Tooltip glow */
-tooltip {
-    box-shadow: 0 0 20px rgba(232, 93, 47, 0.2);
 }
