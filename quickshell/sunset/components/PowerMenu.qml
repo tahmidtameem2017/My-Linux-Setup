@@ -296,6 +296,7 @@ Scope {
                         font.pixelSize: 10
                         color: root.cMuted
                         topPadding: 2
+                        bottomPadding: 4
                     }
                 }
             }

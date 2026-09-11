@@ -595,7 +595,7 @@ Scope {
                                 id: monthGrid
                                 width: parent.width
                                 height: 162
-                                month: root.viewMonth
+                                month: root.viewMonth - 1 // MonthGrid is 0-indexed; viewMonth is 1-indexed
                                 year: root.viewYear
                                 locale: Qt.locale("en_US")
                                 delegate: Item {

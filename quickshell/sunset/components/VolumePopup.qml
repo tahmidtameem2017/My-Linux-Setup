@@ -291,9 +291,11 @@ Scope {
                         bottomPadding: 6
                     }
                     Flickable {
+                        id: sinkFlick
                         width: parent.width
                         height: Math.min(sinkCol.implicitHeight, 148)
-                        contentWidth: width
+                        readonly property real gutter: 12
+                        contentWidth: width - gutter
                         contentHeight: sinkCol.implicitHeight
                         clip: true
                         ScrollBar.vertical: ScrollBar {
@@ -306,7 +308,7 @@ Scope {
                         }
                         Column {
                             id: sinkCol
-                            width: parent.width
+                            width: sinkFlick.width - sinkFlick.gutter
                             spacing: 6
                             Repeater {
                                 model: root.sinkList

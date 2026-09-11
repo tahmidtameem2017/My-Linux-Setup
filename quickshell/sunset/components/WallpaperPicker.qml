@@ -165,9 +165,11 @@ Scope {
     function select(i: int, quiet: bool): void {
         if (i < 0 || i >= folder.count)
             return;
-        selPath = folder.get(i, "filePath");
-        selUrl = folder.get(i, "fileURL");
-        selName = folder.get(i, "fileName");
+        // FolderListModel roles can be briefly undefined while the model
+        // resolves (startup sort); coalesce so preview never goes blank.
+        selPath = folder.get(i, "filePath") ?? "";
+        selUrl = folder.get(i, "fileURL") ?? "";
+        selName = folder.get(i, "fileName") ?? "";
     }
 
     function setWallpaper(path: string): void {
@@ -490,9 +492,11 @@ Scope {
 
                     // ---- grid ----
                     Flickable {
+                        id: gridFlick
                         width: parent.width
                         height: 210
-                        contentWidth: width
+                        readonly property real gutter: 12
+                        contentWidth: width - gutter
                         contentHeight: thumbGrid.implicitHeight
                         clip: true
                         ScrollBar.vertical: ScrollBar {
@@ -504,7 +508,7 @@ Scope {
                         }
                         Grid {
                             id: thumbGrid
-                            width: parent.width
+                            width: gridFlick.width - gridFlick.gutter
                             columns: 4
                             columnSpacing: 8
                             rowSpacing: 8

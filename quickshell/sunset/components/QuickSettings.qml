@@ -21,10 +21,8 @@
 //   power      -> PowerProfiles singleton (radio); `powerprofilesctl set`
 //                 runs alongside as the authoritative setter (old backend
 //                 parity); Performance hidden without hasPerformanceProfile.
-//   dnd        -> NotificationService.dnd is the switch state; every toggle
-//                 also flips `dunstctl set-paused` (old backend parity, so
-//                 system popups pause too), and polls re-sync the service
-//                 from dunst (dunst authoritative: preserves Mod+N binds).
+//   dnd        -> NotificationService.dnd is authoritative (dunst was never
+//                 installed here; swaync retired at cutover).
 //   idle       -> FileView on ~/.local/state/idle-time (modes exactly
 //                 5/10/20/30 minutes + infinity, default display
 //                 "10 minutes"); select writes the file, then pkill swayidle
@@ -377,29 +375,10 @@ Scope {
         running: false
     }
 
-    // ================= dnd (NotificationService + dunst mirror) =================
-    Process {
-        id: dndGetProc
-        command: ["dunstctl", "is-paused"]
-        running: false
-        stdout: StdioCollector {
-            id: dndGetOut
-            onStreamFinished: {
-                // dunst is authoritative (preserves Mod+N binds): the
-                // quickshell service follows it.
-                NotificationService.dnd = text.trim() === "true";
-            }
-        }
-    }
-    Process {
-        id: dndToggleProc
-        command: ["dunstctl", "set-paused", "toggle"]
-        running: false
-        onExited: dndGetProcRefresh()
-    }
+    // ================= dnd (native only) =================
+    // dunst was never installed on this machine (binary absent), and swaync
+    // is being retired at cutover — NotificationService.dnd is authoritative.
     function dndGetProcRefresh(): void {
-        if (!dndGetProc.running)
-            dndGetProc.running = true;
     }
 
     // ================= idle timeout =================
@@ -516,11 +495,16 @@ Scope {
                 }
 
                 Flickable {
+                    id: flick
                     anchors.fill: parent
                     anchors.margins: 16
                     anchors.topMargin: 14
                     anchors.bottomMargin: 10
-                    contentWidth: width
+                    // Reserve scrollbar gutter so content never slides under it.
+                    // NOTE: children of Flickable attach to its contentItem,
+                    // so Column must use flick.<prop>, never parent.<prop>.
+                    readonly property real gutter: 12
+                    contentWidth: width - gutter
                     contentHeight: col.implicitHeight
                     clip: true
                     ScrollBar.vertical: ScrollBar {
@@ -533,7 +517,7 @@ Scope {
 
                     Column {
                         id: col
-                        width: parent.width
+                        width: flick.width - flick.gutter
                         spacing: 0
 
                         Text {
@@ -950,8 +934,6 @@ Scope {
                             on: NotificationService.dnd
                             onClicked: {
                                 NotificationService.toggleDnd();
-                                if (!dndToggleProc.running)
-                                    dndToggleProc.running = true;
                             }
                         }
 
