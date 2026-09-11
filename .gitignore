@@ -1,3 +1,11 @@
 .githooks/
 wallpapers/
 niri/wallpapers.kdl
+.state/
+__pycache__/
+*.pyc
+tex_paste.bin
+tex_paste.err
+.commandcode/
+.mimocode/
+waybar.bak/

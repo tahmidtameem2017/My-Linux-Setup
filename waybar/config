@@ -6,29 +6,31 @@
   "margin-right": 0,
   "spacing": 0,
   "modules-left": [
-    "custom/logo",
+    "image#logo",
     "niri/workspaces",
     "custom/window"
   ],
   "modules-center": [
-    "custom/clock"
+    "clock"
   ],
   "modules-right": [
-    "custom/media",
-    "pulseaudio",
-    "network",
-    "custom/clipboard",
-    "custom/wallpaper",
-    "battery",
-    "custom/power"
+    "image#media",
+    "group/volume",
+    "image#network",
+    "image#clipboard",
+    "image#wallpaper",
+    "image#settings",
+    "group/battery",
+    "image#power"
   ],
   "reload_style_on_change": true,
 
-  "custom/logo": {
-    "format": "󰣇",
-    "tooltip": true,
-    "tooltip-format": "Arch Linux\nClick to open launcher",
-    "on-click": "fuzzel"
+  "image#logo": {
+    "path": "/home/me/niri-setup/waybar/icons/logo.svg",
+    "size": 15,
+    "interval": 60,
+    "tooltip": false,
+    "on-click": "fuzzel --config /home/me/niri-setup/fuzzel/fuzzel.ini"
   },
 
   "niri/workspaces": {
@@ -46,80 +48,135 @@
     "return-type": "json"
   },
 
-  "custom/clock": {
-    "format": "{}",
-    "interval": 1,
-    "exec": "/home/me/niri-setup/waybar/scripts/clock.sh",
-    "return-type": "json",
-    "on-click": "yad --calendar --title='Calendar' --fixed"
+  "clock": {
+    "format": "{:%H:%M}",
+    "tooltip-format": "<b>{:%A, %d %B %Y}</b>\n{:%H:%M:%S}\n\n{calendar}\n<span color='#7C8A6A' size='small'>Click: floating calendar · Scroll: change month</span>",
+    "calendar": {
+      "mode": "month",
+      "on-scroll": 1,
+      "format": {
+        "months": "<span color='#FF8B4A'><b>{}</b></span>",
+        "days": "<span color='#F7C7A1'><b>{}</b></span>",
+        "weekdays": "<span color='#E85D2F'><b>{}</b></span>",
+        "today": "<span color='#000000' background='#E85D2F'><b> {} </b></span>"
+      }
+    },
+    "on-click": "/home/me/niri-setup/waybar/scripts/calendar.sh",
+    "actions": {
+      "on-click-middle": "mode",
+      "on-click-right": "mode",
+      "on-scroll-up": "shift_up",
+      "on-scroll-down": "shift_down"
+    }
   },
 
-  "custom/media": {
-    "format": "{}",
-    "return-type": "json",
-    "max-length": 35,
-    "exec": "python3 /home/me/niri-setup/waybar/modules/media-player.py 2> /dev/null",
-    "on-click": "playerctl play-pause",
+  "image#media": {
+    "exec": "/home/me/niri-setup/waybar/scripts/media-icon.sh",
+    "size": 14,
+    "interval": 2,
+    "on-click": "/home/me/niri-setup/waybar/scripts/media-menu.sh",
     "on-scroll-up": "playerctl next",
     "on-scroll-down": "playerctl previous"
   },
 
-  "pulseaudio": {
-    "format": "{icon} {volume}%",
-    "format-muted": "󰝟 {volume}%",
-    "format-icons": {
-      "headphones": "󰋋",
-      "headset": "󰋎",
-      "default": ["󰕿", "󰖀", "󰕾"]
-    },
-    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
-    "on-click-right": "pavucontrol",
-    "on-scroll-down": "/home/me/niri-setup/scripts/set-volume.sh down",
-    "on-scroll-up": "/home/me/niri-setup/scripts/set-volume.sh up",
-    "tooltip-format": "Volume: {volume}%\nDevice: {desc}"
+  "group/volume": {
+    "orientation": "horizontal",
+    "modules": [
+      "image#volume",
+      "pulseaudio"
+    ]
   },
 
-  "network": {
-    "format-wifi": "󰤨",
-    "format-ethernet": "󰈀",
-    "format-disconnected": "󰤭",
-    "tooltip-format": "{essid} ({signalStrength}%)",
+  "image#volume": {
+    "exec": "/home/me/niri-setup/waybar/scripts/volume-icon.sh",
+    "size": 14,
+    "interval": 2,
+    "on-click": "/home/me/niri-setup/waybar/scripts/volume.sh",
+    "on-click-middle": "pavucontrol",
+    "on-scroll-down": "/home/me/niri-setup/scripts/set-volume.sh down",
+    "on-scroll-up": "/home/me/niri-setup/scripts/set-volume.sh up"
+  },
+
+  "pulseaudio": {
+    "format": "{volume}%",
+    "format-muted": "muted",
+    "on-click": "/home/me/niri-setup/waybar/scripts/volume.sh",
+    "on-click-middle": "pavucontrol",
+    "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "on-scroll-down": "/home/me/niri-setup/scripts/set-volume.sh down",
+    "on-scroll-up": "/home/me/niri-setup/scripts/set-volume.sh up",
+    "tooltip-format": "Volume: {volume}%\nDevice: {desc}\nLeft: Mixer | Right: Mute | Middle: pavucontrol"
+  },
+
+  "image#network": {
+    "exec": "/home/me/niri-setup/waybar/scripts/network-icon.sh",
+    "size": 14,
+    "interval": 10,
     "on-click": "alacritty --title nmtui --config-file /home/me/niri-setup/alacritty/float.toml -e nmtui connect"
   },
 
-  "custom/clipboard": {
-    "format": "󰅲",
+  "image#clipboard": {
+    "path": "/home/me/niri-setup/waybar/icons/clipboard.svg",
+    "size": 14,
+    "interval": 60,
+    "tooltip": false,
     "on-click": "/home/me/niri-setup/waybar/scripts/clipboard.sh",
-    "tooltip": true,
-    "tooltip-format": "Clipboard\nClick to view history"
+    "on-click-middle": "/home/me/niri-setup/scripts/clear-clipboard.sh"
   },
 
-  "custom/wallpaper": {
-    "format": "󰸉",
-    "tooltip": true,
-    "tooltip-format": "Wallpaper\nLeft: Next | Right: Random",
-    "on-click": "/home/me/niri-setup/scripts/change-wallpaper-simple.sh next",
-    "on-click-right": "/home/me/niri-setup/scripts/change-wallpaper-simple.sh random"
+  "image#wallpaper": {
+    "path": "/home/me/niri-setup/waybar/icons/wallpaper.svg",
+    "size": 14,
+    "interval": 60,
+    "tooltip": false,
+    "on-click": "/home/me/niri-setup/waybar/scripts/wallpaper-gallery.sh",
+    "on-click-middle": "/home/me/niri-setup/scripts/change-wallpaper-simple.sh random",
+    "on-scroll-up": "/home/me/niri-setup/scripts/change-wallpaper-simple.sh next",
+    "on-scroll-down": "/home/me/niri-setup/scripts/change-wallpaper-simple.sh prev"
+  },
+
+  "image#settings": {
+    "path": "/home/me/niri-setup/waybar/icons/settings.svg",
+    "size": 14,
+    "interval": 60,
+    "tooltip": false,
+    "on-click": "/home/me/niri-setup/waybar/scripts/settings.sh"
+  },
+
+  "group/battery": {
+    "orientation": "horizontal",
+    "modules": [
+      "image#battery",
+      "battery"
+    ]
+  },
+
+  "image#battery": {
+    "exec": "/home/me/niri-setup/waybar/scripts/battery-icon.sh",
+    "size": 14,
+    "interval": 30,
+    "on-click": "alacritty --config-file /home/me/niri-setup/alacritty/float.toml -e btop"
   },
 
   "battery": {
-    "interval": 1,
+    "interval": 30,
     "states": {
       "good": 95,
       "warning": 30,
       "critical": 20
     },
-    "format": "{icon} {capacity}%",
-    "format-charging": "󱐋 {capacity}%",
-    "format-icons": ["󰁹", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
+    "format": "{capacity}%",
+    "format-charging": "+{capacity}%",
     "tooltip-format": "Power: {power}W\nTime: {time}",
     "on-click": "alacritty --config-file /home/me/niri-setup/alacritty/float.toml -e btop"
   },
 
-  "custom/power": {
-    "format": "󰤄",
-    "tooltip": true,
-    "tooltip-format": "Power Menu",
-    "on-click": "/home/me/niri-setup/scripts/wlogout.sh"
+  "image#power": {
+    "path": "/home/me/niri-setup/waybar/icons/power.svg",
+    "size": 14,
+    "interval": 60,
+    "tooltip": false,
+    "on-click": "/home/me/niri-setup/waybar/scripts/power-menu.sh",
+    "on-click-middle": "/home/me/niri-setup/scripts/wlogout.sh"
   }
 }

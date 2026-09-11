@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Power</title>
+<style>
+  /* SUNSET ORANGE AMOLED — matches waybar style.css */
+  :root {
+    --bg: #000000;
+    --panel: #0a0a0a;
+    --panel-hover: #0f0d0c;
+    --row: #141010;
+    --border: #1a1210;
+    --border-strong: #3D2B24;
+    --accent: #E85D2F;
+    --accent-hover: #FF8B4A;
+    --text: #F7C7A1;
+    --muted: #7C8A6A;
+    --danger: #c30505;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    -webkit-app-region: drag;
+  }
+  button { -webkit-app-region: no-drag; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 0 15px rgba(232, 93, 47, 0.15);
+    width: 324px;
+    max-width: 94vw;
+    padding: 16px 16px 12px;
+  }
+  h1 {
+    font-size: 12px; font-weight: 700; letter-spacing: 2px;
+    color: var(--accent); text-align: center; margin-bottom: 12px;
+  }
+  .opt {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%;
+    background: var(--row);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px; font-weight: 600;
+    padding: 11px 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .opt .icon { font-size: 18px; color: var(--accent); width: 26px; text-align: center; }
+  .opt:hover { border-color: rgba(232, 93, 47, 0.5); color: var(--accent-hover); background: var(--panel-hover); }
+  .opt.armed {
+    border-color: var(--danger);
+    background: #2a0d0d;
+    color: #ff8080;
+  }
+  .opt.armed .icon { color: #ff8080; }
+  .row { display: flex; gap: 8px; margin-top: 4px; }
+  .btn {
+    flex: 1;
+    background: var(--row);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px; font-weight: 600;
+    padding: 8px 0;
+    cursor: pointer;
+  }
+  .btn:hover { border-color: rgba(232, 93, 47, 0.4); color: var(--accent-hover); }
+  .hint { text-align: center; font-size: 10px; color: var(--muted); margin-top: 10px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>POWER</h1>
+    <button class="opt" data-op="lock"><span class="icon">󰌾</span><span class="lbl">Lock</span></button>
+    <button class="opt" data-op="suspend"><span class="icon">󰒲</span><span class="lbl">Suspend</span></button>
+    <button class="opt" data-op="logout"><span class="icon">󰗽</span><span class="lbl">Logout</span></button>
+    <button class="opt" data-op="reboot"><span class="icon">󰜉</span><span class="lbl">Reboot</span></button>
+    <button class="opt" data-op="shutdown"><span class="icon">󰐥</span><span class="lbl">Shutdown</span></button>
+    <div class="row">
+      <button class="btn" id="closeBtn">Close</button>
+    </div>
+    <div class="hint">lock runs at once · the rest need a second click · Esc closes</div>
+  </div>
+<script>
+(function () {
+  "use strict";
+  var armed = null;
+  var timer = null;
+
+  function disarm() {
+    if (armed) {
+      armed.classList.remove("armed");
+      armed.querySelector(".lbl").textContent = armed.getAttribute("data-label");
+      armed = null;
+    }
+    if (timer) { clearTimeout(timer); timer = null; }
+  }
+
+  document.querySelectorAll(".opt").forEach(function (b) {
+    b.setAttribute("data-label", b.querySelector(".lbl").textContent);
+    b.onclick = function () {
+      var op = b.getAttribute("data-op");
+      if (op === "lock") {
+        fetch("/api/action", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ op: op })
+        }).finally(function () { window.close(); });
+        return;
+      }
+      if (armed !== b) {
+        disarm();
+        armed = b;
+        b.classList.add("armed");
+        b.querySelector(".lbl").textContent = "Click again to confirm";
+        timer = setTimeout(disarm, 5000);
+        return;
+      }
+      disarm();
+      fetch("/api/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: op })
+      }).finally(function () { window.close(); });
+    };
+  });
+
+  document.getElementById("closeBtn").onclick = function () { window.close(); };
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") window.close(); });
+})();
+</script>
+</body>
+</html>

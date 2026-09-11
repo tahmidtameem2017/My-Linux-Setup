@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# opencode wrapper with auto-notification on completion
+
+OPENCODE_BIN="${OPENCODE_BIN:-/home/me/.opencode/bin/opencode}"
+NOTIFY_THRESHOLD="${OPENCODE_NOTIFY_THRESHOLD:-30}"  # seconds
+
+# Check if notify-send is available
+has_notify() {
+    command -v notify-send >/dev/null 2>&1
+}
+
+# Send notification
+notify_opencode() {
+    local status="$1"
+    local duration="$2"
+    local session="$3"
+    
+    if ! has_notify; then
+        return
+    fi
+    
+    local icon="utilities-terminal"
+    local urgency="normal"
+    local title="✅ opencode completed"
+    
+    if [[ "$status" -ne 0 ]]; then
+        icon="dialog-error"
+        urgency="critical"
+        title="❌ opencode failed (exit $status)"
+    fi
+    
+    local msg="Session: ${session:-unknown}\nDuration: ${duration}s"
+    
+    notify-send -a "opencode" "$title" "$msg" \
+        -i "$icon" \
+        -h "string:x-canonical-private-synchronous:opencode-notify" \
+        -u "$urgency" 2>/dev/null &
+}
+
+# Main
+main() {
+    local start_time=$(date +%s)
+    local session_id=""
+    
+    # Extract session ID from args if present
+    local args=("$@")
+    for i in "${!args[@]}"; do
+        if [[ "${args[i]}" == "--session" || "${args[i]}" == "-s" ]]; then
+            session_id="${args[i+1]}"
+            break
+        fi
+    done
+    
+    # Run opencode
+    "$OPENCODE_BIN" "$@"
+    local exit_code=$?
+    
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    
+    # Only notify if duration exceeds threshold
+    if (( duration >= NOTIFY_THRESHOLD )); then
+        notify_opencode "$exit_code" "$duration" "$session_id"
+    fi
+    
+    exit $exit_code
+}
+
+main "$@"

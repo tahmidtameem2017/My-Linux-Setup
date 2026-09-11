@@ -1,4 +1,4 @@
-/* CUSTOM WAYBAR - SUNSET ORANGE AMOLED + CURSOR GLOW */
+/* WAYBAR - SUNSET ORANGE AMOLED, MINIMAL FLAT */
 * {
     border: none;
     font-size: 13px;
@@ -25,64 +25,81 @@ window#waybar {
     padding: 4px 12px;
     border-radius: 0;
     border: 1px solid #1a1210;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
-/* Section glow when any child is hovered */
-.modules-left > widget > box:hover {
-    border-color: rgba(232, 93, 47, 0.4);
-    box-shadow: 0 0 10px rgba(232, 93, 47, 0.15), 0 0 25px rgba(232, 93, 47, 0.08);
-    background: #0f0d0c;
-}
-
-.modules-center > widget > box:hover {
-    border-color: rgba(255, 139, 74, 0.4);
-    box-shadow: 0 0 10px rgba(255, 139, 74, 0.15), 0 0 25px rgba(255, 139, 74, 0.08);
-    background: #0f0d0c;
-}
-
+.modules-left > widget > box:hover,
+.modules-center > widget > box:hover,
 .modules-right > widget > box:hover {
-    border-color: rgba(232, 93, 47, 0.4);
-    box-shadow: 0 0 10px rgba(232, 93, 47, 0.15), 0 0 25px rgba(232, 93, 47, 0.08);
+    border-color: #3D2B24;
     background: #0f0d0c;
 }
 
-/* ===========================
-   MODULE BASE STYLES
-   =========================== */
-
-#custom-logo,
+/* Flat interaction, no glow */
+#image-logo,
+#image-media,
+#image-volume,
+#image-network,
+#image-clipboard,
+#image-wallpaper,
+#image-settings,
+#image-battery,
+#image-power,
 #niri-workspaces button,
 #custom-window,
-#custom-clock,
-#custom-media,
+#clock,
 #pulseaudio,
-#network,
-#custom-clipboard,
-#custom-wallpaper,
-#battery,
-#custom-power {
-    transition: color 0.15s ease, text-shadow 0.4s ease, background 0.2s ease, box-shadow 0.4s ease;
+#battery {
+    transition: color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
 }
 
 /* ===========================
-   LOGO
+   SVG IMAGE MODULES
    =========================== */
 
-#custom-logo {
-    font-size: 18px;
-    color: #E85D2F;
-    padding: 0 6px;
+#image-logo {
+    padding: 0 6px 0 0;
 }
 
-#custom-logo:hover {
-    color: #FF8B4A;
-    text-shadow:
-        0 0 6px rgba(255, 139, 74, 0.9),
-        0 0 15px rgba(255, 139, 74, 0.6),
-        0 0 30px rgba(232, 93, 47, 0.4),
-        0 0 50px rgba(232, 93, 47, 0.2);
-    box-shadow: 0 0 8px rgba(255, 139, 74, 0.3), 0 0 20px rgba(232, 93, 47, 0.15);
+#image-logo:hover {
+    opacity: 0.75;
+}
+
+#image-media,
+#image-volume,
+#image-network,
+#image-clipboard,
+#image-wallpaper,
+#image-settings,
+#image-battery,
+#image-power {
+    padding: 0 7px;
+}
+
+#image-media:hover,
+#image-volume:hover,
+#image-network:hover,
+#image-clipboard:hover,
+#image-wallpaper:hover,
+#image-settings:hover,
+#image-battery:hover,
+#image-power:hover {
+    opacity: 0.65;
+}
+
+/* Hide dynamic icons when they have nothing to show
+   (no battery on desktop, no media player) */
+#image-media.empty,
+#image-battery.empty {
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+/* Icon + text pairs render as one section */
+#group-volume,
+#group-battery {
+    padding: 0;
 }
 
 /* ===========================
@@ -100,20 +117,15 @@ window#waybar {
 #niri-workspaces button.active {
     color: #000000;
     background: #E85D2F;
-    text-shadow: 0 0 6px rgba(232, 93, 47, 0.5);
 }
 
 #niri-workspaces button:hover {
     color: #FF8B4A;
     background: #3D2B24;
-    text-shadow:
-        0 0 6px rgba(255, 139, 74, 0.8),
-        0 0 15px rgba(255, 139, 74, 0.4);
-    box-shadow: 0 0 6px rgba(255, 139, 74, 0.2);
 }
 
 /* ===========================
-   WINDOW TITLE
+   WINDOW TITLE (text only)
    =========================== */
 
 #custom-window {
@@ -124,135 +136,46 @@ window#waybar {
 
 #custom-window:hover {
     color: #F7C7A1;
-    text-shadow: 0 0 8px rgba(124, 138, 106, 0.5);
 }
 
 /* ===========================
    CLOCK
    =========================== */
 
-#custom-clock {
+#clock {
     font-weight: 600;
     color: #F7C7A1;
     font-size: 14px;
 }
 
-#custom-clock:hover {
+#clock:hover {
     color: #FF8B4A;
-    text-shadow:
-        0 0 6px rgba(255, 139, 74, 0.9),
-        0 0 18px rgba(255, 139, 74, 0.6),
-        0 0 35px rgba(232, 93, 47, 0.35),
-        0 0 60px rgba(232, 93, 47, 0.15);
-    box-shadow: 0 0 10px rgba(255, 139, 74, 0.25), 0 0 25px rgba(232, 93, 47, 0.1);
 }
 
 /* ===========================
-   MEDIA
-   =========================== */
-
-#custom-media {
-    color: #E85D2F;
-    padding: 0 12px;
-}
-
-#custom-media:hover {
-    color: #FF8B4A;
-    text-shadow:
-        0 0 6px rgba(255, 139, 74, 0.9),
-        0 0 15px rgba(255, 139, 74, 0.5),
-        0 0 30px rgba(232, 93, 47, 0.3);
-    box-shadow: 0 0 8px rgba(255, 139, 74, 0.3), 0 0 20px rgba(232, 93, 47, 0.15);
-}
-
-/* ===========================
-   VOLUME
+   VOLUME / NETWORK / BATTERY TEXT
    =========================== */
 
 #pulseaudio {
     color: #7C8A6A;
-    padding: 0 10px;
+    padding: 0 0 0 2px;
 }
 
 #pulseaudio:hover {
     color: #9aab8a;
-    text-shadow:
-        0 0 6px rgba(124, 138, 106, 0.8),
-        0 0 15px rgba(124, 138, 106, 0.4),
-        0 0 25px rgba(124, 138, 106, 0.2);
-    box-shadow: 0 0 8px rgba(124, 138, 106, 0.2);
 }
 
-/* ===========================
-   NETWORK
-   =========================== */
-
-#network {
-    color: #7C8A6A;
-    padding: 0 10px;
+#pulseaudio.muted {
+    color: #555555;
 }
-
-#network:hover {
-    color: #9aab8a;
-    text-shadow:
-        0 0 6px rgba(124, 138, 106, 0.8),
-        0 0 15px rgba(124, 138, 106, 0.4),
-        0 0 25px rgba(124, 138, 106, 0.2);
-    box-shadow: 0 0 8px rgba(124, 138, 106, 0.2);
-}
-
-/* ===========================
-   CLIPBOARD
-   =========================== */
-
-#custom-clipboard {
-    color: #FF8B4A;
-    padding: 0 10px;
-}
-
-#custom-clipboard:hover {
-    color: #F7C7A1;
-    text-shadow:
-        0 0 6px rgba(255, 139, 74, 0.9),
-        0 0 18px rgba(255, 139, 74, 0.6),
-        0 0 35px rgba(247, 199, 161, 0.35);
-    box-shadow: 0 0 10px rgba(255, 139, 74, 0.3), 0 0 25px rgba(247, 199, 161, 0.15);
-}
-
-/* ===========================
-   WALLPAPER
-   =========================== */
-
-#custom-wallpaper {
-    color: #E85D2F;
-    padding: 0 10px;
-}
-
-#custom-wallpaper:hover {
-    color: #FF8B4A;
-    text-shadow:
-        0 0 6px rgba(255, 139, 74, 0.9),
-        0 0 18px rgba(255, 139, 74, 0.6),
-        0 0 35px rgba(232, 93, 47, 0.35);
-    box-shadow: 0 0 10px rgba(255, 139, 74, 0.3), 0 0 25px rgba(232, 93, 47, 0.15);
-}
-
-/* ===========================
-   BATTERY
-   =========================== */
 
 #battery {
     color: #F7C7A1;
-    padding: 0 10px;
+    padding: 0 0 0 2px;
 }
 
 #battery:hover {
     color: #FF8B4A;
-    text-shadow:
-        0 0 6px rgba(255, 139, 74, 0.9),
-        0 0 15px rgba(255, 139, 74, 0.5),
-        0 0 30px rgba(247, 199, 161, 0.3);
-    box-shadow: 0 0 8px rgba(255, 139, 74, 0.25), 0 0 20px rgba(247, 199, 161, 0.1);
 }
 
 #battery.warning {
@@ -261,30 +184,6 @@ window#waybar {
 
 #battery.critical {
     color: #E85D2F;
-    text-shadow:
-        0 0 6px rgba(232, 93, 47, 0.9),
-        0 0 15px rgba(232, 93, 47, 0.6),
-        0 0 30px rgba(232, 93, 47, 0.3);
-    box-shadow: 0 0 10px rgba(232, 93, 47, 0.3), 0 0 25px rgba(232, 93, 47, 0.15);
-}
-
-/* ===========================
-   POWER
-   =========================== */
-
-#custom-power {
-    color: #E85D2F;
-    padding: 0 10px;
-}
-
-#custom-power:hover {
-    color: #FF8B4A;
-    text-shadow:
-        0 0 6px rgba(255, 139, 74, 1),
-        0 0 18px rgba(255, 139, 74, 0.7),
-        0 0 40px rgba(232, 93, 47, 0.4),
-        0 0 65px rgba(232, 93, 47, 0.2);
-    box-shadow: 0 0 12px rgba(255, 139, 74, 0.35), 0 0 30px rgba(232, 93, 47, 0.2);
 }
 
 /* ===========================
@@ -295,7 +194,6 @@ tooltip {
     background: #000000;
     border: 1px solid #3D2B24;
     border-radius: 0;
-    box-shadow: 0 0 15px rgba(232, 93, 47, 0.15);
 }
 
 tooltip label {

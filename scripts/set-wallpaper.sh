@@ -9,6 +9,9 @@ get_wallpapers() {
   find "$wallpaper_dir" -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.webp" -o -iname "*.avif" \) | sort
 }
 
+# Largest 6-digit prime: 999983
+readonly HASH_PRIME=999983
+
 # Get current wallpaper from running swaybg
 get_current() {
   pgrep -a swaybg | grep -oP '(?<=-i )[^ ]+' | head -1
@@ -37,19 +40,24 @@ set_wallpaper() {
 
 case "${1:-random}" in
   random)
-    image=$(get_wallpapers | shuf -n 1)
-    if [ -z "$image" ]; then
+    mapfile -t wallpapers < <(get_wallpapers)
+    count=${#wallpapers[@]}
+    if [ "$count" -eq 0 ]; then
       echo "[ERROR] No wallpapers found"
       exit 1
     fi
+    hash=$(( $(date +%s%N) * HASH_PRIME ))
+    idx=$(( hash % count ))
+    image="${wallpapers[$idx]}"
     set_wallpaper "$image"
     ;;
   next)
     current=$(get_current)
-    wallpapers=($(get_wallpapers))
+    mapfile -t wallpapers < <(get_wallpapers)
+    count=${#wallpapers[@]}
     for i in "${!wallpapers[@]}"; do
       if [ "${wallpapers[$i]}" == "$current" ]; then
-        next_idx=$(( (i + 1) % ${#wallpapers[@]} ))
+        next_idx=$(( (i + 1) % count ))
         set_wallpaper "${wallpapers[$next_idx]}"
         exit 0
       fi

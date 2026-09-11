@@ -20,6 +20,6 @@
 }
 {
     "label" : "lock",
-    "action" : "hyprlock",
+    "action" : "/home/me/niri-setup/scripts/swaylock.sh",
     "text" : "lock"
 }

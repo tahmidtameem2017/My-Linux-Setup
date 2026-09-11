@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings</title>
+<style>
+  /* SUNSET ORANGE AMOLED — matches waybar style.css */
+  :root {
+    --bg: #000000;
+    --panel: #0a0a0a;
+    --panel-hover: #0f0d0c;
+    --row: #141010;
+    --border: #1a1210;
+    --border-strong: #3D2B24;
+    --accent: #E85D2F;
+    --accent-hover: #FF8B4A;
+    --text: #F7C7A1;
+    --muted: #7C8A6A;
+    --dim: #555555;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    min-height: 100vh;
+    -webkit-app-region: drag;
+  }
+  button, input { -webkit-app-region: no-drag; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 0 15px rgba(232, 93, 47, 0.15);
+    width: 364px;
+    max-width: 96vw;
+    margin: 14px;
+    padding: 14px 16px 10px;
+  }
+  h1 { font-size: 12px; font-weight: 700; letter-spacing: 2px; color: var(--accent); text-align: center; margin-bottom: 10px; }
+  .section { font-size: 11px; font-weight: 700; color: var(--accent); margin: 12px 0 6px; letter-spacing: 1px; }
+  .section:first-of-type { margin-top: 0; }
+  #wifiList, #btList { max-height: 124px; overflow-y: auto; margin-bottom: 2px; }
+  .switch-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--row); border: 1px solid var(--border);
+    padding: 8px 10px; font-size: 13px; font-weight: 600; margin-bottom: 6px;
+  }
+  .switch-row .sub { font-size: 10px; color: var(--muted); font-weight: 400; display: block; }
+  .switch-row .grow { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .toggle {
+    width: 44px; height: 24px; border-radius: 12px;
+    background: var(--border); border: 1px solid var(--border-strong);
+    position: relative; cursor: pointer; flex-shrink: 0; padding: 0;
+  }
+  .toggle::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--dim); transition: left 0.15s, background 0.15s;
+  }
+  .toggle.on { background: rgba(232, 93, 47, 0.25); border-color: var(--accent); }
+  .toggle.on::after { left: 22px; background: var(--accent); box-shadow: 0 0 8px rgba(232, 93, 47, 0.8); }
+  .item {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    background: transparent; border: 1px solid transparent;
+    color: var(--text); font-family: inherit; font-size: 12px;
+    padding: 7px 10px; cursor: pointer; text-align: left;
+  }
+  .item:hover { border-color: rgba(232, 93, 47, 0.4); color: var(--accent-hover); }
+  .item.active { border-color: var(--accent); }
+  .item .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); flex-shrink: 0; }
+  .item.active .dot { background: var(--accent); box-shadow: 0 0 6px rgba(232, 93, 47, 0.9); }
+  .item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .meta { color: var(--muted); font-size: 11px; }
+  .pwrow { display: flex; gap: 6px; padding: 4px 10px 8px; }
+  .pwrow input {
+    flex: 1; background: #000; border: 1px solid var(--border-strong);
+    color: var(--text); font-family: inherit; font-size: 12px; padding: 7px 8px; outline: none;
+    min-width: 0;
+  }
+  .pwrow input:focus { border-color: var(--accent); }
+  .seg { display: flex; gap: 6px; }
+  .seg button {
+    flex: 1; background: var(--row); border: 1px solid var(--border);
+    color: var(--text); font-family: inherit; font-size: 11px; font-weight: 600;
+    padding: 8px 0; cursor: pointer; text-transform: capitalize;
+    min-width: 0;
+  }
+  .seg button:hover { border-color: rgba(232, 93, 47, 0.4); color: var(--accent-hover); }
+  .seg button.active { background: var(--accent); border-color: var(--accent); color: #000; }
+  .seg button svg {
+    width: 18px; height: 18px; display: block; margin: 0 auto;
+    fill: none; stroke: currentColor; stroke-width: 1.8;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .seg.wrap { flex-wrap: wrap; }
+  .vol-row { display: flex; gap: 8px; margin-top: 6px; }
+  .vol-row .btn { padding: 6px 0; }
+  .vol-row .btn.muted-on { border-color: var(--accent); color: var(--accent); }
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 8px; border-radius: 4px;
+    background: var(--border); outline: none; margin: 8px 0 2px; cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent); border: 2px solid #000;
+    box-shadow: 0 0 8px rgba(232, 93, 47, 0.7); cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--accent); border: 2px solid #000; cursor: pointer;
+  }
+  .row { display: flex; gap: 8px; margin-top: 12px; }
+  .btn {
+    flex: 1; background: var(--row); border: 1px solid var(--border-strong);
+    color: var(--text); font-family: inherit; font-size: 12px; font-weight: 600;
+    padding: 8px 0; cursor: pointer;
+  }
+  .btn:hover { border-color: rgba(232, 93, 47, 0.4); color: var(--accent-hover); }
+  .msg { font-size: 11px; color: var(--muted); margin-top: 8px; min-height: 15px; }
+  .hint { font-size: 10px; color: var(--muted); margin-top: 2px; text-align: center; }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--panel); }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>QUICK SETTINGS</h1>
+
+    <div class="section">VOLUME · <span id="volVal">—</span>%</div>
+    <input type="range" id="volSlider" min="0" max="100" value="0" step="1" aria-label="Volume">
+    <div class="vol-row">
+      <button class="btn" id="muteBtn">󰝟 Mute</button>
+      <button class="btn preset" data-v="25">25</button>
+      <button class="btn preset" data-v="50">50</button>
+      <button class="btn preset" data-v="75">75</button>
+    </div>
+
+    <div class="section">BRIGHTNESS · <span id="briVal">—</span>%</div>
+    <input type="range" id="briSlider" min="5" max="100" value="50" aria-label="Brightness">
+
+    <div class="section">WI-FI</div>
+    <div class="switch-row">
+      <div class="grow">󰖩 Wi-Fi<span class="sub" id="wifiSub">—</span></div>
+      <button class="toggle" id="wifiToggle" aria-label="Wi-Fi"></button>
+    </div>
+    <div id="wifiList"></div>
+    <div class="pwrow" id="pwRow" style="display:none">
+      <input type="password" id="pwInput" placeholder="Password…" autocomplete="off">
+      <button class="btn" id="pwJoin" style="flex:0 0 auto;padding:7px 14px">Join</button>
+    </div>
+
+    <div class="section">BLUETOOTH</div>
+    <div class="switch-row">
+      <div class="grow">󰂯 Bluetooth<span class="sub" id="btSub">—</span></div>
+      <button class="toggle" id="btToggle" aria-label="Bluetooth"></button>
+    </div>
+    <div id="btList"></div>
+
+    <div class="section">POWER PROFILE</div>
+    <div class="seg" id="powerSeg"></div>
+
+    <div class="section">DO NOT DISTURB</div>
+    <div class="switch-row">
+      <div class="grow">󰂛 Do Not Disturb<span class="sub" id="dndSub">—</span></div>
+      <button class="toggle" id="dndToggle" aria-label="Do not disturb"></button>
+    </div>
+
+    <div class="section">IDLE TIMEOUT</div>
+    <div class="seg wrap" id="idleSeg"></div>
+
+    <div class="msg" id="msg"></div>
+    <div class="row"><button class="btn" id="closeBtn">Close</button></div>
+    <div class="hint">tap a network or device to connect · ↑/↓ volume · M mute · Esc closes</div>
+  </div>
+<script>
+(function () {
+  "use strict";
+  var wifiList = document.getElementById("wifiList");
+  var btList = document.getElementById("btList");
+  var powerSeg = document.getElementById("powerSeg");
+  var idleSeg = document.getElementById("idleSeg");
+  var msg = document.getElementById("msg");
+  var pwRow = document.getElementById("pwRow");
+  var pwInput = document.getElementById("pwInput");
+  var volSlider = document.getElementById("volSlider");
+  var muteBtn = document.getElementById("muteBtn");
+  var briSlider = document.getElementById("briSlider");
+  var pendingSsid = null;
+  var briDrag = false, briTimer = null;
+  var volDrag = false, volTimer = null;
+
+  // Power-profile glyphs: same stroke look as waybar/icons/*.svg,
+  // currentColor so they follow the button text (peach / black when active).
+  var POWER_ICONS = {
+    "performance": '<svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>',
+    "balanced": '<svg viewBox="0 0 24 24"><path d="M12 4v16"/><path d="M8 20h8"/><path d="M5 7h14"/><path d="M7 7l-2.5 6a2.8 2.8 0 0 0 5 0L7 7z"/><path d="M17 7l-2.5 6a2.8 2.8 0 0 0 5 0L17 7z"/></svg>',
+    "power-saver": '<svg viewBox="0 0 24 24"><path d="M5 19C5 10 12 5 20 4c-1 8-6 15-15 15z"/><path d="M5 19c3-5 7-9 11-11"/></svg>'
+  };
+
+  function api(path, body) {
+    var opts = { headers: { "Content-Type": "application/json" } };
+    if (body !== undefined) { opts.method = "POST"; opts.body = JSON.stringify(body); }
+    return fetch(path, opts).then(function (r) { return r.json(); });
+  }
+  function say(t) { msg.textContent = t; }
+
+  function paintSlider(el, v) {
+    v = Math.min(100, Math.max(0, Number(v)));
+    el.style.background = "linear-gradient(to right, #E85D2F " + v + "%, #1a1210 " + v + "%)";
+  }
+
+  function render(s) {
+    // wifi
+    document.getElementById("wifiToggle").classList.toggle("on", !!s.wifi.enabled);
+    document.getElementById("wifiSub").textContent = s.wifi.enabled ? (s.wifi.ssid || "On · not connected") : "Off";
+    wifiList.innerHTML = "";
+    (s.wifi.networks || []).forEach(function (n) {
+      var b = document.createElement("button");
+      b.className = "item" + (n.active ? " active" : "");
+      var bars = n.signal >= 70 ? "󰤨" : (n.signal >= 40 ? "󰤥" : "󰤟");
+      b.innerHTML = "";
+      var dot = document.createElement("span"); dot.className = "dot";
+      var nm = document.createElement("span"); nm.className = "name"; nm.textContent = (n.security ? "󰌾 " : "") + n.ssid;
+      var meta = document.createElement("span"); meta.className = "meta"; meta.textContent = bars + " " + n.signal + "%";
+      b.appendChild(dot); b.appendChild(nm); b.appendChild(meta);
+      b.onclick = (function (net) {
+        return function () {
+          if (net.active) return;
+          if (!net.security) { join(net.ssid, ""); }
+          else { pendingSsid = net.ssid; pwRow.style.display = "flex"; pwInput.value = ""; pwInput.focus(); }
+        };
+      })(n);
+      wifiList.appendChild(b);
+    });
+    // bluetooth
+    document.getElementById("btToggle").classList.toggle("on", !!s.bluetooth.powered);
+    var conn = (s.bluetooth.devices || []).filter(function (d) { return d.connected; });
+    document.getElementById("btSub").textContent = s.bluetooth.powered
+      ? (conn.length ? conn.map(function (d) { return d.name; }).join(", ") : "On · not connected") : "Off";
+    btList.innerHTML = "";
+    (s.bluetooth.devices || []).forEach(function (d) {
+      var b = document.createElement("button");
+      b.className = "item" + (d.connected ? " active" : "");
+      var dot = document.createElement("span"); dot.className = "dot";
+      var nm = document.createElement("span"); nm.className = "name"; nm.textContent = d.name;
+      var meta = document.createElement("span"); meta.className = "meta";
+      meta.textContent = d.connected ? "connected" : "";
+      b.appendChild(dot); b.appendChild(nm); b.appendChild(meta);
+      b.onclick = (function (dev) {
+        return function () {
+          say((dev.connected ? "Disconnecting " : "Connecting ") + dev.name + "…");
+          api("/api/bluetooth", { op: dev.connected ? "disconnect" : "connect", address: dev.address }).then(refresh);
+        };
+      })(d);
+      btList.appendChild(b);
+    });
+    // power
+    powerSeg.innerHTML = "";
+    (s.power.profiles || []).forEach(function (p) {
+      var b = document.createElement("button");
+      var label = p.replace("-", " ");
+      if (POWER_ICONS[p]) b.innerHTML = POWER_ICONS[p];
+      else b.textContent = label;
+      b.title = label;
+      b.setAttribute("aria-label", "Power profile: " + label);
+      if (p === s.power.active) b.classList.add("active");
+      b.onclick = (function (prof) { return function () { api("/api/power", { profile: prof }).then(refresh); }; })(p);
+      powerSeg.appendChild(b);
+    });
+    // brightness
+    if (!briDrag) {
+      var sl = document.getElementById("briSlider");
+      sl.value = s.brightness.value;
+      paintSlider(sl, s.brightness.value);
+      document.getElementById("briVal").textContent = s.brightness.value;
+    }
+    // volume (cap 100%, pause paint while dragging)
+    if (s.volume) {
+      document.getElementById("volVal").textContent = s.volume.value;
+      muteBtn.textContent = s.volume.muted ? "󰝟 Unmute" : "󰝟 Mute";
+      muteBtn.classList.toggle("muted-on", !!s.volume.muted);
+      if (!volDrag) {
+        volSlider.value = s.volume.value;
+        paintSlider(volSlider, s.volume.value);
+      }
+    }
+    // dnd
+    if (s.dnd) {
+      document.getElementById("dndToggle").classList.toggle("on", !!s.dnd.paused);
+      document.getElementById("dndSub").textContent = s.dnd.paused ? "On · notifications paused" : "Off";
+    }
+    // idle
+    if (s.idle) {
+      var short = { "5 minutes": "5m", "10 minutes": "10m", "20 minutes": "20m", "30 minutes": "30m", "infinity": "∞" };
+      idleSeg.innerHTML = "";
+      (s.idle.modes || []).forEach(function (m) {
+        var b = document.createElement("button");
+        b.textContent = short[m] || m;
+        b.title = m;
+        if (m === s.idle.current) b.classList.add("active");
+        b.onclick = (function (mode) { return function () { api("/api/idle", { mode: mode }).then(refresh); }; })(m);
+        idleSeg.appendChild(b);
+      });
+    }
+  }
+
+  function refresh() {
+    if (volDrag || briDrag) return;
+    api("/api/status").then(render).catch(function () {});
+  }
+
+  function join(ssid, pw) {
+    say("Connecting to " + ssid + "…");
+    pwRow.style.display = "none";
+    api("/api/wifi", { op: "connect", ssid: ssid, password: pw }).then(function (d) {
+      say(d.ok ? ("✓ Connected to " + ssid) : ("✗ " + (d.message || "Failed")));
+      refresh();
+    });
+  }
+
+  document.getElementById("wifiToggle").onclick = function () {
+    var on = !this.classList.contains("on");
+    api("/api/wifi", { op: on ? "on" : "off" }).then(refresh);
+  };
+  document.getElementById("btToggle").onclick = function () {
+    var on = !this.classList.contains("on");
+    api("/api/bluetooth", { op: on ? "on" : "off" }).then(refresh);
+  };
+  document.getElementById("pwJoin").onclick = function () { if (pendingSsid) join(pendingSsid, pwInput.value); };
+  pwInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && pendingSsid) join(pendingSsid, pwInput.value);
+  });
+  function pushVolume(v) {
+    api("/api/volume", { value: v }).then(render).catch(function () {});
+  }
+
+  muteBtn.onclick = function () { api("/api/mute", {}).then(refresh); };
+  document.querySelectorAll(".preset").forEach(function (b) {
+    b.onclick = function () { pushVolume(Number(b.getAttribute("data-v"))); };
+  });
+  volSlider.addEventListener("pointerdown", function () { volDrag = true; });
+  window.addEventListener("pointerup", function () {
+    volDrag = false; briDrag = false;
+  });
+  volSlider.addEventListener("input", function () {
+    document.getElementById("volVal").textContent = volSlider.value;
+    paintSlider(volSlider, volSlider.value);
+    clearTimeout(volTimer);
+    volTimer = setTimeout(function () { pushVolume(Number(volSlider.value)); }, 150);
+  });
+  volSlider.addEventListener("change", function () {
+    clearTimeout(volTimer);
+    pushVolume(Number(volSlider.value));
+  });
+
+  document.getElementById("dndToggle").onclick = function () {
+    api("/api/dnd", { op: "toggle" }).then(refresh);
+  };
+  briSlider.addEventListener("pointerdown", function () { briDrag = true; });
+  window.addEventListener("pointerup", function () { briDrag = false; });
+  briSlider.addEventListener("input", function () {
+    document.getElementById("briVal").textContent = briSlider.value;
+    paintSlider(briSlider, briSlider.value);
+    clearTimeout(briTimer);
+    briTimer = setTimeout(function () {
+      api("/api/brightness", { value: Number(briSlider.value) });
+    }, 150);
+  });
+  document.getElementById("closeBtn").onclick = function () { window.close(); };
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") window.close();
+    else if (e.key === "m" || e.key === "M") api("/api/mute", {}).then(refresh);
+    else if (e.key === "ArrowUp" && document.activeElement !== briSlider) {
+      volSlider.value = Math.min(100, Number(volSlider.value) + 5);
+      paintSlider(volSlider, volSlider.value);
+      document.getElementById("volVal").textContent = volSlider.value;
+      pushVolume(Number(volSlider.value)); e.preventDefault();
+    }
+    else if (e.key === "ArrowDown" && document.activeElement !== briSlider) {
+      volSlider.value = Math.max(0, Number(volSlider.value) - 5);
+      paintSlider(volSlider, volSlider.value);
+      document.getElementById("volVal").textContent = volSlider.value;
+      pushVolume(Number(volSlider.value)); e.preventDefault();
+    }
+  });
+
+  paintSlider(briSlider, 50);
+  paintSlider(volSlider, 0);
+  refresh();
+  setInterval(refresh, 3000);
+})();
+</script>
+</body>
+</html>

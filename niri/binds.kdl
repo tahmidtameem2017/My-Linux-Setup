@@ -6,14 +6,18 @@ binds {
     Mod+B           { spawn-sh "/usr/bin/brave"; }
     Mod+E           { spawn-sh "nautilus"; }
     Mod+L           { spawn-sh "/home/me/niri-setup/scripts/swaylock.sh"; }
-    Mod+C           { spawn-sh "cliphist list | fuzzel --dmenu --config /home/me/niri-setup/fuzzel/clipboard.ini | cliphist decode | wl-copy"; }
+    Mod+C           { spawn-sh "copyq toggle"; }
+    Mod+Shift+C     { spawn-sh "/home/me/niri-setup/scripts/clear-clipboard.sh"; }
+    Mod+Shift+D     { spawn-sh "/home/me/niri-setup/scripts/clipboard-delete-last.sh"; }
+    Mod+Shift+V     { spawn-sh "/home/me/niri-setup/scripts/clipboard-save-image.sh"; }
     Mod+I           { spawn-sh "/home/me/niri-setup/scripts/change-idle-time.sh"; }
     Mod+P           { spawn-sh "/home/me/niri-setup/scripts/change-power-profile.sh"; }
     Mod+U           { spawn-sh "alacritty --title 'Updater' --config-file /home/me/niri-setup/alacritty/float.toml -e /home/me/niri-setup/waybar/modules/install-updates.sh"; }
     Mod+W           { spawn-sh "/home/me/niri-setup/scripts/toggle-waybar.sh"; }
     Mod+Ctrl+W      { spawn-sh "alacritty --title 'Wallpaper Selector' --config-file /home/me/niri-setup/alacritty/float.toml -e /home/me/niri-setup/scripts/change-wallpaper.sh"; }
     Mod+Backspace   { spawn-sh "/home/me/niri-setup/scripts/wlogout.sh"; }
-    Mod+Shift+S     { spawn-sh "grim -g \"$(slurp)\" - | wl-copy"; }
+    Mod+Grave       { spawn-sh "/home/me/niri-setup/scripts/dropdown-terminal.sh"; }
+    Mod+Shift+S     { spawn-sh "/home/me/niri-setup/scripts/clip-screenshot.sh"; }
     Mod+N           { spawn-sh "dunstctl set-paused toggle && notify-send -a dunst 'Dunst' \"$(dunstctl is-paused && echo 'Do Not Disturb ON' || echo 'Do Not Disturb OFF')\""; }
     Mod+Ctrl+R      { spawn-sh "niri msg action reload-config"; }
 
@@ -31,6 +35,7 @@ binds {
     // Windows and Columns
     Mod+Q                { close-window; }
     Mod+T                { toggle-window-floating; }
+    Mod+Shift+T          { toggle-column-tabbed-display; }
     Mod+M                { maximize-column; }
     Mod+F                { fullscreen-window; }
     Mod+Left             { focus-column-left; }
@@ -89,4 +94,5 @@ binds {
     Print       { screenshot; }
     Ctrl+Print  { screenshot-window; }
     Shift+Print { screenshot-screen; }
+    Mod+Ctrl+S  { spawn-sh "grim -g \"$(slurp)\" - | swappy -f -"; }
 }

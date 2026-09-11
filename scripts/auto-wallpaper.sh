@@ -17,7 +17,7 @@ set -euo pipefail
 
 # --- Configuration ---
 WALL_DIR="${WALL_DIR:-$HOME/Pictures/Wallpapers}"
-INTERVAL="${INTERVAL:-15m}"
+INTERVAL="${INTERVAL:-5m}"
 NIRI_SETUP_HOME="${NIRI_SETUP_HOME:-$HOME/niri-setup}"
 WALLPAPER_SH="$NIRI_SETUP_HOME/scripts/wallpaper.sh"
 
@@ -74,6 +74,9 @@ get_wallpapers() {
     \) | sort
 }
 
+# Largest 6-digit prime: 999983
+readonly HASH_PRIME=999983
+
 init_queue() {
     local wallpapers
     mapfile -t wallpapers < <(get_wallpapers)
@@ -82,9 +85,24 @@ init_queue() {
         die "No wallpapers found in $WALL_DIR"
     fi
 
-    # Shuffle and write to queue file
-    printf "%s\n" "${wallpapers[@]}" | shuf > "$QUEUE_FILE"
-    log "[INFO] Initialized queue with ${#wallpapers[@]} wallpapers"
+    # Deterministic permutation via 999983 multiplicative hash
+    local count=${#wallpapers[@]}
+    local seed
+    seed=$(date +%s%N)
+    local -a shuffled=()
+    local -a used=()
+    local idx hash
+    for (( i = 0; i < count; i++ )); do
+        hash=$(( (seed + i) * HASH_PRIME ))
+        idx=$(( hash % count ))
+        while [[ -n "${used[$idx]}" ]]; do
+            idx=$(( (idx + 1) % count ))
+        done
+        used[$idx]=1
+        shuffled+=("${wallpapers[$idx]}")
+    done
+    printf "%s\n" "${shuffled[@]}" > "$QUEUE_FILE"
+    log "[INFO] Initialized queue with ${#wallpapers[@]} wallpapers (999983-hashed)"
 }
 
 pop_next_wallpaper() {

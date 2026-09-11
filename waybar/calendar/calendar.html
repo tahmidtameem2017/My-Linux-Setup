@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendar</title>
+<style>
+  /* SUNSET ORANGE AMOLED — matches waybar style.css */
+  :root {
+    --bg: #000000;
+    --panel: #0a0a0a;
+    --panel-hover: #0f0d0c;
+    --row: #141010;
+    --border: #1a1210;
+    --border-strong: #3D2B24;
+    --accent: #E85D2F;
+    --accent-hover: #FF8B4A;
+    --text: #F7C7A1;
+    --muted: #7C8A6A;
+    --dim: #555555;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    -webkit-app-region: drag;
+  }
+  button, input { -webkit-app-region: no-drag; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 0 15px rgba(232, 93, 47, 0.15);
+    width: 360px;
+    max-width: 94vw;
+    padding: 16px 18px 10px;
+    display: flex;
+    flex-direction: column;
+  }
+  .view { display: none; min-height: 348px; }
+  .view.active { display: block; }
+
+  /* ---------- calendar view ---------- */
+  .clock { text-align: center; margin-bottom: 10px; }
+  .clock .time { font-size: 28px; font-weight: 700; letter-spacing: 1px; }
+  .clock .date { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 4px; }
+  .nav .group { display: flex; align-items: center; gap: 4px; }
+  .nav .label { font-size: 15px; font-weight: 700; }
+  .nav button {
+    background: transparent; border: 1px solid transparent;
+    color: var(--accent); font-family: inherit;
+    font-size: 16px; font-weight: 700;
+    width: 28px; height: 28px; cursor: pointer; line-height: 1;
+  }
+  .nav button:hover {
+    color: var(--accent-hover); background: var(--panel-hover);
+    border-color: rgba(232, 93, 47, 0.4);
+    text-shadow: 0 0 6px rgba(255, 139, 74, 0.9), 0 0 15px rgba(255, 139, 74, 0.4);
+  }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+  .dow { color: var(--accent); font-size: 11px; font-weight: 700; padding: 5px 0; }
+  .day { font-size: 13px; padding: 6px 0; cursor: default; border: 1px solid transparent; color: var(--text); }
+  .day.other { color: var(--dim); }
+  .day:not(.other):hover { background: #3D2B24; color: var(--accent-hover); }
+  .day.today { background: var(--accent); color: #000; font-weight: 700; box-shadow: 0 0 8px rgba(232, 93, 47, 0.5); }
+  .cal-hint { text-align: center; font-size: 10px; color: var(--muted); margin-top: 8px; }
+
+  /* ---------- timer views ---------- */
+  .phase { text-align: center; font-size: 12px; font-weight: 700; letter-spacing: 2px; color: var(--accent); margin-bottom: 2px; }
+  .bigtime {
+    text-align: center; font-size: 52px; font-weight: 700; letter-spacing: 2px;
+    margin: 2px 0 6px; font-variant-numeric: tabular-nums;
+  }
+  .bigtime.done { color: var(--accent); text-shadow: 0 0 12px rgba(232, 93, 47, 0.8); }
+  .dots { text-align: center; margin-bottom: 10px; font-size: 12px; letter-spacing: 4px; color: var(--dim); }
+  .dots .fill { color: var(--accent); }
+  .trow { display: flex; gap: 8px; margin-top: 8px; }
+  .btn {
+    flex: 1; background: var(--row); border: 1px solid var(--border-strong);
+    color: var(--text); font-family: inherit; font-size: 12px; font-weight: 600;
+    padding: 8px 0; cursor: pointer;
+  }
+  .btn:hover { border-color: rgba(232, 93, 47, 0.4); color: var(--accent-hover); background: var(--panel-hover); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #000; }
+  .btn.primary:hover { box-shadow: 0 0 10px rgba(232, 93, 47, 0.4); color: #000; }
+  .cfg { display: flex; gap: 8px; margin-top: 10px; }
+  .cfg label { flex: 1; font-size: 10px; color: var(--muted); text-align: center; }
+  .cfg input {
+    width: 100%; margin-top: 3px; background: #000; border: 1px solid var(--border-strong);
+    color: var(--text); font-family: inherit; font-size: 13px; text-align: center;
+    padding: 6px 0; outline: none;
+  }
+  .cfg input:focus { border-color: var(--accent); }
+  .presets { display: flex; gap: 6px; margin-top: 10px; }
+  .presets button {
+    flex: 1; background: transparent; border: 1px solid var(--border);
+    color: var(--muted); font-family: inherit; font-size: 11px; padding: 6px 0; cursor: pointer;
+  }
+  .presets button:hover { border-color: var(--accent); color: var(--accent-hover); }
+  .tinputs { display: flex; gap: 8px; margin-top: 10px; align-items: flex-end; }
+  .tinputs label { flex: 1; font-size: 10px; color: var(--muted); text-align: center; }
+  .tinputs input {
+    width: 100%; margin-top: 3px; background: #000; border: 1px solid var(--border-strong);
+    color: var(--text); font-family: inherit; font-size: 16px; text-align: center;
+    padding: 6px 0; outline: none;
+  }
+  .tinputs input:focus { border-color: var(--accent); }
+
+  /* ---------- bottom navbar ---------- */
+  .navbar {
+    display: flex; gap: 0; margin-top: 12px;
+    border-top: 1px solid var(--border-strong);
+    padding-top: 10px;
+  }
+  .navbar button {
+    flex: 1; background: transparent; border: none;
+    color: var(--dim); font-family: inherit; font-size: 11px; font-weight: 700;
+    letter-spacing: 1px; padding: 6px 0 2px; cursor: pointer;
+  }
+  .navbar button .glyph { display: block; font-size: 17px; margin-bottom: 2px; }
+  .navbar button:hover { color: var(--accent-hover); }
+  .navbar button.active { color: var(--accent); text-shadow: 0 0 8px rgba(232, 93, 47, 0.6); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <!-- CALENDAR -->
+    <div class="view active" id="view-calendar">
+      <div class="clock">
+        <div class="time" id="time">--:--:--</div>
+        <div class="date" id="date">Loading…</div>
+      </div>
+      <div class="nav">
+        <div class="group">
+          <button id="prevMonth" title="Previous month">‹</button>
+          <span class="label" id="monthLabel">September</span>
+          <button id="nextMonth" title="Next month">›</button>
+        </div>
+        <div class="group">
+          <button id="prevYear" title="Previous year">‹</button>
+          <span class="label" id="yearLabel">2026</span>
+          <button id="nextYear" title="Next year">›</button>
+        </div>
+      </div>
+      <div class="grid" id="dow"></div>
+      <div class="grid" id="days"></div>
+      <div class="cal-hint">←/→ month · ↑/↓ year · Home today</div>
+    </div>
+
+    <!-- POMODORO -->
+    <div class="view" id="view-pomo">
+      <div class="phase" id="pomoPhase">FOCUS · ROUND 1/4</div>
+      <div class="bigtime" id="pomoTime">25:00</div>
+      <div class="dots" id="pomoDots">●○○○</div>
+      <div class="trow">
+        <button class="btn primary" id="pomoStart">Start</button>
+        <button class="btn" id="pomoSkip">Skip</button>
+        <button class="btn" id="pomoReset">Reset</button>
+      </div>
+      <div class="cfg">
+        <label>Focus min<input id="cfgFocus" type="number" min="1" max="180" value="25"></label>
+        <label>Short min<input id="cfgShort" type="number" min="1" max="60" value="5"></label>
+        <label>Long min<input id="cfgLong" type="number" min="1" max="60" value="15"></label>
+        <label>Rounds<input id="cfgRounds" type="number" min="1" max="12" value="4"></label>
+      </div>
+    </div>
+
+    <!-- TIMER -->
+    <div class="view" id="view-timer">
+      <div class="phase">COUNTDOWN</div>
+      <div class="bigtime" id="timerTime">05:00</div>
+      <div class="trow">
+        <button class="btn primary" id="timerStart">Start</button>
+        <button class="btn" id="timerReset">Reset</button>
+      </div>
+      <div class="tinputs">
+        <label>Minutes<input id="inMin" type="number" min="0" max="999" value="5"></label>
+        <label>Seconds<input id="inSec" type="number" min="0" max="59" value="0"></label>
+      </div>
+      <div class="presets">
+        <button data-m="1">1m</button>
+        <button data-m="5">5m</button>
+        <button data-m="10">10m</button>
+        <button data-m="15">15m</button>
+        <button data-m="30">30m</button>
+      </div>
+    </div>
+
+    <!-- NAVBAR -->
+    <div class="navbar">
+      <button class="active" data-view="view-calendar"><span class="glyph">󰸗</span>CALENDAR</button>
+      <button data-view="view-pomo"><span class="glyph">󰄉</span>POMODORO</button>
+      <button data-view="view-timer"><span class="glyph">󰔟</span>TIMER</button>
+    </div>
+  </div>
+<script>
+(function () {
+  "use strict";
+
+  /* ===== persistent state (survives popup close) ===== */
+  var store = {
+    load: function (k, fb) {
+      try { var v = localStorage.getItem("niri-clock." + k); return v ? JSON.parse(v) : fb; }
+      catch (e) { return fb; }
+    },
+    save: function (k, v) {
+      try { localStorage.setItem("niri-clock." + k, JSON.stringify(v)); } catch (e) {}
+    }
+  };
+
+  /* ===== view switching ===== */
+  var navBtns = document.querySelectorAll(".navbar button");
+  function activateTab(viewId) {
+    navBtns.forEach(function (x) { x.classList.toggle("active", x.getAttribute("data-view") === viewId); });
+    document.querySelectorAll(".view").forEach(function (v) { v.classList.toggle("active", v.id === viewId); });
+    store.save("tab", viewId);
+  }
+  navBtns.forEach(function (b) {
+    b.onclick = function () { activateTab(b.getAttribute("data-view")); };
+  });
+  (function () {
+    var t = store.load("tab", "view-calendar");
+    if (t && document.getElementById(t)) activateTab(t);
+  })();
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") window.close();
+  });
+
+  /* timing lives server-side now (it beeps so phases survive popup close) */
+  function fmt(s) {
+    s = Math.max(0, Math.ceil(s));
+    var m = Math.floor(s / 60), r = s % 60;
+    return (m < 10 ? "0" : "") + m + ":" + (r < 10 ? "0" : "") + r;
+  }
+
+  /* ===== calendar ===== */
+  var MONTHS = ["January","February","March","April","May","June",
+                "July","August","September","October","November","December"];
+  var DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  var now = new Date();
+  var viewYear = now.getFullYear(), viewMonth = now.getMonth();
+  var dowEl = document.getElementById("dow");
+  var daysEl = document.getElementById("days");
+  var monthLabel = document.getElementById("monthLabel");
+  var yearLabel = document.getElementById("yearLabel");
+  DOW.forEach(function (d) {
+    var s = document.createElement("span");
+    s.className = "dow"; s.textContent = d; dowEl.appendChild(s);
+  });
+  function sameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() &&
+           a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+  function renderCal() {
+    var today = new Date();
+    monthLabel.textContent = MONTHS[viewMonth];
+    yearLabel.textContent = viewYear;
+    daysEl.innerHTML = "";
+    var first = new Date(viewYear, viewMonth, 1).getDay();
+    var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    var daysInPrev = new Date(viewYear, viewMonth, 0).getDate();
+    var cells = [], i, d;
+    for (i = first - 1; i >= 0; i--) cells.push({ day: daysInPrev - i, other: true });
+    for (d = 1; d <= daysInMonth; d++)
+      cells.push({ day: d, other: false, date: new Date(viewYear, viewMonth, d) });
+    var next = 1;
+    while (cells.length % 7 !== 0) cells.push({ day: next++, other: true });
+    cells.forEach(function (c) {
+      var s = document.createElement("span");
+      s.className = "day" + (c.other ? " other" : "");
+      s.textContent = c.day;
+      if (!c.other && sameDay(c.date, today)) s.classList.add("today");
+      daysEl.appendChild(s);
+    });
+  }
+  function shiftMonth(x) {
+    viewMonth += x;
+    if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+    if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+    renderCal();
+  }
+  document.getElementById("prevMonth").onclick = function () { shiftMonth(-1); };
+  document.getElementById("nextMonth").onclick = function () { shiftMonth(1); };
+  document.getElementById("prevYear").onclick = function () { viewYear--; renderCal(); };
+  document.getElementById("nextYear").onclick = function () { viewYear++; renderCal(); };
+  document.addEventListener("keydown", function (e) {
+    if (!document.getElementById("view-calendar").classList.contains("active")) return;
+    if (e.key === "ArrowLeft") shiftMonth(-1);
+    else if (e.key === "ArrowRight") shiftMonth(1);
+    else if (e.key === "ArrowUp") { viewYear++; renderCal(); }
+    else if (e.key === "ArrowDown") { viewYear--; renderCal(); }
+    else if (e.key === "Home") { var t = new Date(); viewYear = t.getFullYear(); viewMonth = t.getMonth(); renderCal(); }
+  });
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  /* Write-only-on-change: most seconds nothing here differs, so the
+     browser skips style/layout/paint entirely for these nodes. */
+  function setText(el, s) { if (el.textContent !== s) el.textContent = s; }
+  function setVal(id, v) {
+    var el = document.getElementById(id);
+    v = String(v);
+    if (el.value !== v) el.value = v;
+  }
+  var timeEl = document.getElementById("time");
+  var dateEl = document.getElementById("date");
+  var lastDateKey = "";
+  function tick() {
+    var t = new Date();
+    setText(timeEl, pad(t.getHours()) + ":" + pad(t.getMinutes()) + ":" + pad(t.getSeconds()));
+    /* toLocaleDateString is ~100x pricier than the clock math above;
+       the date only changes at midnight, so cache it. */
+    var key = t.getFullYear() + "-" + t.getMonth() + "-" + t.getDate();
+    if (key !== lastDateKey) {
+      lastDateKey = key;
+      setText(dateEl, t.toLocaleDateString("en-GB", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }));
+    }
+  }
+
+  /* ===== pomodoro (server-owned: survives popup close) ===== */
+  var S = null; /* last /api/state snapshot */
+  var syncStamp = 0; /* Date.now() when S arrived, for local extrapolation */
+  function api(path, body) {
+    var opts = { headers: { "Content-Type": "application/json" } };
+    if (body !== undefined) { opts.method = "POST"; opts.body = JSON.stringify(body); }
+    return fetch(path, opts).then(function (r) { return r.json(); });
+  }
+  /* Displayed remain, extrapolated locally between server syncs so the
+     countdown stays second-accurate with 5x fewer requests. */
+  function liveRemain(x) {
+    if (!x || !x.running) return x ? x.remain : 0;
+    return Math.max(0, x.remain - (Date.now() - syncStamp) / 1000);
+  }
+  var pomoTime = document.getElementById("pomoTime");
+  var pomoPhase = document.getElementById("pomoPhase");
+  var pomoDots = document.getElementById("pomoDots");
+  var pomoStart = document.getElementById("pomoStart");
+  function readPomoCfg() {
+    return {
+      focus: document.getElementById("cfgFocus").value,
+      short: document.getElementById("cfgShort").value,
+      long: document.getElementById("cfgLong").value,
+      rounds: document.getElementById("cfgRounds").value
+    };
+  }
+  function paintPomo(p, cfg) {
+    setText(pomoTime, fmt(liveRemain(p)));
+    var label = p.phase === "focus" ? "FOCUS" : (p.phase === "short" ? "SHORT BREAK" : "LONG BREAK");
+    var rounds = cfg.rounds || 4;
+    setText(pomoPhase, label + " · ROUND " + Math.min(p.round, rounds) + "/" + rounds);
+    /* Build the dots once per rounds-count; afterwards only flip the
+       spans that actually changed instead of recreating N nodes/second. */
+    if (pomoDots.childNodes.length !== rounds) {
+      pomoDots.innerHTML = "";
+      for (var i = 1; i <= rounds; i++) {
+        var fresh = document.createElement("span");
+        fresh.textContent = "○";
+        pomoDots.appendChild(fresh);
+      }
+    }
+    for (var j = 0; j < rounds; j++) {
+      var done = (j + 1) < p.round || ((j + 1) === p.round && p.phase !== "focus");
+      var node = pomoDots.childNodes[j];
+      var glyph = done ? "●" : "○";
+      if (node.textContent !== glyph) node.textContent = glyph;
+      var hasFill = node.className === "fill";
+      if (hasFill !== done) node.className = done ? "fill" : "";
+    }
+    setText(pomoStart, p.running ? "Pause" : "Start");
+    pomoTime.classList.toggle("done", !p.running && liveRemain(p) <= 0);
+    if (!/^cfg/.test((document.activeElement || {}).id || "")) {
+      setVal("cfgFocus", cfg.focus);
+      setVal("cfgShort", cfg.short);
+      setVal("cfgLong", cfg.long);
+      setVal("cfgRounds", cfg.rounds);
+    }
+  }
+  pomoStart.onclick = function () {
+    if (!S) return;
+    api("/api/pomo", { cmd: S.pomo.running ? "pause" : "start", cfg: readPomoCfg() }).then(render);
+  };
+  document.getElementById("pomoSkip").onclick = function () {
+    api("/api/pomo", { cmd: "skip" }).then(render);
+  };
+  document.getElementById("pomoReset").onclick = function () {
+    api("/api/pomo", { cmd: "reset", cfg: readPomoCfg() }).then(render);
+  };
+
+  /* ===== countdown timer (server-owned) ===== */
+  var timerTime = document.getElementById("timerTime");
+  var timerStart = document.getElementById("timerStart");
+  function readInputs() {
+    var m = Math.min(999, Math.max(0, Number(document.getElementById("inMin").value) || 0));
+    var s = Math.min(59, Math.max(0, Number(document.getElementById("inSec").value) || 0));
+    return m * 60 + s;
+  }
+  function paintTimer(t) {
+    setText(timerTime, fmt(liveRemain(t)));
+    setText(timerStart, t.running ? "Pause" : "Start");
+    timerTime.classList.toggle("done", !!t.finished || (!t.running && liveRemain(t) <= 0));
+    if (!/^(inMin|inSec)$/.test((document.activeElement || {}).id || "")) {
+      setVal("inMin", Math.floor(t.minutes));
+      setVal("inSec", Math.floor(t.seconds));
+    }
+  }
+  timerStart.onclick = function () {
+    if (!S) return;
+    if (S.timer.running) { api("/api/timer", { cmd: "pause" }).then(render); return; }
+    var setSecs = Math.floor(S.timer.minutes) * 60 + Math.floor(S.timer.seconds);
+    if (S.timer.remain > 0 && readInputs() === setSecs) {
+      api("/api/timer", { cmd: "start" }).then(render); /* resume */
+    } else {
+      api("/api/timer", { cmd: "start", seconds: readInputs() }).then(render); /* fresh */
+    }
+  };
+  document.getElementById("timerReset").onclick = function () {
+    api("/api/timer", { cmd: "reset", seconds: readInputs() }).then(render);
+  };
+  document.querySelectorAll(".presets button").forEach(function (b) {
+    b.onclick = function () {
+      document.getElementById("inMin").value = b.getAttribute("data-m");
+      document.getElementById("inSec").value = 0;
+      api("/api/timer", { cmd: "reset", seconds: readInputs() }).then(render);
+    };
+  });
+
+  /* ===== state sync (the server owns all timing) =====
+     Display repaints locally every 500ms from the last snapshot;
+     the server is only re-polled every 5s, and never while a poll is
+     still in flight (an overlapping 1s poll is what piled up 500+
+     pending fetches under load). POST actions still render instantly. */
+  var syncing = false;
+  function paintAll() {
+    tick();
+    if (!S) return;
+    paintPomo(S.pomo, S.cfg);
+    paintTimer(S.timer);
+    /* Re-sync the moment a running countdown hits zero so phase
+       changes paint promptly instead of waiting for the next 5s poll. */
+    if ((S.pomo.running && liveRemain(S.pomo) <= 0) ||
+        (S.timer.running && liveRemain(S.timer) <= 0)) sync();
+  }
+  function render(s) {
+    if (!s) return;
+    S = s;
+    syncStamp = Date.now();
+    paintAll();
+  }
+  function sync() {
+    if (syncing) return;
+    syncing = true;
+    fetch("/api/state")
+      .then(function (r) { return r.json(); })
+      .then(function (s) { syncing = false; render(s); })
+      .catch(function () { syncing = false; });
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) sync();
+  });
+  renderCal();
+  paintAll();
+  sync();
+  setInterval(paintAll, 500);
+  setInterval(sync, 5000);
+})();
+</script>
+</body>
+</html>

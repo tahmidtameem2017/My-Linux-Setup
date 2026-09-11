@@ -53,6 +53,7 @@ if [ "$SKIP_INSTALL" = false ]; then
     power-profiles-daemon
     polkit-gnome
     pwvucontrol
+    python-pywayland
     starship
     swaybg
     swayidle

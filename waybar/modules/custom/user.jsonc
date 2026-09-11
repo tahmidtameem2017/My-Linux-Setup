@@ -3,7 +3,7 @@
 		"format": "󰣇",
 		"min-length": 4,
 		"max-length": 4,
-		"on-click": "fuzzel",
+		"on-click": "fuzzel --config /home/me/niri-setup/fuzzel/fuzzel.ini",
 		"tooltip-format": "Arch Linux\nClick to open application launcher"
 	}
 }

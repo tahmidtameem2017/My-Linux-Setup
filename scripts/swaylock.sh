@@ -4,8 +4,9 @@ swaylock \
   --clock \
   --screenshots \
   --daemonize \
+  --fade-in 0.2 \
   --ignore-empty-password \
-  --font "Ubuntu Bold" \
+  --font "JetBrains Mono Bold" \
   --indicator \
   --indicator-radius 150 \
   --effect-scale 0.4 \
@@ -13,16 +14,16 @@ swaylock \
   --effect-blur 4x2 \
   --datestr "%A, %b %d" \
   --timestr "%k:%M" \
-  --key-hl-color 61768ff2 \
-  --ring-color 61768ff2 \
-  --text-color ffffffe6 \
-  --inside-clear-color 0b0b0cf2 \
-  --ring-clear-color 61768ff2 \
-  --text-clear-color ffffffe6 \
-  --inside-ver-color 0b0b0cf2 \
-  --ring-ver-color 61768ff2 \
-  --text-ver-color ffffffe6 \
-  --bs-hl-color 3c3836ff \
+  --key-hl-color e85d2ff2 \
+  --ring-color e85d2ff2 \
+  --text-color f7c7a1e6 \
+  --inside-clear-color 0a0a0af2 \
+  --ring-clear-color ff8b4af2 \
+  --text-clear-color f7c7a1e6 \
+  --inside-ver-color 0a0a0af2 \
+  --ring-ver-color ff8b4af2 \
+  --text-ver-color f7c7a1e6 \
+  --bs-hl-color 7c8a6aff \
   --inside-wrong-color c30505ff \
   --ring-wrong-color c30505ff \
   --text-wrong-color ffffffff

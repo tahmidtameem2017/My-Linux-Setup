@@ -26,6 +26,8 @@ fi
 echo "[INFO] New wallpaper: $image"
 echo "[INFO] Copying new wallpaper to /home/me/niri-setup..."
 cp -f $image "/home/me/niri-setup/wallpapers/workspace.${image##*.}"
+mkdir -p "/home/me/niri-setup/.state"
+echo "$image" > "/home/me/niri-setup/.state/current_wallpaper"
 canvas_color=$(magick /home/me/niri-setup/wallpapers/workspace.${image##*.} -crop x1+0+0 -resize 1x1 txt:- | grep -o '#[0-9A-Fa-f]\{6\}')
 workspace_cmd="swaybg -i /home/me/niri-setup/wallpapers/workspace.${image##*.} -m $mode -c '$canvas_color'"
 sed -i "s|^spawn-sh-at-startup \"swaybg.*|spawn-sh-at-startup \"$workspace_cmd\"|" "/home/me/niri-setup/niri/config.kdl"

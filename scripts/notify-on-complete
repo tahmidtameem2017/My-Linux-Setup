@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# notify-on-complete - wrapper to send notification when a command finishes
+# Usage: notify-on-complete [--threshold SECONDS] [--name NAME] [--icon ICON] -- COMMAND [ARGS...]
+
+set -euo pipefail
+
+THRESHOLD=10
+NAME=""
+ICON="utilities-terminal"
+URGENCY="normal"
+SYNCHRONOUS="notify-complete"
+
+usage() {
+    cat <<EOF
+Usage: notify-on-complete [OPTIONS] -- COMMAND [ARGS...]
+
+Options:
+    -t, --threshold SECONDS    Only notify if command runs longer than this (default: 10)
+    -n, --name NAME            Application name for notification (default: command basename)
+    -i, --icon ICON            Icon name (default: utilities-terminal)
+    -u, --urgency LEVEL        Urgency: low, normal, critical (default: normal)
+    -s, --sync STRING          Synchronization string for notify-send (default: notify-complete)
+    -h, --help                 Show this help
+
+Examples:
+    notify-on-complete -- cargo build --release
+    notify-on-complete -t 30 -n "My Build" -- make
+    notify-on-complete --threshold 60 -- opencode run "refactor auth"
+EOF
+}
+
+# Parse options
+ARGS=()
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -t|--threshold)
+            THRESHOLD="$2"
+            shift 2
+            ;;
+        -n|--name)
+            NAME="$2"
+            shift 2
+            ;;
+        -i|--icon)
+            ICON="$2"
+            shift 2
+            ;;
+        -u|--urgency)
+            URGENCY="$2"
+            shift 2
+            ;;
+        -s|--sync)
+            SYNCHRONOUS="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            # Collect remaining arguments as the command
+            ARGS=("$@")
+            break
+            ;;
+        *)
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+CMD=("${ARGS[@]}")
+CMD_BASENAME=$(basename "${CMD[0]}")
+APP_NAME="${NAME:-$CMD_BASENAME}"
+
+# Check notify-send
+if ! command -v notify-send >/dev/null 2>&1; then
+    exec "${CMD[@]}"
+fi
+
+# Run command with timing
+start_time=$(date +%s)
+"${CMD[@]}"
+exit_code=$?
+end_time=$(date +%s)
+duration=$((end_time - start_time))
+
+# Notify if threshold exceeded
+if (( duration >= THRESHOLD )); then
+    if (( exit_code == 0 )); then
+        notify-send -a "$APP_NAME" "✅ $APP_NAME completed" \
+            "Duration: ${duration}s" \
+            -i "$ICON" \
+            -h "string:x-canonical-private-synchronous:$SYNCHRONOUS" \
+            -u "$URGENCY" 2>/dev/null &
+    else
+        notify-send -a "$APP_NAME" "❌ $APP_NAME failed (exit $exit_code)" \
+            "Duration: ${duration}s" \
+            -i "dialog-error" \
+            -h "string:x-canonical-private-synchronous:$SYNCHRONOUS" \
+            -u "critical" 2>/dev/null &
+    fi
+fi
+
+exit $exit_code

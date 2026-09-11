@@ -12,6 +12,7 @@ image="${1:-}"
 NIKI_HOME="${NIRI_SETUP_HOME:-$HOME/niri-setup}"
 WALLPAPER_DIR="$NIKI_HOME/wallpapers"
 WALLPAPERS_KDL="$NIKI_HOME/niri/wallpapers.kdl"
+STATE_FILE="$NIKI_HOME/.state/current_wallpaper"
 mkdir -p "$WALLPAPER_DIR"
 
 ext="${image##*.}"
@@ -27,6 +28,10 @@ if command -v magick &>/dev/null; then
     canvas_color="$(magick "$workspace" -crop x1+0+0 -resize 1x1 txt:- 2>/dev/null | grep -oE '#[0-9A-Fa-f]{6}' | head -1 || true)"
 fi
 canvas_color="${canvas_color:-#010102}"
+
+# Persist current wallpaper
+mkdir -p "$(dirname "$STATE_FILE")"
+echo "$image" > "$STATE_FILE"
 
 # Kill old swaybg
 pkill -x swaybg 2>/dev/null || true
@@ -46,9 +51,9 @@ if [[ -f "$WALLPAPERS_KDL" ]]; then
     (
         while IFS= read -r line || [[ -n "$line" ]]; do
             if [[ "$line" == 'spawn-sh-at-startup "swaybg'* ]]; then
-                printf 'spawn-sh-at-startup "swaybg -i %s -m fill -c %s"\n' "$workspace" "'$canvas_color'"
+                printf "spawn-sh-at-startup \"swaybg -i %s -m fill -c '%s'\"\n" "$workspace" "$canvas_color"
             elif [[ "$line" == 'spawn-sh-at-startup "swww-daemon'* ]]; then
-                printf 'spawn-sh-at-startup "swww-daemon & swww img %s"\n' "$backdrop"
+                printf "spawn-sh-at-startup \"swww-daemon & swww img %s\"\n" "$backdrop"
             else
                 printf '%s\n' "$line"
             fi

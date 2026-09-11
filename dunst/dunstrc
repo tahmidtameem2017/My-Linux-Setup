@@ -27,7 +27,7 @@
     # Padding between text and icon.
     text_icon_padding = 0
     frame_width = 2
-    corner_radius = 12
+    corner_radius = 0
     corners = all
     gap_size = 5
     separator_color = frame
@@ -109,26 +109,26 @@
 [urgency_low]
     # IMPORTANT: colors have to be defined in quotation marks.
     # Otherwise the "#" and following would be interpreted as a comment.
-    background = "#0b0b0ccc"
-    foreground = "#d8dadd"
-    frame_color = "#61768fcc"
+    background = "#000000e6"
+    foreground = "#F7C7A1"
+    frame_color = "#3D2B24e6"
     timeout = 10
     # Icon for notifications with low urgency
     default_icon = dialog-information
 
 [urgency_normal]
-    background = "#0b0b0ccc"
-    foreground = "#d8dadd"
-    frame_color = "#b7d4edcc"
+    background = "#000000e6"
+    foreground = "#F7C7A1"
+    frame_color = "#E85D2Fe6"
     timeout = 10
     override_pause_level = 30
     # Icon for notifications with normal urgency
     default_icon = dialog-information
 
 [urgency_critical]
-    background = "#0b0b0ccc"
-    foreground = "#d8dadd"
-    frame_color = "#ff5555cc"
+    background = "#000000e6"
+    foreground = "#F7C7A1"
+    frame_color = "#c30505e6"
     timeout = 0
     override_pause_level = 60
     # Icon for notifications with critical urgency

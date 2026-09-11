@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Volume</title>
+<style>
+  /* SUNSET ORANGE AMOLED — matches waybar style.css */
+  :root {
+    --bg: #000000;
+    --panel: #0a0a0a;
+    --panel-hover: #0f0d0c;
+    --row: #141010;
+    --border: #1a1210;
+    --border-strong: #3D2B24;
+    --accent: #E85D2F;
+    --accent-hover: #FF8B4A;
+    --text: #F7C7A1;
+    --muted: #7C8A6A;
+    --dim: #555555;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    -webkit-app-region: drag;
+  }
+  button, input { -webkit-app-region: no-drag; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 0 15px rgba(232, 93, 47, 0.15);
+    width: 360px;
+    max-width: 94vw;
+    padding: 18px 18px 14px;
+  }
+  .header { text-align: center; margin-bottom: 6px; }
+  .header .icon { font-size: 26px; color: var(--accent); }
+  .header .icon.muted { color: var(--dim); }
+  .header .pct { font-size: 34px; font-weight: 700; letter-spacing: 1px; margin-top: 2px; }
+  .header .dev {
+    font-size: 11px; color: var(--muted); margin-top: 4px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--border);
+    outline: none;
+    margin: 16px 0 6px;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid #000000;
+    box-shadow: 0 0 8px rgba(232, 93, 47, 0.7);
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 0 12px rgba(255, 139, 74, 0.9), 0 0 25px rgba(232, 93, 47, 0.4);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid #000000;
+    box-shadow: 0 0 8px rgba(232, 93, 47, 0.7);
+    cursor: pointer;
+  }
+  .row { display: flex; gap: 8px; margin-top: 10px; }
+  .btn {
+    flex: 1;
+    background: var(--row);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 0;
+    cursor: pointer;
+  }
+  .btn:hover {
+    border-color: rgba(232, 93, 47, 0.4);
+    color: var(--accent-hover);
+    background: var(--panel-hover);
+  }
+  .btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000000;
+    box-shadow: 0 0 10px rgba(232, 93, 47, 0.3);
+  }
+  .btn.muted-on {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .section {
+    font-size: 11px; font-weight: 700; color: var(--accent);
+    margin: 14px 0 6px; letter-spacing: 1px;
+  }
+  .sink {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--row);
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-bottom: 6px;
+    white-space: nowrap; overflow: hidden;
+  }
+  .sink span.name { overflow: hidden; text-overflow: ellipsis; }
+  .sink:hover { border-color: rgba(232, 93, 47, 0.4); color: var(--accent-hover); }
+  .sink.default { border-color: var(--accent); }
+  .sink .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--dim); flex-shrink: 0;
+  }
+  .sink.default .dot {
+    background: var(--accent);
+    box-shadow: 0 0 6px rgba(232, 93, 47, 0.9);
+  }
+  .hint {
+    text-align: center;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="icon" id="icon">󰕾</div>
+      <div class="pct" id="pct">--%</div>
+      <div class="dev" id="dev">Loading…</div>
+    </div>
+    <input type="range" id="slider" min="0" max="100" value="0" step="1" aria-label="Volume">
+    <div class="row">
+      <button class="btn" id="muteBtn">󰝟 Mute</button>
+      <button class="btn preset" data-v="25">25</button>
+      <button class="btn preset" data-v="50">50</button>
+      <button class="btn preset" data-v="75">75</button>
+      <button class="btn preset" data-v="100">100</button>
+    </div>
+    <div class="section">OUTPUTS</div>
+    <div id="sinks"></div>
+    <div class="row">
+      <button class="btn" id="closeBtn">Close</button>
+    </div>
+    <div class="hint">drag slider · ↑/↓ ±5 · M mute · Esc close</div>
+  </div>
+<script>
+(function () {
+  "use strict";
+  var slider = document.getElementById("slider");
+  var pct = document.getElementById("pct");
+  var dev = document.getElementById("dev");
+  var icon = document.getElementById("icon");
+  var muteBtn = document.getElementById("muteBtn");
+  var sinksEl = document.getElementById("sinks");
+  var dragging = false;
+  var debounce = null;
+
+  function api(path, body) {
+    var opts = { headers: { "Content-Type": "application/json" } };
+    if (body !== undefined) {
+      opts.method = "POST";
+      opts.body = JSON.stringify(body);
+    }
+    return fetch(path, opts).then(function (r) { return r.json(); });
+  }
+
+  function paintSlider() {
+    var v = Math.min(100, Math.max(0, Number(slider.value)));
+    slider.style.background =
+      "linear-gradient(to right, #E85D2F " + v + "%, #1a1210 " + v + "%)";
+  }
+
+  function render(s) {
+    pct.textContent = s.volume + "%";
+    dev.textContent = s.sink || "No output";
+    icon.textContent = (s.muted || s.volume === 0) ? "󰝟" : (s.volume < 50 ? "󰕿" : "󰕾");
+    icon.classList.toggle("muted", !!s.muted);
+    muteBtn.textContent = s.muted ? "󰝟 Unmute" : "󰝟 Mute";
+    muteBtn.classList.toggle("muted-on", !!s.muted);
+    if (!dragging) {
+      slider.value = Math.min(100, s.volume);
+      paintSlider();
+    }
+    sinksEl.innerHTML = "";
+    (s.sinks || []).forEach(function (snk) {
+      var row = document.createElement("div");
+      row.className = "sink" + (snk.default ? " default" : "");
+      var dot = document.createElement("span");
+      dot.className = "dot";
+      var name = document.createElement("span");
+      name.className = "name";
+      name.textContent = (snk.default ? "✓ " : "") + (snk.desc || snk.name);
+      row.appendChild(dot);
+      row.appendChild(name);
+      row.title = snk.name;
+      row.onclick = (function (n) {
+        return function () { api("/api/sink", { name: n }).then(refresh); };
+      })(snk.name);
+      sinksEl.appendChild(row);
+    });
+  }
+
+  function refresh() {
+    api("/api/status").then(render).catch(function () {});
+  }
+
+  function pushVolume(v) {
+    api("/api/volume", { value: v }).then(render).catch(function () {});
+  }
+
+  slider.addEventListener("pointerdown", function () { dragging = true; });
+  window.addEventListener("pointerup", function () {
+    if (dragging) { dragging = false; pushVolume(Number(slider.value)); }
+  });
+  slider.addEventListener("input", function () {
+    pct.textContent = slider.value + "%";
+    paintSlider();
+    clearTimeout(debounce);
+    debounce = setTimeout(function () { pushVolume(Number(slider.value)); }, 150);
+  });
+  slider.addEventListener("change", function () {
+    clearTimeout(debounce);
+    pushVolume(Number(slider.value));
+  });
+
+  muteBtn.onclick = function () { api("/api/mute", {}).then(refresh); };
+  document.querySelectorAll(".preset").forEach(function (b) {
+    b.onclick = function () { pushVolume(Number(b.getAttribute("data-v"))); };
+  });
+  document.getElementById("closeBtn").onclick = function () { window.close(); };
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") window.close();
+    else if (e.key === "m" || e.key === "M") api("/api/mute", {}).then(refresh);
+    else if (e.key === "ArrowUp") { slider.value = Math.min(100, Number(slider.value) + 5); paintSlider(); pushVolume(Number(slider.value)); e.preventDefault(); }
+    else if (e.key === "ArrowDown") { slider.value = Math.max(0, Number(slider.value) - 5); paintSlider(); pushVolume(Number(slider.value)); e.preventDefault(); }
+  });
+
+  paintSlider();
+  refresh();
+  setInterval(function () { if (!dragging) refresh(); }, 1500);
+})();
+</script>
+</body>
+</html>

@@ -11,3 +11,6 @@ include "recent-windows.kdl"
 include "rules.kdl"
 include "misc.kdl"
 include "binds.kdl"
+
+// Persistent scratchpad parking spot (see scripts/dropdown-terminal.sh).
+workspace "scratch"

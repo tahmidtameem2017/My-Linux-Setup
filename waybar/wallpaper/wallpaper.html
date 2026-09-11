@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wallpaper</title>
+<style>
+  /* SUNSET ORANGE AMOLED — matches waybar style.css */
+  :root {
+    --bg: #000000;
+    --panel: #0a0a0a;
+    --panel-hover: #0f0d0c;
+    --row: #141010;
+    --border: #1a1210;
+    --border-strong: #3D2B24;
+    --accent: #E85D2F;
+    --accent-hover: #FF8B4A;
+    --text: #F7C7A1;
+    --muted: #7C8A6A;
+    --dim: #555555;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    min-height: 100vh;
+    -webkit-app-region: drag;
+  }
+  button { -webkit-app-region: no-drag; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 0 15px rgba(232, 93, 47, 0.15);
+    width: 724px;
+    max-width: 96vw;
+    margin: 14px;
+    padding: 14px 16px 10px;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 28px);
+  }
+  .header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+  .header h1 { font-size: 14px; font-weight: 700; color: var(--accent); letter-spacing: 2px; }
+  .header .sub { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .preview {
+    position: relative;
+    height: 190px;
+    border: 1px solid var(--border-strong);
+    background: #000;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .preview .bar {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px;
+    background: rgba(0, 0, 0, 0.72);
+    font-size: 11px;
+  }
+  .preview .bar .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .toolbar { display: flex; gap: 8px; margin: 10px 0; }
+  .btn {
+    flex: 1;
+    background: var(--row);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 0;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:hover {
+    border-color: rgba(232, 93, 47, 0.4);
+    color: var(--accent-hover);
+    background: var(--panel-hover);
+  }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000000;
+    flex: 0 0 auto;
+    padding: 7px 18px;
+  }
+  .btn.primary:hover { box-shadow: 0 0 10px rgba(232, 93, 47, 0.4); color: #000000; }
+  .btn.on { border-color: var(--accent); color: var(--accent); }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+    overflow-y: auto;
+    padding-bottom: 4px;
+    min-height: 0;
+  }
+  .thumb {
+    border: 1px solid var(--border);
+    background: #000;
+    cursor: pointer;
+    padding: 0;
+    position: relative;
+  }
+  .thumb img { width: 100%; height: 88px; object-fit: cover; display: block; }
+  .thumb:hover { border-color: rgba(232, 93, 47, 0.5); }
+  .thumb.selected { border-color: var(--accent); box-shadow: 0 0 8px rgba(232, 93, 47, 0.5); }
+  .thumb .tag {
+    position: absolute; top: 4px; left: 4px;
+    background: var(--accent); color: #000;
+    font-size: 10px; font-weight: 700; padding: 1px 6px;
+    display: none;
+  }
+  .thumb.current .tag { display: block; }
+  .msg { font-size: 11px; color: var(--muted); margin-top: 8px; min-height: 15px; }
+  .hint { font-size: 10px; color: var(--muted); margin-top: 2px; text-align: center; }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--panel); }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h1>WALLPAPERS</h1>
+      <span class="sub" id="sub">Loading…</span>
+    </div>
+    <div class="preview">
+      <img id="preview" alt="">
+      <div class="bar">
+        <span class="name" id="previewName">—</span>
+        <button class="btn primary" id="setBtn">Set wallpaper</button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button class="btn" id="prevBtn">󰁈 Prev</button>
+      <button class="btn" id="randBtn">󰁒 Random</button>
+      <button class="btn" id="nextBtn">󰁔 Next</button>
+      <button class="btn" id="autoBtn">Auto: …</button>
+      <button class="btn" id="closeBtn">Close</button>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="msg" id="msg"></div>
+    <div class="hint">click: preview · double-click: set · Esc: close</div>
+  </div>
+<script>
+(function () {
+  "use strict";
+  var grid = document.getElementById("grid");
+  var preview = document.getElementById("preview");
+  var previewName = document.getElementById("previewName");
+  var sub = document.getElementById("sub");
+  var msg = document.getElementById("msg");
+  var autoBtn = document.getElementById("autoBtn");
+  var images = [];
+  var current = "";
+  var autoOn = false;
+  var selected = -1;
+
+  function api(path, body) {
+    var opts = { headers: { "Content-Type": "application/json" } };
+    if (body !== undefined) { opts.method = "POST"; opts.body = JSON.stringify(body); }
+    return fetch(path, opts).then(function (r) { return r.json(); });
+  }
+
+  function say(t) { msg.textContent = t; }
+
+  function render(data) {
+    images = data.images || [];
+    current = data.current || "";
+    var autoText = data.auto || "";
+    autoOn = /running|every|interval/i.test(autoText);
+    autoBtn.textContent = autoOn ? "Auto: On" : "Auto: Off";
+    autoBtn.classList.toggle("on", autoOn);
+    sub.textContent = images.length + " wallpapers · current: " + (current || "—") + " · " + autoText;
+    grid.innerHTML = "";
+    images.forEach(function (img, i) {
+      var b = document.createElement("button");
+      b.className = "thumb" + (img.name === current ? " current" : "") + (i === selected ? " selected" : "");
+      b.title = img.name;
+      var tag = document.createElement("span");
+      tag.className = "tag";
+      tag.textContent = "✓";
+      var im = document.createElement("img");
+      im.loading = "lazy";
+      im.src = "/thumb/" + img.id;
+      im.alt = img.name;
+      b.appendChild(im);
+      b.appendChild(tag);
+      b.onclick = (function (id) { return function () { select(id); }; })(img.id);
+      b.ondblclick = (function (id) { return function () { setWallpaper(id); }; })(img.id);
+      grid.appendChild(b);
+    });
+    if (selected < 0 && images.length) {
+      var cur = images.findIndex(function (x) { return x.name === current; });
+      select(cur >= 0 ? images[cur].id : images[0].id, true);
+    } else {
+      paintSelection();
+    }
+  }
+
+  function paintSelection() {
+    var kids = grid.children;
+    for (var i = 0; i < kids.length; i++) {
+      kids[i].classList.toggle("selected", images[i] && images[i].id === selected);
+    }
+  }
+
+  function select(id, quiet) {
+    selected = id;
+    var img = images.find(function (x) { return x.id === id; });
+    if (!img) return;
+    preview.src = "/full/" + id;
+    previewName.textContent = img.name;
+    paintSelection();
+    if (!quiet) {
+      var el = grid.children[images.indexOf(img)];
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  function setWallpaper(id) {
+    say("Setting wallpaper…");
+    api("/api/set", { id: id }).then(function (d) {
+      say(d.ok ? ("✓ " + (d.message || "Wallpaper set")) : "✗ Failed to set wallpaper");
+      selected = -1;
+      render(d);
+    }).catch(function () { say("✗ Request failed"); });
+  }
+
+  function step(op) {
+    api("/api/action", { op: op }).then(function (d) {
+      selected = -1;
+      render(d);
+      say("✓ " + op + ": " + (d.current || ""));
+    }).catch(function () { say("✗ Request failed"); });
+  }
+
+  document.getElementById("setBtn").onclick = function () { if (selected >= 0) setWallpaper(selected); };
+  document.getElementById("randBtn").onclick = function () { step("random"); };
+  document.getElementById("nextBtn").onclick = function () { step("next"); };
+  document.getElementById("prevBtn").onclick = function () { step("prev"); };
+  autoBtn.onclick = function () {
+    api("/api/auto", { op: autoOn ? "stop" : "start" }).then(function (d) {
+      render({ images: images, current: current, auto: d.auto });
+      say(autoOn ? "✓ Auto-wallpaper stopped" : "✓ Auto-wallpaper started");
+    }).catch(function () { say("✗ Request failed"); });
+  };
+  document.getElementById("closeBtn").onclick = function () { window.close(); };
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") window.close(); });
+
+  api("/api/list").then(render).catch(function () { sub.textContent = "Failed to load library"; });
+})();
+</script>
+</body>
+</html>

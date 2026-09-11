@@ -2,27 +2,27 @@
 // Find more information on the wiki:
 // https://github.com/YaLTeR/niri/wiki/Configuration:-Window-Rules
 
-// System-wide transparency for all windows
+// Near-opaque windows (97.5% opacity, subtle transparency)
 window-rule {
-    opacity 0.85
+    opacity 0.975
 }
 
-// Nautilus specific transparency
+// Nautilus near-opaque
 window-rule {
     match app-id="org.gnome.Nautilus"
-    opacity 0.85
+    opacity 0.975
 }
 
-// Settings windows transparency
+// Settings windows near-opaque
 window-rule {
     match app-id="org.gnome.Settings"
-    opacity 0.85
+    opacity 0.975
 }
 
-// Control Center transparency
+// Control Center near-opaque
 window-rule {
     match app-id="org.gnome.ControlCenter"
-    opacity 0.85
+    opacity 0.975
 }
 
 window-rule {
@@ -71,6 +71,81 @@ window-rule {
 window-rule {
     match app-id="org.telegram.desktop"
     open-maximized-to-edges true
+}
+
+// HTML clock popup: calendar + pomodoro + timer (clock.sh -> timer-server.py
+// on 127.0.0.4; server persists so timers run with the window closed).
+window-rule {
+    match app-id=r#"^brave-127\.0\.0\.4__-Default$"#
+    open-floating true
+    open-maximized-to-edges false
+    default-column-width { fixed 400; }
+    default-window-height { fixed 490; }
+    shadow {
+        on
+    }
+}
+
+// HTML volume mixer popup (waybar pulseaudio -> volume.sh -> brave --app) - floating
+window-rule {
+    match app-id=r#"^brave-127\.0\.0\.1__-Default$"#
+    open-floating true
+    open-maximized-to-edges false
+    default-column-width { fixed 400; }
+    default-window-height { fixed 440; }
+    shadow {
+        on
+    }
+}
+
+// HTML wallpaper gallery popup (bar wallpaper -> gallery --app on localhost).
+window-rule {
+    match app-id=r#"^brave-localhost__-Default$"#
+    open-floating true
+    open-maximized-to-edges false
+    default-column-width { fixed 760; }
+    default-window-height { fixed 560; }
+    shadow {
+        on
+    }
+}
+
+// Dropdown scratchpad terminal (Mod+Grave -> scripts/dropdown-terminal.sh).
+window-rule {
+    match app-id="Alacritty" title="^Dropdown$"
+    open-floating true
+    open-maximized-to-edges false
+    open-focused true
+    default-column-width { proportion 0.8; }
+    default-window-height { proportion 0.6; }
+    default-floating-position x=0 y=40 relative-to="top"
+    shadow {
+        on
+    }
+}
+
+// HTML power menu popup (bar power -> brave --app on 127.0.0.2).
+window-rule {
+    match app-id=r#"^brave-127\.0\.0\.2__-Default$"#
+    open-floating true
+    open-maximized-to-edges false
+    default-column-width { fixed 360; }
+    default-window-height { fixed 440; }
+    shadow {
+        on
+    }
+}
+
+// HTML quick-settings popup (bar settings -> brave --app on 127.0.0.3).
+window-rule {
+    match app-id=r#"^brave-127\.0\.0\.3__-Default$"#
+    open-floating true
+    open-maximized-to-edges false
+    default-column-width { fixed 400; }
+    default-window-height { fixed 600; }
+    shadow {
+        on
+    }
 }
 
 // File chooser dialogs - floating
