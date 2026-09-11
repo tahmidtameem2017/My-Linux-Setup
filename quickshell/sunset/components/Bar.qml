@@ -41,8 +41,14 @@ PanelWindow {
         anchors.fill: parent
         color: bar.cBg
 
+        // macOS-style: left/right clusters hug the edges; the clock is
+        // pinned to the true screen center, immune to title/preset widths.
         RowLayout {
-            anchors.fill: parent
+            id: leftRow
+            anchors {
+                left: parent.left
+                verticalCenter: parent.verticalCenter
+            }
             spacing: 0
 
             // ---- left (waybar modules-left) ----
@@ -52,15 +58,23 @@ PanelWindow {
                 cPanel: bar.cPanel}
             Workspaces {}
             WindowWidget {}
+        }
 
-            // ---- center (waybar modules-center) ----
-            Item {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                ClockWidget {
-                    anchors.centerIn: parent
-                }
+        ClockWidget {
+            id: clockWidget
+            anchors {
+                horizontalCenter: parent.horizontalCenter
+                verticalCenter: parent.verticalCenter
             }
+        }
+
+        RowLayout {
+            id: rightRow
+            anchors {
+                right: parent.right
+                verticalCenter: parent.verticalCenter
+            }
+            spacing: 0
 
             // ---- right (waybar modules-right order) ----
             MediaWidget {}
