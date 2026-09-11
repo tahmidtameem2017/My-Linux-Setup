@@ -51,6 +51,9 @@ ShellRoot {
     WallpaperPicker {
         id: wallpaperPicker
     }
+    WallpaperMenu {
+        id: wallpaperMenu
+    }
     PowerMenu {
         id: powerMenu
     }
