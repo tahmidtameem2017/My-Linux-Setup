@@ -1,0 +1,24 @@
+// Parallel quickshell test binds (A/B session).
+// Include alongside binds.kdl during migration testing, e.g. in config.kdl:
+//   include "binds.kdl"
+//   include "binds-quickshell.kdl"
+// Kept fuzzel (Mod+Ctrl+Return), walker (Alt+Space) and toggle-waybar (Mod+W)
+// so waybar and quickshell launchers can be compared side by side.
+// Quickshell owns: Mod+Alt+Return (launcher), Mod+Alt+N (DND),
+// Mod+Alt+W (wallpaper menu), Mod+Shift+Q (restart).
+// Mod+Alt+* avoids clashing with live Mod+N (dunst) during A/B.
+binds {
+    // Quickshell launcher toggle (qs side of the A/B).
+    Mod+Alt+Return { spawn-sh "qs -c sunset ipc call launcher toggle"; }
+    // Quickshell DND toggle (native Toasts; live Mod+N still drives dunst).
+    Mod+Alt+N { spawn-sh "qs -c sunset ipc call notifications toggleSilent"; }
+    // Quickshell wallpaper menu (native 8-row dispatcher -> WallpaperPicker).
+    Mod+Alt+W { spawn-sh "qs -c sunset ipc call wallpaper-menu toggle"; }
+    // Restart quickshell sunset session.
+    Mod+Shift+Q { spawn-sh "pkill quickshell; quickshell -c sunset &"; }
+
+    // A/B keepers (mirrors binds.kdl, must stay in sync):
+    Mod+Ctrl+Return { spawn-sh "fuzzel --config /home/me/niri-setup/fuzzel/fuzzel.ini"; }
+    Alt+Space       { spawn-sh "walker"; }
+    Mod+W           { spawn-sh "/home/me/niri-setup/scripts/toggle-waybar.sh"; }
+}

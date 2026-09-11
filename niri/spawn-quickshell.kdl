@@ -1,0 +1,14 @@
+// Quickshell session spawn list (A/B test variant).
+// Mirrors spawn-waybar.kdl but replaces waybar+dunst with `quickshell -c sunset`.
+// All paths are absolute; NO $NIRICONF placeholder here (already resolved).
+// Switch live session via: scripts/switch-shell.sh [waybar|quickshell|status]
+// Roll back via: scripts/rollback-to-waybar.sh
+spawn-sh-at-startup "udiskie"
+spawn-sh-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
+spawn-sh-at-startup "wl-paste --watch cliphist store"
+spawn-sh-at-startup "wl-paste --type image --watch /home/me/niri-setup/scripts/clip-path-watcher.py save"
+spawn-sh-at-startup "systemctl --user import-environment WAYLAND_DISPLAY DISPLAY"
+spawn-sh-at-startup "quickshell -c sunset"
+spawn-sh-at-startup "sleep 1; /home/me/niri-setup/scripts/swayidle.sh"
+spawn-sh-at-startup "sleep 2; sudo /home/me/niri-setup/scripts/cpu-permanent.sh"
+spawn-sh-at-startup "sleep 3; /home/me/niri-setup/scripts/auto-wallpaper.sh"
