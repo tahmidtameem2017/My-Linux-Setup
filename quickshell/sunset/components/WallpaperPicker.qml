@@ -35,6 +35,7 @@
 // IPC: `qs -c sunset ipc call wallpaper toggle` (also: open, close, refresh)
 
 import QtQuick
+import QtQuick.Controls
 import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
@@ -43,6 +44,19 @@ import qs.services
 
 Scope {
     id: root
+    // Theme aliases (nested scopes cannot see file imports).
+    readonly property color cAccent: Theme.accent
+    readonly property color cAccentHover: Theme.accentHover
+    readonly property color cBg: Theme.bg
+    readonly property color cBorder: Theme.border
+    readonly property color cBorderStrong: Theme.borderStrong
+    readonly property color cDim: Theme.dim
+    readonly property string cFontFamily: Theme.fontFamily
+    readonly property color cMuted: Theme.muted
+    readonly property color cPanel: Theme.panel
+    readonly property int cRadius: Theme.radius
+    readonly property color cRow: Theme.row
+    readonly property color cText: Theme.text
 
     property bool isOpen: false
     // Task term "exclusiveKeyboardFocus" == the Exclusive layer-shell
@@ -274,10 +288,10 @@ Scope {
             implicitHeight: Math.min(col.implicitHeight + 24, parent.height - 48)
             width: implicitWidth
             height: implicitHeight
-            color: Theme.panel
+            color: root.cPanel
             border.width: 1
-            border.color: Theme.borderStrong
-            radius: Theme.radius
+            border.color: root.cBorderStrong
+            radius: root.cRadius
 
             FocusScope {
                 id: keys
@@ -299,19 +313,19 @@ Scope {
                         spacing: 10
                         Text {
                             text: "WALLPAPERS"
-                            font.family: Theme.fontFamily
+                            font.family: root.cFontFamily
                             font.pixelSize: 14
                             font.bold: true
-                            color: Theme.accent
+                            color: root.cAccent
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         Text {
                             width: parent.width - parent.spacing - 110
                             elide: Text.ElideRight
                             text: folder.count + " wallpapers \u00B7 current: " + (root.currentBase !== "" ? root.currentBase : "\u2014")
-                            font.family: Theme.fontFamily
+                            font.family: root.cFontFamily
                             font.pixelSize: 11
-                            color: Theme.muted
+                            color: root.cMuted
                             anchors.verticalCenter: parent.verticalCenter
                         }
                     }
@@ -324,10 +338,10 @@ Scope {
                     Rectangle {
                         width: parent.width
                         height: 190
-                        color: Theme.bg
+                        color: root.cBg
                         border.width: 1
-                        border.color: Theme.borderStrong
-                        radius: Theme.radius
+                        border.color: root.cBorderStrong
+                        radius: root.cRadius
                         Image {
                             anchors.fill: parent
                             source: root.selUrl
@@ -339,9 +353,9 @@ Scope {
                             anchors.right: parent.right
                             anchors.bottom: parent.bottom
                             height: 34
-                            color: Theme.bg
+                            color: root.cBg
                             opacity: 0.85
-                            radius: Theme.radius
+                            radius: root.cRadius
                         }
                         Text {
                             anchors.left: parent.left
@@ -352,9 +366,9 @@ Scope {
                             verticalAlignment: Text.AlignVCenter
                             elide: Text.ElideRight
                             text: root.selName !== "" ? root.selName : "\u2014"
-                            font.family: Theme.fontFamily
+                            font.family: root.cFontFamily
                             font.pixelSize: 11
-                            color: Theme.text
+                            color: root.cText
                         }
                         Rectangle {
                             id: setBtn
@@ -363,16 +377,16 @@ Scope {
                             anchors.margins: 5
                             width: 130
                             height: 24
-                            color: setHover.hovered && !WallpaperService.busy ? Theme.accentHover : Theme.accent
-                            radius: Theme.radius
+                            color: setHover.hovered && !WallpaperService.busy ? root.cAccentHover : root.cAccent
+                            radius: root.cRadius
                             opacity: WallpaperService.busy ? 0.5 : 1
                             Text {
                                 anchors.centerIn: parent
                                 text: WallpaperService.busy ? "Setting\u2026" : "Set wallpaper"
-                                font.family: Theme.fontFamily
+                                font.family: root.cFontFamily
                                 font.pixelSize: 12
                                 font.bold: true
-                                color: Theme.bg
+                                color: root.cBg
                             }
                             HoverHandler {
                                 id: setHover
@@ -394,24 +408,52 @@ Scope {
                         width: parent.width
                         spacing: 8
                         SunsetBtn {
+                            cAccent: root.cAccent
+                            cAccentHover: root.cAccentHover
+                            cBorderStrong: root.cBorderStrong
+                            cFontFamily: root.cFontFamily
+                            cRadius: root.cRadius
+                            cRow: root.cRow
+                            cText: root.cText
                             cols: 5
                             gap: 8
                             label: "󰁈 Prev"
                             onClicked: root.step("prev")
                         }
                         SunsetBtn {
+                            cAccent: root.cAccent
+                            cAccentHover: root.cAccentHover
+                            cBorderStrong: root.cBorderStrong
+                            cFontFamily: root.cFontFamily
+                            cRadius: root.cRadius
+                            cRow: root.cRow
+                            cText: root.cText
                             cols: 5
                             gap: 8
                             label: "󰁒 Random"
                             onClicked: root.step("random")
                         }
                         SunsetBtn {
+                            cAccent: root.cAccent
+                            cAccentHover: root.cAccentHover
+                            cBorderStrong: root.cBorderStrong
+                            cFontFamily: root.cFontFamily
+                            cRadius: root.cRadius
+                            cRow: root.cRow
+                            cText: root.cText
                             cols: 5
                             gap: 8
                             label: "󰁔 Next"
                             onClicked: root.step("next")
                         }
                         SunsetBtn {
+                            cAccent: root.cAccent
+                            cAccentHover: root.cAccentHover
+                            cBorderStrong: root.cBorderStrong
+                            cFontFamily: root.cFontFamily
+                            cRadius: root.cRadius
+                            cRow: root.cRow
+                            cText: root.cText
                             cols: 5
                             gap: 8
                             label: root.autoOn ? "Auto: On" : "Auto: Off"
@@ -428,6 +470,13 @@ Scope {
                             }
                         }
                         SunsetBtn {
+                            cAccent: root.cAccent
+                            cAccentHover: root.cAccentHover
+                            cBorderStrong: root.cBorderStrong
+                            cFontFamily: root.cFontFamily
+                            cRadius: root.cRadius
+                            cRow: root.cRow
+                            cText: root.cText
                             cols: 5
                             gap: 8
                             label: "Close"
@@ -449,8 +498,8 @@ Scope {
                         ScrollBar.vertical: ScrollBar {
                             contentItem: Rectangle {
                                 implicitWidth: 8
-                                color: Theme.borderStrong
-                                radius: Theme.radius
+                                color: root.cBorderStrong
+                                radius: root.cRadius
                             }
                         }
                         Grid {
@@ -473,10 +522,10 @@ Scope {
                                     readonly property bool isCur: root.currentBase === fName && fName !== ""
                                     width: (thumbGrid.width - 3 * thumbGrid.columnSpacing) / 4
                                     height: 88
-                                    color: Theme.bg
+                                    color: root.cBg
                                     border.width: 1
-                                    border.color: isSel ? Theme.accent : (tHover.hovered ? Theme.accent : Theme.border)
-                                    radius: Theme.radius
+                                    border.color: isSel ? root.cAccent : (tHover.hovered ? root.cAccent : root.cBorder)
+                                    radius: root.cRadius
 
                                     Image {
                                         id: thumb
@@ -511,15 +560,15 @@ Scope {
                                         anchors.margins: 4
                                         width: 20
                                         height: 16
-                                        color: Theme.accent
-                                        radius: Theme.radius
+                                        color: root.cAccent
+                                        radius: root.cRadius
                                         Text {
                                             anchors.centerIn: parent
                                             text: "\u2713"
-                                            font.family: Theme.fontFamily
+                                            font.family: root.cFontFamily
                                             font.pixelSize: 10
                                             font.bold: true
-                                            color: Theme.bg
+                                            color: root.cBg
                                         }
                                     }
                                     HoverHandler {
@@ -547,9 +596,9 @@ Scope {
                     Text {
                         width: parent.width
                         text: root.msg !== "" ? root.msg : (WallpaperService.busy ? "Setting wallpaper\u2026" : "")
-                        font.family: Theme.fontFamily
+                        font.family: root.cFontFamily
                         font.pixelSize: 11
-                        color: Theme.muted
+                        color: root.cMuted
                         elide: Text.ElideRight
                         topPadding: 8
                     }
@@ -557,9 +606,9 @@ Scope {
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
                         text: "click: preview \u00B7 double-click: set \u00B7 Esc: close"
-                        font.family: Theme.fontFamily
+                        font.family: root.cFontFamily
                         font.pixelSize: 10
-                        color: Theme.muted
+                        color: root.cMuted
                         topPadding: 2
                     }
                 }
@@ -573,6 +622,14 @@ Scope {
     }
 
     component SunsetBtn: Rectangle {
+        // injected props (inline component scope is isolated)
+        property color cAccent: "#E85D2F"
+        property color cAccentHover: "#FF8B4A"
+        property color cBorderStrong: "#3D2B24"
+        property string cFontFamily: "JetBrainsMono Nerd Font"
+        property int cRadius: 0
+        property color cRow: "#141010"
+        property color cText: "#F7C7A1"
         id: sBtn
         property string label: ""
         property bool hot: false
@@ -581,17 +638,17 @@ Scope {
         signal clicked
         width: parent ? (parent.width - (cols - 1) * gap) / cols : 100
         height: 32
-        color: Theme.row
+        color: cRow
         border.width: 1
-        border.color: hot ? Theme.accent : Theme.borderStrong
-        radius: Theme.radius
+        border.color: hot ? cAccent : cBorderStrong
+        radius: cRadius
         Text {
             anchors.centerIn: parent
             text: sBtn.label
-            font.family: Theme.fontFamily
+            font.family: cFontFamily
             font.pixelSize: 12
             font.bold: true
-            color: hot ? Theme.accent : (sHover.hovered ? Theme.accentHover : Theme.text)
+            color: hot ? cAccent : (sHover.hovered ? cAccentHover : cText)
         }
         HoverHandler {
             id: sHover

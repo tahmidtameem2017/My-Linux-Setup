@@ -16,10 +16,23 @@ import qs.services
 
 Rectangle {
     id: root
+    // Theme aliases (nested scopes cannot see file imports).
+    readonly property color cAccent: Theme.accent
+    readonly property color cAccentHover: Theme.accentHover
+    readonly property color cBg: Theme.bg
+    readonly property color cBorder: Theme.border
+    readonly property color cBorderStrong: Theme.borderStrong
+    readonly property color cDim: Theme.dim
+    readonly property string cFontFamily: Theme.fontFamily
+    readonly property color cMuted: Theme.muted
+    readonly property color cPanel: Theme.panel
+    readonly property int cRadius: Theme.radius
+    readonly property color cRow: Theme.row
+    readonly property color cText: Theme.text
     radius: 0
-    color: Theme.panel
+    color: root.cPanel
     border.width: 1
-    border.color: mediaArea.containsMouse ? Theme.borderStrong : Theme.border
+    border.color: mediaArea.containsMouse ? root.cBorderStrong : root.cBorder
     implicitWidth: 14 + 24
     implicitHeight: 24
     Layout.alignment: Qt.AlignVCenter

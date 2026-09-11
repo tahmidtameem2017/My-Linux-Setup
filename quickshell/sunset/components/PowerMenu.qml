@@ -33,9 +33,24 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import qs.services
 
 Scope {
     id: root
+    // Theme aliases (nested scopes cannot see file imports).
+    readonly property color cAccent: Theme.accent
+    readonly property color cDanger: Theme.danger
+    readonly property color cAccentHover: Theme.accentHover
+    readonly property color cBg: Theme.bg
+    readonly property color cBorder: Theme.border
+    readonly property color cBorderStrong: Theme.borderStrong
+    readonly property color cDim: Theme.dim
+    readonly property string cFontFamily: Theme.fontFamily
+    readonly property color cMuted: Theme.muted
+    readonly property color cPanel: Theme.panel
+    readonly property int cRadius: Theme.radius
+    readonly property color cRow: Theme.row
+    readonly property color cText: Theme.text
 
     property bool isOpen: false
     // Task term "exclusiveKeyboardFocus" == the Exclusive layer-shell
@@ -159,10 +174,10 @@ Scope {
             implicitHeight: Math.min(col.implicitHeight + 28, parent.height - 48)
             width: implicitWidth
             height: implicitHeight
-            color: Theme.panel
+            color: root.cPanel
             border.width: 1
-            border.color: Theme.borderStrong
-            radius: Theme.radius
+            border.color: root.cBorderStrong
+            radius: root.cRadius
 
             FocusScope {
                 id: keys
@@ -182,10 +197,10 @@ Scope {
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
                         text: "POWER"
-                        font.family: Theme.fontFamily
+                        font.family: root.cFontFamily
                         font.pixelSize: 12
                         font.bold: true
-                        color: Theme.accent
+                        color: root.cAccent
                     }
                     Item {
                         width: parent.width
@@ -198,17 +213,17 @@ Scope {
                             readonly property bool isArmed: root.armed === index
                             width: col.width
                             height: 50
-                            color: Theme.row
+                            color: root.cRow
                             border.width: 1
-                            border.color: isArmed ? Theme.danger : (pHover.hovered ? Theme.accent : Theme.border)
-                            radius: Theme.radius
+                            border.color: isArmed ? root.cDanger : (pHover.hovered ? root.cAccent : root.cBorder)
+                            radius: root.cRadius
                             // Armed tint overlay (danger wash, Theme token only).
                             Rectangle {
                                 anchors.fill: parent
                                 visible: isArmed
-                                color: Theme.danger
+                                color: root.cDanger
                                 opacity: 0.15
-                                radius: Theme.radius
+                                radius: root.cRadius
                             }
                             Row {
                                 anchors.fill: parent
@@ -220,18 +235,18 @@ Scope {
                                     anchors.verticalCenter: parent.verticalCenter
                                     horizontalAlignment: Text.AlignHCenter
                                     text: modelData.glyph
-                                    font.family: Theme.fontFamily
+                                    font.family: root.cFontFamily
                                     font.pixelSize: 18
-                                    color: isArmed ? Theme.danger : Theme.accent
+                                    color: isArmed ? root.cDanger : root.cAccent
                                 }
                                 Text {
                                     width: parent.width - 26 - 12
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: isArmed ? "Click again to confirm" : modelData.label
-                                    font.family: Theme.fontFamily
+                                    font.family: root.cFontFamily
                                     font.pixelSize: 14
                                     font.bold: true
-                                    color: isArmed ? Theme.danger : (pHover.hovered ? Theme.accentHover : Theme.text)
+                                    color: isArmed ? root.cDanger : (pHover.hovered ? root.cAccentHover : root.cText)
                                 }
                             }
                             HoverHandler {
@@ -252,17 +267,17 @@ Scope {
                     Rectangle {
                         width: parent.width
                         height: 32
-                        color: Theme.row
+                        color: root.cRow
                         border.width: 1
-                        border.color: Theme.borderStrong
-                        radius: Theme.radius
+                        border.color: root.cBorderStrong
+                        radius: root.cRadius
                         Text {
                             anchors.centerIn: parent
                             text: "Close"
-                            font.family: Theme.fontFamily
+                            font.family: root.cFontFamily
                             font.pixelSize: 12
                             font.bold: true
-                            color: cHover.hovered ? Theme.accentHover : Theme.text
+                            color: cHover.hovered ? root.cAccentHover : root.cText
                         }
                         HoverHandler {
                             id: cHover
@@ -277,9 +292,9 @@ Scope {
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
                         text: "lock runs at once \u00B7 the rest need a second click \u00B7 Esc closes"
-                        font.family: Theme.fontFamily
+                        font.family: root.cFontFamily
                         font.pixelSize: 10
-                        color: Theme.muted
+                        color: root.cMuted
                         topPadding: 2
                     }
                 }

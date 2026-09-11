@@ -15,6 +15,19 @@ import qs.services
 
 PanelWindow {
     id: bar
+    // Theme aliases (nested scopes cannot see file imports).
+    readonly property color cAccent: Theme.accent
+    readonly property color cAccentHover: Theme.accentHover
+    readonly property color cBg: Theme.bg
+    readonly property color cBorder: Theme.border
+    readonly property color cBorderStrong: Theme.borderStrong
+    readonly property color cDim: Theme.dim
+    readonly property string cFontFamily: Theme.fontFamily
+    readonly property color cMuted: Theme.muted
+    readonly property color cPanel: Theme.panel
+    readonly property int cRadius: Theme.radius
+    readonly property color cRow: Theme.row
+    readonly property color cText: Theme.text
     anchors {
         top: true
         left: true
@@ -22,18 +35,21 @@ PanelWindow {
     }
     implicitHeight: 32
     exclusiveZone: 32
-    color: Theme.bg
+    color: bar.cBg
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.bg
+        color: bar.cBg
 
         RowLayout {
             anchors.fill: parent
             spacing: 0
 
             // ---- left (waybar modules-left) ----
-            TrayWidgets.LogoIcon {}
+            TrayWidgets.LogoIcon {
+                cBorder: bar.cBorder
+                cBorderStrong: bar.cBorderStrong
+                cPanel: bar.cPanel}
             Workspaces {}
             WindowWidget {}
 
@@ -49,12 +65,27 @@ PanelWindow {
             // ---- right (waybar modules-right order) ----
             MediaWidget {}
             VolumeWidget {}
-            TrayWidgets.NetworkIcon {}
-            TrayWidgets.ClipboardIcon {}
-            TrayWidgets.WallpaperIcon {}
-            TrayWidgets.SettingsIcon {}
+            TrayWidgets.NetworkIcon {
+                cBorder: bar.cBorder
+                cBorderStrong: bar.cBorderStrong
+                cPanel: bar.cPanel}
+            TrayWidgets.ClipboardIcon {
+                cBorder: bar.cBorder
+                cBorderStrong: bar.cBorderStrong
+                cPanel: bar.cPanel}
+            TrayWidgets.WallpaperIcon {
+                cBorder: bar.cBorder
+                cBorderStrong: bar.cBorderStrong
+                cPanel: bar.cPanel}
+            TrayWidgets.SettingsIcon {
+                cBorder: bar.cBorder
+                cBorderStrong: bar.cBorderStrong
+                cPanel: bar.cPanel}
             BatteryWidget {}
-            TrayWidgets.PowerIcon {}
+            TrayWidgets.PowerIcon {
+                cBorder: bar.cBorder
+                cBorderStrong: bar.cBorderStrong
+                cPanel: bar.cPanel}
         }
     }
 }

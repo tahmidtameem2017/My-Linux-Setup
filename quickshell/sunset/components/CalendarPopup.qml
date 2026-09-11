@@ -41,9 +41,25 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import qs.services
 
 Scope {
     id: root
+
+    // Theme aliases: DayOfWeekRow/MonthGrid delegates run in the control's
+    // context where file imports (Theme singleton) are invisible, so route
+    // every token through root (id scope chain reaches delegates).
+    readonly property color cAccent: Theme.accent
+    readonly property color cAccentHover: Theme.accentHover
+    readonly property color cBg: Theme.bg
+    readonly property color cBorderStrong: Theme.borderStrong
+    readonly property color cDim: Theme.dim
+    readonly property string cFont: Theme.fontFamily
+    readonly property color cMuted: Theme.muted
+    readonly property color cPanel: Theme.panel
+    readonly property int cRadius: Theme.radius
+    readonly property color cRow: Theme.row
+    readonly property color cText: Theme.text
 
     property bool isOpen: false
     // Task term "exclusiveKeyboardFocus" == the Exclusive layer-shell
@@ -405,10 +421,10 @@ Scope {
             implicitHeight: Math.min(col.implicitHeight + 26, parent.height - 48)
             width: implicitWidth
             height: implicitHeight
-            color: Theme.panel
+            color: root.cPanel
             border.width: 1
-            border.color: Theme.borderStrong
-            radius: Theme.radius
+            border.color: root.cBorderStrong
+            radius: root.cRadius
 
             // Steal keyboard focus on show so Esc/arrows work immediately.
             FocusScope {
@@ -468,18 +484,18 @@ Scope {
                                 width: parent.width
                                 horizontalAlignment: Text.AlignHCenter
                                 text: Qt.formatTime(sysClock.date, "hh:mm:ss")
-                                font.family: Theme.fontFamily
+                                font.family: root.cFont
                                 font.pixelSize: 28
                                 font.bold: true
-                                color: Theme.text
+                                color: root.cText
                             }
                             Text {
                                 width: parent.width
                                 horizontalAlignment: Text.AlignHCenter
                                 text: Qt.formatDate(sysClock.date, "dddd, dd MMMM yyyy")
-                                font.family: Theme.fontFamily
+                                font.family: root.cFont
                                 font.pixelSize: 12
-                                color: Theme.muted
+                                color: root.cMuted
                             }
                             Item {
                                 width: parent.width
@@ -495,6 +511,10 @@ Scope {
                                     height: parent.height
                                     spacing: 4
                                     CalNavBtn {
+                                        cAccent: root.cAccent
+                                        cAccentHover: root.cAccentHover
+                                        cFont: root.cFont
+                                        cRadius: root.cRadius
                                         text: "\u2039"
                                         tip: "Previous month"
                                         onClicked: root.shiftMonth(-1)
@@ -504,12 +524,16 @@ Scope {
                                         anchors.verticalCenter: parent.verticalCenter
                                         horizontalAlignment: Text.AlignHCenter
                                         text: root.monthNames[root.viewMonth - 1]
-                                        font.family: Theme.fontFamily
+                                        font.family: root.cFont
                                         font.pixelSize: 15
                                         font.bold: true
-                                        color: Theme.text
+                                        color: root.cText
                                     }
                                     CalNavBtn {
+                                        cAccent: root.cAccent
+                                        cAccentHover: root.cAccentHover
+                                        cFont: root.cFont
+                                        cRadius: root.cRadius
                                         text: "\u203A"
                                         tip: "Next month"
                                         onClicked: root.shiftMonth(1)
@@ -520,6 +544,10 @@ Scope {
                                     height: parent.height
                                     spacing: 4
                                     CalNavBtn {
+                                        cAccent: root.cAccent
+                                        cAccentHover: root.cAccentHover
+                                        cFont: root.cFont
+                                        cRadius: root.cRadius
                                         text: "\u2039"
                                         tip: "Previous year"
                                         onClicked: root.viewYear -= 1
@@ -529,12 +557,16 @@ Scope {
                                         anchors.verticalCenter: parent.verticalCenter
                                         horizontalAlignment: Text.AlignHCenter
                                         text: root.viewYear
-                                        font.family: Theme.fontFamily
+                                        font.family: root.cFont
                                         font.pixelSize: 15
                                         font.bold: true
-                                        color: Theme.text
+                                        color: root.cText
                                     }
                                     CalNavBtn {
+                                        cAccent: root.cAccent
+                                        cAccentHover: root.cAccentHover
+                                        cFont: root.cFont
+                                        cRadius: root.cRadius
                                         text: "\u203A"
                                         tip: "Next year"
                                         onClicked: root.viewYear += 1
@@ -553,10 +585,10 @@ Scope {
                                     text: model.shortName
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
-                                    font.family: Theme.fontFamily
+                                    font.family: root.cFont
                                     font.pixelSize: 11
                                     font.bold: true
-                                    color: Theme.accent
+                                    color: root.cAccent
                                 }
                             }
                             MonthGrid {
@@ -574,16 +606,16 @@ Scope {
                                         anchors.centerIn: parent
                                         width: 40
                                         height: 24
-                                        color: dayCell.isToday ? Theme.accent : "transparent"
-                                        radius: Theme.radius
+                                        color: dayCell.isToday ? root.cAccent : "transparent"
+                                        radius: root.cRadius
                                     }
                                     Text {
                                         anchors.centerIn: parent
                                         text: model.day
-                                        font.family: Theme.fontFamily
+                                        font.family: root.cFont
                                         font.pixelSize: 13
                                         font.bold: dayCell.isToday
-                                        color: dayCell.isToday ? Theme.bg : (dayCell.isOther ? Theme.dim : Theme.text)
+                                        color: dayCell.isToday ? root.cBg : (dayCell.isOther ? root.cDim : root.cText)
                                     }
                                     HoverHandler {
                                         id: dayHover
@@ -595,9 +627,9 @@ Scope {
                                 width: parent.width
                                 horizontalAlignment: Text.AlignHCenter
                                 text: "\u2190/\u2192 month \u00B7 \u2191/\u2193 year \u00B7 Home today"
-                                font.family: Theme.fontFamily
+                                font.family: root.cFont
                                 font.pixelSize: 10
-                                color: Theme.muted
+                                color: root.cMuted
                             }
                         }
 
@@ -611,19 +643,19 @@ Scope {
                                 width: parent.width
                                 horizontalAlignment: Text.AlignHCenter
                                 text: engine.pomoLabel()
-                                font.family: Theme.fontFamily
+                                font.family: root.cFont
                                 font.pixelSize: 12
                                 font.bold: true
-                                color: Theme.accent
+                                color: root.cAccent
                             }
                             Text {
                                 width: parent.width
                                 horizontalAlignment: Text.AlignHCenter
                                 text: engine.fmt(engine.pomoRemain)
-                                font.family: Theme.fontFamily
+                                font.family: root.cFont
                                 font.pixelSize: 52
                                 font.bold: true
-                                color: (!engine.pomoRunning && engine.pomoRemain <= 0) ? Theme.accent : Theme.text
+                                color: (!engine.pomoRunning && engine.pomoRemain <= 0) ? root.cAccent : root.cText
                             }
                             Row {
                                 width: parent.width
@@ -635,9 +667,9 @@ Scope {
                                     delegate: Text {
                                         readonly property bool dotDone: (index + 1 < engine.pomoRound) || ((index + 1) === engine.pomoRound && engine.pomoPhase !== "focus")
                                         text: "\u25CF"
-                                        font.family: Theme.fontFamily
+                                        font.family: root.cFont
                                         font.pixelSize: 12
-                                        color: dotDone ? Theme.accent : Theme.dim
+                                        color: dotDone ? root.cAccent : root.cDim
                                     }
                                 }
                             }
@@ -645,15 +677,39 @@ Scope {
                                 width: parent.width
                                 spacing: 8
                                 SunsetBtn {
+                                    cAccent: root.cAccent
+                                    cAccentHover: root.cAccentHover
+                                    cBg: root.cBg
+                                    cBorderStrong: root.cBorderStrong
+                                    cFont: root.cFont
+                                    cRadius: root.cRadius
+                                    cRow: root.cRow
+                                    cText: root.cText
                                     primary: true
                                     label: engine.pomoRunning ? "Pause" : "Start"
                                     onClicked: engine.pomoCmd(engine.pomoRunning ? "pause" : "start")
                                 }
                                 SunsetBtn {
+                                    cAccent: root.cAccent
+                                    cAccentHover: root.cAccentHover
+                                    cBg: root.cBg
+                                    cBorderStrong: root.cBorderStrong
+                                    cFont: root.cFont
+                                    cRadius: root.cRadius
+                                    cRow: root.cRow
+                                    cText: root.cText
                                     label: "Skip"
                                     onClicked: engine.pomoCmd("skip")
                                 }
                                 SunsetBtn {
+                                    cAccent: root.cAccent
+                                    cAccentHover: root.cAccentHover
+                                    cBg: root.cBg
+                                    cBorderStrong: root.cBorderStrong
+                                    cFont: root.cFont
+                                    cRadius: root.cRadius
+                                    cRow: root.cRow
+                                    cText: root.cText
                                     label: "Reset"
                                     onClicked: engine.pomoCmd("reset")
                                 }
@@ -662,6 +718,13 @@ Scope {
                                 width: parent.width
                                 spacing: 8
                                 NumField {
+                                    cAccent: root.cAccent
+                                    cBg: root.cBg
+                                    cBorderStrong: root.cBorderStrong
+                                    cFont: root.cFont
+                                    cMuted: root.cMuted
+                                    cRadius: root.cRadius
+                                    cText: root.cText
                                     label: "Focus min"
                                     value: engine.cfgFocus
                                     lo: 1
@@ -671,6 +734,13 @@ Scope {
                                     }
                                 }
                                 NumField {
+                                    cAccent: root.cAccent
+                                    cBg: root.cBg
+                                    cBorderStrong: root.cBorderStrong
+                                    cFont: root.cFont
+                                    cMuted: root.cMuted
+                                    cRadius: root.cRadius
+                                    cText: root.cText
                                     label: "Short min"
                                     value: engine.cfgShort
                                     lo: 1
@@ -680,6 +750,13 @@ Scope {
                                     }
                                 }
                                 NumField {
+                                    cAccent: root.cAccent
+                                    cBg: root.cBg
+                                    cBorderStrong: root.cBorderStrong
+                                    cFont: root.cFont
+                                    cMuted: root.cMuted
+                                    cRadius: root.cRadius
+                                    cText: root.cText
                                     label: "Long min"
                                     value: engine.cfgLong
                                     lo: 1
@@ -689,6 +766,13 @@ Scope {
                                     }
                                 }
                                 NumField {
+                                    cAccent: root.cAccent
+                                    cBg: root.cBg
+                                    cBorderStrong: root.cBorderStrong
+                                    cFont: root.cFont
+                                    cMuted: root.cMuted
+                                    cRadius: root.cRadius
+                                    cText: root.cText
                                     label: "Rounds"
                                     value: engine.cfgRounds
                                     lo: 1
@@ -710,29 +794,45 @@ Scope {
                                 width: parent.width
                                 horizontalAlignment: Text.AlignHCenter
                                 text: "COUNTDOWN"
-                                font.family: Theme.fontFamily
+                                font.family: root.cFont
                                 font.pixelSize: 12
                                 font.bold: true
-                                color: Theme.accent
+                                color: root.cAccent
                             }
                             Text {
                                 width: parent.width
                                 horizontalAlignment: Text.AlignHCenter
                                 text: engine.fmt(engine.timerRemain)
-                                font.family: Theme.fontFamily
+                                font.family: root.cFont
                                 font.pixelSize: 52
                                 font.bold: true
-                                color: (engine.timerFinished || (!engine.timerRunning && engine.timerRemain <= 0)) ? Theme.accent : Theme.text
+                                color: (engine.timerFinished || (!engine.timerRunning && engine.timerRemain <= 0)) ? root.cAccent : root.cText
                             }
                             Row {
                                 width: parent.width
                                 spacing: 8
                                 SunsetBtn {
+                                    cAccent: root.cAccent
+                                    cAccentHover: root.cAccentHover
+                                    cBg: root.cBg
+                                    cBorderStrong: root.cBorderStrong
+                                    cFont: root.cFont
+                                    cRadius: root.cRadius
+                                    cRow: root.cRow
+                                    cText: root.cText
                                     primary: true
                                     label: engine.timerRunning ? "Pause" : "Start"
                                     onClicked: root.timerPrimary()
                                 }
                                 SunsetBtn {
+                                    cAccent: root.cAccent
+                                    cAccentHover: root.cAccentHover
+                                    cBg: root.cBg
+                                    cBorderStrong: root.cBorderStrong
+                                    cFont: root.cFont
+                                    cRadius: root.cRadius
+                                    cRow: root.cRow
+                                    cText: root.cText
                                     label: "Reset"
                                     onClicked: engine.timerReset(inMin.fieldValue() * 60 + inSec.fieldValue())
                                 }
@@ -741,6 +841,13 @@ Scope {
                                 width: parent.width
                                 spacing: 8
                                 NumField {
+                                    cAccent: root.cAccent
+                                    cBg: root.cBg
+                                    cBorderStrong: root.cBorderStrong
+                                    cFont: root.cFont
+                                    cMuted: root.cMuted
+                                    cRadius: root.cRadius
+                                    cText: root.cText
                                     id: inMin
                                     cols: 2
                                     label: "Minutes"
@@ -753,6 +860,13 @@ Scope {
                                     }
                                 }
                                 NumField {
+                                    cAccent: root.cAccent
+                                    cBg: root.cBg
+                                    cBorderStrong: root.cBorderStrong
+                                    cFont: root.cFont
+                                    cMuted: root.cMuted
+                                    cRadius: root.cRadius
+                                    cText: root.cText
                                     id: inSec
                                     cols: 2
                                     label: "Seconds"
@@ -771,6 +885,14 @@ Scope {
                                 Repeater {
                                     model: [1, 5, 10, 15, 30]
                                     SunsetBtn {
+                                        cAccent: root.cAccent
+                                        cAccentHover: root.cAccentHover
+                                        cBg: root.cBg
+                                        cBorderStrong: root.cBorderStrong
+                                        cFont: root.cFont
+                                        cRadius: root.cRadius
+                                        cRow: root.cRow
+                                        cText: root.cText
                                         cols: 5
                                         gap: 6
                                         label: modelData + "m"
@@ -793,12 +915,15 @@ Scope {
                     Rectangle {
                         width: parent.width
                         height: 1
-                        color: Theme.borderStrong
+                        color: root.cBorderStrong
                     }
                     Row {
                         width: parent.width
                         height: 46
                         TabBtn {
+                            cAccent: root.cAccent
+                            cDim: root.cDim
+                            cFont: root.cFont
                             glyph: "󰸗"
                             label: "CALENDAR"
                             active: root.tab === "calendar"
@@ -808,6 +933,9 @@ Scope {
                             }
                         }
                         TabBtn {
+                            cAccent: root.cAccent
+                            cDim: root.cDim
+                            cFont: root.cFont
                             glyph: "󰄉"
                             label: "POMODORO"
                             active: root.tab === "pomo"
@@ -817,6 +945,9 @@ Scope {
                             }
                         }
                         TabBtn {
+                            cAccent: root.cAccent
+                            cDim: root.cDim
+                            cFont: root.cFont
                             glyph: "󰔟"
                             label: "TIMER"
                             active: root.tab === "timer"
@@ -862,6 +993,11 @@ Scope {
 
     // Small building blocks (file-local; shared popup patterns).
     component CalNavBtn: Rectangle {
+        // injected props (inline component scope is isolated)
+        property color cAccent: "#E85D2F"
+        property color cAccentHover: "#FF8B4A"
+        property string cFont: "JetBrainsMono Nerd Font"
+        property int cRadius: 0
         id: navBtn
         property alias text: navLabel.text
         property string tip: ""
@@ -870,17 +1006,17 @@ Scope {
         height: 28
         color: "transparent"
         border.width: 1
-        border.color: navHover.hovered ? Theme.accent : "transparent"
-        radius: Theme.radius
+        border.color: navHover.hovered ? cAccent : "transparent"
+        radius: cRadius
         ToolTip.visible: tip !== "" && navHover.hovered
         ToolTip.text: tip
         Text {
             id: navLabel
             anchors.centerIn: parent
-            font.family: Theme.fontFamily
+            font.family: cFont
             font.pixelSize: 16
             font.bold: true
-            color: navHover.hovered ? Theme.accentHover : Theme.accent
+            color: navHover.hovered ? cAccentHover : cAccent
         }
         HoverHandler {
             id: navHover
@@ -893,6 +1029,15 @@ Scope {
     }
 
     component SunsetBtn: Rectangle {
+        // injected props (inline component scope is isolated)
+        property color cAccent: "#E85D2F"
+        property color cAccentHover: "#FF8B4A"
+        property color cBg: "#000000"
+        property color cBorderStrong: "#3D2B24"
+        property string cFont: "JetBrainsMono Nerd Font"
+        property int cRadius: 0
+        property color cRow: "#141010"
+        property color cText: "#F7C7A1"
         id: sBtn
         property string label: ""
         property bool primary: false
@@ -902,17 +1047,17 @@ Scope {
         signal clicked
         width: parent ? (parent.width - (cols - 1) * gap) / cols : 100
         height: 32
-        color: primary ? Theme.accent : Theme.row
+        color: primary ? cAccent : cRow
         border.width: 1
-        border.color: primary ? Theme.accent : Theme.borderStrong
-        radius: Theme.radius
+        border.color: primary ? cAccent : cBorderStrong
+        radius: cRadius
         Text {
             anchors.centerIn: parent
             text: sBtn.label
-            font.family: Theme.fontFamily
+            font.family: cFont
             font.pixelSize: 12
             font.bold: true
-            color: primary ? Theme.bg : (sHover.hovered ? Theme.accentHover : Theme.text)
+            color: primary ? cBg : (sHover.hovered ? cAccentHover : cText)
         }
         HoverHandler {
             id: sHover
@@ -925,6 +1070,10 @@ Scope {
     }
 
     component TabBtn: Rectangle {
+        // injected props (inline component scope is isolated)
+        property color cAccent: "#E85D2F"
+        property color cDim: "#555555"
+        property string cFont: "JetBrainsMono Nerd Font"
         id: tBtn
         property string glyph: ""
         property string label: ""
@@ -939,17 +1088,17 @@ Scope {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: tBtn.glyph
-                font.family: Theme.fontFamily
+                font.family: cFont
                 font.pixelSize: 17
-                color: tBtn.active ? Theme.accent : Theme.dim
+                color: tBtn.active ? cAccent : cDim
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: tBtn.label
-                font.family: Theme.fontFamily
+                font.family: cFont
                 font.pixelSize: 11
                 font.bold: true
-                color: tBtn.active ? Theme.accent : Theme.dim
+                color: tBtn.active ? cAccent : cDim
             }
         }
         HoverHandler {
@@ -963,6 +1112,14 @@ Scope {
     }
 
     component NumField: Column {
+        // injected props (inline component scope is isolated)
+        property color cAccent: "#E85D2F"
+        property color cBg: "#000000"
+        property color cBorderStrong: "#3D2B24"
+        property string cFont: "JetBrainsMono Nerd Font"
+        property color cMuted: "#7C8A6A"
+        property int cRadius: 0
+        property color cText: "#F7C7A1"
         id: nField
         property string label: ""
         property int value: 0
@@ -983,9 +1140,9 @@ Scope {
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
             text: nField.label
-            font.family: Theme.fontFamily
+            font.family: cFont
             font.pixelSize: 10
-            color: Theme.muted
+            color: cMuted
         }
         TextField {
             id: nInput
@@ -993,19 +1150,19 @@ Scope {
             width: parent.width
             horizontalAlignment: TextInput.AlignHCenter
             text: String(nField.value)
-            font.family: Theme.fontFamily
+            font.family: cFont
             font.pixelSize: 13
-            color: Theme.text
+            color: cText
             inputMethodHints: Qt.ImhDigitsOnly
             validator: IntValidator {
                 bottom: nField.lo
                 top: nField.hi
             }
             background: Rectangle {
-                color: Theme.bg
+                color: cBg
                 border.width: 1
-                border.color: nInput.activeFocus ? Theme.accent : Theme.borderStrong
-                radius: Theme.radius
+                border.color: nInput.activeFocus ? cAccent : cBorderStrong
+                radius: cRadius
             }
             onAccepted: {
                 nField.accepted2(fieldValue());

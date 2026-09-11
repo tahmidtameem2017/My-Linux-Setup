@@ -5,8 +5,8 @@
 //   Click (verbatim, as in waybar battery on-click):
 //     alacritty --config-file /home/me/niri-setup/alacritty/float.toml -e btop
 // Text parity: "NN%" discharging, "+NN%" charging (format-charging).
-// Colors: Theme.text, warning (<=30%) Theme.accentHover, critical (<=20%)
-// Theme.accent — the waybar warning/critical thresholds. Sharp, no blur.
+// Colors: root.cText, warning (<=30%) root.cAccentHover, critical (<=20%)
+// root.cAccent — the waybar warning/critical thresholds. Sharp, no blur.
 
 import QtQuick
 import QtQuick.Layouts
@@ -16,10 +16,23 @@ import qs.services
 
 Rectangle {
     id: root
+    // Theme aliases (nested scopes cannot see file imports).
+    readonly property color cAccent: Theme.accent
+    readonly property color cAccentHover: Theme.accentHover
+    readonly property color cBg: Theme.bg
+    readonly property color cBorder: Theme.border
+    readonly property color cBorderStrong: Theme.borderStrong
+    readonly property color cDim: Theme.dim
+    readonly property string cFontFamily: Theme.fontFamily
+    readonly property color cMuted: Theme.muted
+    readonly property color cPanel: Theme.panel
+    readonly property int cRadius: Theme.radius
+    readonly property color cRow: Theme.row
+    readonly property color cText: Theme.text
     radius: 0
-    color: Theme.panel
+    color: root.cPanel
     border.width: 1
-    border.color: batArea.containsMouse ? Theme.borderStrong : Theme.border
+    border.color: batArea.containsMouse ? root.cBorderStrong : root.cBorder
     implicitWidth: batRow.implicitWidth + 24
     implicitHeight: 24
     Layout.alignment: Qt.AlignVCenter
@@ -72,7 +85,7 @@ Rectangle {
             text: (root.charging ? "+" : "") + root.pct + "%"
             font.family: "JetBrainsMono Nerd Font"
             font.pointSize: 10
-            color: root.pct <= 20 ? Theme.accent : (root.pct <= 30 || batArea.containsMouse ? Theme.accentHover : Theme.text)
+            color: root.pct <= 20 ? root.cAccent : (root.pct <= 30 || batArea.containsMouse ? root.cAccentHover : root.cText)
         }
     }
 

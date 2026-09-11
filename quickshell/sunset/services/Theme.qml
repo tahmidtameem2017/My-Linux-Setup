@@ -1,4 +1,5 @@
 pragma Singleton
+import QtQuick
 import Quickshell
 
 // Theme.qml — Sunset Orange AMOLED tokens (taste.md, verbatim).

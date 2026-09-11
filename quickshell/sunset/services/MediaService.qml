@@ -70,9 +70,6 @@ Singleton {
         function onValuesChanged() {
             root.pickPlayer();
         }
-        function onCountChanged() {
-            root.pickPlayer();
-        }
     }
 
     Component.onCompleted: pickPlayer()

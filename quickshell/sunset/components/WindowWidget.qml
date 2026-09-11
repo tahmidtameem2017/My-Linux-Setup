@@ -6,7 +6,7 @@
 //   - otherwise a friendly name via the JS map below (the script's
 //     Gio.DesktopAppInfo lookup); unmapped ids fall back to the last
 //     dotted segment capitalized, like the script.
-// waybar parity: muted text (Theme.muted), hover peach (Theme.text).
+// waybar parity: muted text (root.cMuted), hover peach (root.cText).
 
 import QtQuick
 import QtQuick.Layouts
@@ -16,6 +16,19 @@ import qs.services
 
 Rectangle {
     id: root
+    // Theme aliases (nested scopes cannot see file imports).
+    readonly property color cAccent: Theme.accent
+    readonly property color cAccentHover: Theme.accentHover
+    readonly property color cBg: Theme.bg
+    readonly property color cBorder: Theme.border
+    readonly property color cBorderStrong: Theme.borderStrong
+    readonly property color cDim: Theme.dim
+    readonly property string cFontFamily: Theme.fontFamily
+    readonly property color cMuted: Theme.muted
+    readonly property color cPanel: Theme.panel
+    readonly property int cRadius: Theme.radius
+    readonly property color cRow: Theme.row
+    readonly property color cText: Theme.text
     implicitWidth: Math.min(winLabel.implicitWidth + 28, 420)
     implicitHeight: 24
     radius: 0
@@ -95,7 +108,7 @@ Rectangle {
         text: root.title
         font.family: "JetBrainsMono Nerd Font"
         font.pointSize: 10
-        color: winHover.containsMouse ? Theme.text : Theme.muted
+        color: winHover.containsMouse ? root.cText : root.cMuted
         elide: Text.ElideRight
     }
 

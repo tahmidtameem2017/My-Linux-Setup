@@ -4,7 +4,7 @@
 // battery | power; logo goes left). BatteryIcon is kept for *-icon.sh parity
 // but Bar.qml prefers BatteryWidget.qml (UPower) so icon+text stay in sync.
 //
-// Conventions per icon: sharp Rectangle (Theme.panel/border, radius 0, no
+// Conventions per icon: sharp Rectangle (root.cPanel/border, radius 0, no
 // blur), SVG from waybar/icons/*.svg, hover opacity .65 (logo .75, per
 // style.css). Left clicks that open popups/launcher go through IpcHandler
 // targets (`qs -c sunset ipc call <target> toggle`); middle/scroll actions
@@ -19,6 +19,19 @@ import qs.services
 
 Item {
     id: root
+    // Theme aliases (nested scopes cannot see file imports).
+    readonly property color cAccent: Theme.accent
+    readonly property color cAccentHover: Theme.accentHover
+    readonly property color cBg: Theme.bg
+    readonly property color cBorder: Theme.border
+    readonly property color cBorderStrong: Theme.borderStrong
+    readonly property color cDim: Theme.dim
+    readonly property string cFontFamily: Theme.fontFamily
+    readonly property color cMuted: Theme.muted
+    readonly property color cPanel: Theme.panel
+    readonly property int cRadius: Theme.radius
+    readonly property color cRow: Theme.row
+    readonly property color cText: Theme.text
     visible: false
     width: 0
     height: 0
@@ -27,11 +40,15 @@ Item {
     // Left + middle -> native Launcher popup (unified fuzzel+walker replacement).
     // Old fuzzel fallback stays on disk for rollback, never launched here.
     component LogoIcon: Rectangle {
+        // injected props (inline component scope is isolated)
+        property color cBorder: "#1a1210"
+        property color cBorderStrong: "#3D2B24"
+        property color cPanel: "#0a0a0a"
         id: logoBox
         radius: 0
-        color: Theme.panel
+        color: cPanel
         border.width: 1
-        border.color: logoArea.containsMouse ? Theme.borderStrong : Theme.border
+        border.color: logoArea.containsMouse ? cBorderStrong : cBorder
         implicitWidth: 15 + 24
         implicitHeight: 24
         Layout.alignment: Qt.AlignVCenter
@@ -61,11 +78,15 @@ Item {
     // Icon: wifi.svg when any active wifi/ethernet connection, else wifi-off.svg.
     // Click: alacritty float nmtui connect (terminal tool Quickshell keeps).
     component NetworkIcon: Rectangle {
+        // injected props (inline component scope is isolated)
+        property color cBorder: "#1a1210"
+        property color cBorderStrong: "#3D2B24"
+        property color cPanel: "#0a0a0a"
         id: netBox
         radius: 0
-        color: Theme.panel
+        color: cPanel
         border.width: 1
-        border.color: netArea.containsMouse ? Theme.borderStrong : Theme.border
+        border.color: netArea.containsMouse ? cBorderStrong : cBorder
         implicitWidth: 14 + 24
         implicitHeight: 24
         Layout.alignment: Qt.AlignVCenter
@@ -115,11 +136,15 @@ Item {
     // Clipboard (native ClipboardPopup; no cliphist-fuzzel dmenu, no HTML).
     // Left -> IPC `clipboard`. Middle: clear-clipboard.sh (kept engine script).
     component ClipboardIcon: Rectangle {
+        // injected props (inline component scope is isolated)
+        property color cBorder: "#1a1210"
+        property color cBorderStrong: "#3D2B24"
+        property color cPanel: "#0a0a0a"
         id: clipBox
         radius: 0
-        color: Theme.panel
+        color: cPanel
         border.width: 1
-        border.color: clipArea.containsMouse ? Theme.borderStrong : Theme.border
+        border.color: clipArea.containsMouse ? cBorderStrong : cBorder
         implicitWidth: 14 + 24
         implicitHeight: 24
         Layout.alignment: Qt.AlignVCenter
@@ -152,11 +177,15 @@ Item {
     // Left -> IPC `wallpaper`. Middle/scroll: change-wallpaper-simple.sh
     //   random (middle), next (scroll-up), prev (scroll-down) — kept engine.
     component WallpaperIcon: Rectangle {
+        // injected props (inline component scope is isolated)
+        property color cBorder: "#1a1210"
+        property color cBorderStrong: "#3D2B24"
+        property color cPanel: "#0a0a0a"
         id: wallBox
         radius: 0
-        color: Theme.panel
+        color: cPanel
         border.width: 1
-        border.color: wallArea.containsMouse ? Theme.borderStrong : Theme.border
+        border.color: wallArea.containsMouse ? cBorderStrong : cBorder
         implicitWidth: 14 + 24
         implicitHeight: 24
         Layout.alignment: Qt.AlignVCenter
@@ -198,11 +227,15 @@ Item {
     // Settings (native QuickSettings popup; no settings.sh / Brave HTML).
     // Left -> IPC `settings`.
     component SettingsIcon: Rectangle {
+        // injected props (inline component scope is isolated)
+        property color cBorder: "#1a1210"
+        property color cBorderStrong: "#3D2B24"
+        property color cPanel: "#0a0a0a"
         id: setBox
         radius: 0
-        color: Theme.panel
+        color: cPanel
         border.width: 1
-        border.color: setArea.containsMouse ? Theme.borderStrong : Theme.border
+        border.color: setArea.containsMouse ? cBorderStrong : cBorder
         implicitWidth: 14 + 24
         implicitHeight: 24
         Layout.alignment: Qt.AlignVCenter
@@ -231,11 +264,15 @@ Item {
     // NOTE: Bar.qml uses BatteryWidget.qml (UPower) instead, so icon+text stay
     // in sync; this wrapper is kept for layout parity only.
     component BatteryIcon: Rectangle {
+        // injected props (inline component scope is isolated)
+        property color cBorder: "#1a1210"
+        property color cBorderStrong: "#3D2B24"
+        property color cPanel: "#0a0a0a"
         id: batIconBox
         radius: 0
-        color: Theme.panel
+        color: cPanel
         border.width: 1
-        border.color: batIconArea.containsMouse ? Theme.borderStrong : Theme.border
+        border.color: batIconArea.containsMouse ? cBorderStrong : cBorder
         implicitWidth: 14 + 24
         implicitHeight: 24
         Layout.alignment: Qt.AlignVCenter
@@ -286,11 +323,15 @@ Item {
     // Power (native PowerMenu popup; no Brave HTML, no wlogout).
     // Left + middle -> IpcHandler `power`. wlogout stays on disk for rollback only.
     component PowerIcon: Rectangle {
+        // injected props (inline component scope is isolated)
+        property color cBorder: "#1a1210"
+        property color cBorderStrong: "#3D2B24"
+        property color cPanel: "#0a0a0a"
         id: powerBox
         radius: 0
-        color: Theme.panel
+        color: cPanel
         border.width: 1
-        border.color: powerArea.containsMouse ? Theme.borderStrong : Theme.border
+        border.color: powerArea.containsMouse ? cBorderStrong : cBorder
         implicitWidth: 14 + 24
         implicitHeight: 24
         Layout.alignment: Qt.AlignVCenter

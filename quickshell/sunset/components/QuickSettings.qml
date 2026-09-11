@@ -52,6 +52,20 @@ import qs.services
 Scope {
     id: root
 
+    // Theme aliases (inline component scopes cannot see file imports).
+    readonly property color cAccent: Theme.accent
+    readonly property color cAccentHover: Theme.accentHover
+    readonly property color cBg: Theme.bg
+    readonly property color cBorder: Theme.border
+    readonly property color cBorderStrong: Theme.borderStrong
+    readonly property color cDim: Theme.dim
+    readonly property string cFont: Theme.fontFamily
+    readonly property color cMuted: Theme.muted
+    readonly property color cPanel: Theme.panel
+    readonly property int cRadius: Theme.radius
+    readonly property color cRow: Theme.row
+    readonly property color cText: Theme.text
+
     property bool isOpen: false
     // Task term "exclusiveKeyboardFocus" == the Exclusive layer-shell
     // keyboard focus set on the PanelWindow below.
@@ -474,10 +488,10 @@ Scope {
             implicitHeight: Math.min(col.implicitHeight + 26, 600, parent.height - 48)
             width: implicitWidth
             height: implicitHeight
-            color: Theme.panel
+            color: root.cPanel
             border.width: 1
-            border.color: Theme.borderStrong
-            radius: Theme.radius
+            border.color: root.cBorderStrong
+            radius: root.cRadius
 
             FocusScope {
                 id: keys
@@ -512,8 +526,8 @@ Scope {
                     ScrollBar.vertical: ScrollBar {
                         contentItem: Rectangle {
                             implicitWidth: 8
-                            color: Theme.borderStrong
-                            radius: Theme.radius
+                            color: root.cBorderStrong
+                            radius: root.cRadius
                         }
                     }
 
@@ -526,18 +540,24 @@ Scope {
                             width: parent.width
                             horizontalAlignment: Text.AlignHCenter
                             text: "QUICK SETTINGS"
-                            font.family: Theme.fontFamily
+                            font.family: root.cFont
                             font.pixelSize: 12
                             font.bold: true
-                            color: Theme.accent
+                            color: root.cAccent
                             bottomPadding: 4
                         }
 
                         // ---- volume ----
                         SectionLabel {
+                            cAccent: root.cAccent
+                            cFont: root.cFont
                             text: "VOLUME \u00B7 " + AudioService.volume + "%"
                         }
                         VolSlider {
+                            cAccent: root.cAccent
+                            cAccentHover: root.cAccentHover
+                            cBg: root.cBg
+                            cBorder: root.cBorder
                             id: volSlider
                             width: parent.width
                             Binding {
@@ -546,7 +566,7 @@ Scope {
                                 value: AudioService.volume
                                 when: !volSlider.pressed
                             }
-                            onMoved: v => {
+                            onMovedTo: v => {
                                 volDebounce.stop();
                                 volDebounce.start();
                             }
@@ -559,6 +579,13 @@ Scope {
                             width: parent.width
                             spacing: 8
                             SunsetBtn {
+                                cAccent: root.cAccent
+                                cAccentHover: root.cAccentHover
+                                cBorderStrong: root.cBorderStrong
+                                cFont: root.cFont
+                                cRadius: root.cRadius
+                                cRow: root.cRow
+                                cText: root.cText
                                 cols: 4
                                 gap: 8
                                 label: AudioService.muted ? "󰝟 Unmute" : "󰝟 Mute"
@@ -566,18 +593,39 @@ Scope {
                                 onClicked: AudioService.toggleMute()
                             }
                             SunsetBtn {
+                                cAccent: root.cAccent
+                                cAccentHover: root.cAccentHover
+                                cBorderStrong: root.cBorderStrong
+                                cFont: root.cFont
+                                cRadius: root.cRadius
+                                cRow: root.cRow
+                                cText: root.cText
                                 cols: 4
                                 gap: 8
                                 label: "25"
                                 onClicked: AudioService.setVolumePercent(25)
                             }
                             SunsetBtn {
+                                cAccent: root.cAccent
+                                cAccentHover: root.cAccentHover
+                                cBorderStrong: root.cBorderStrong
+                                cFont: root.cFont
+                                cRadius: root.cRadius
+                                cRow: root.cRow
+                                cText: root.cText
                                 cols: 4
                                 gap: 8
                                 label: "50"
                                 onClicked: AudioService.setVolumePercent(50)
                             }
                             SunsetBtn {
+                                cAccent: root.cAccent
+                                cAccentHover: root.cAccentHover
+                                cBorderStrong: root.cBorderStrong
+                                cFont: root.cFont
+                                cRadius: root.cRadius
+                                cRow: root.cRow
+                                cText: root.cText
                                 cols: 4
                                 gap: 8
                                 label: "75"
@@ -587,9 +635,15 @@ Scope {
 
                         // ---- brightness ----
                         SectionLabel {
+                            cAccent: root.cAccent
+                            cFont: root.cFont
                             text: "BRIGHTNESS \u00B7 " + root.briPct + "%"
                         }
                         VolSlider {
+                            cAccent: root.cAccent
+                            cAccentHover: root.cAccentHover
+                            cBg: root.cBg
+                            cBorder: root.cBorder
                             id: briSlider
                             width: parent.width
                             minimum: 5
@@ -599,7 +653,7 @@ Scope {
                                 value: root.briPct
                                 when: !briSlider.pressed
                             }
-                            onMoved: v => {
+                            onMovedTo: v => {
                                 root.briPct = Math.round(v);
                                 briDebounce.stop();
                                 briDebounce.start();
@@ -608,9 +662,20 @@ Scope {
 
                         // ---- wifi ----
                         SectionLabel {
+                            cAccent: root.cAccent
+                            cFont: root.cFont
                             text: "WI-FI"
                         }
                         SwitchRow {
+                            cAccent: root.cAccent
+                            cBorder: root.cBorder
+                            cBorderStrong: root.cBorderStrong
+                            cDim: root.cDim
+                            cFont: root.cFont
+                            cMuted: root.cMuted
+                            cRadius: root.cRadius
+                            cRow: root.cRow
+                            cText: root.cText
                             width: parent.width
                             title: "󰖩 Wi-Fi"
                             sub: root.wifiEnabled ? (root.wifiSsid !== "" ? root.wifiSsid : "On \u00B7 not connected") : "Off"
@@ -630,8 +695,8 @@ Scope {
                             ScrollBar.vertical: ScrollBar {
                                 contentItem: Rectangle {
                                     implicitWidth: 8
-                                    color: Theme.borderStrong
-                                    radius: Theme.radius
+                                    color: root.cBorderStrong
+                                    radius: root.cRadius
                                 }
                             }
                             delegate: Rectangle {
@@ -639,8 +704,8 @@ Scope {
                                 height: 30
                                 color: "transparent"
                                 border.width: 1
-                                border.color: model.active ? Theme.accent : "transparent"
-                                radius: Theme.radius
+                                border.color: model.active ? root.cAccent : "transparent"
+                                radius: root.cRadius
                                 Row {
                                     anchors.fill: parent
                                     anchors.leftMargin: 10
@@ -651,25 +716,25 @@ Scope {
                                         height: 8
                                         radius: 4
                                         anchors.verticalCenter: parent.verticalCenter
-                                        color: model.active ? Theme.accent : Theme.dim
+                                        color: model.active ? root.cAccent : root.cDim
                                     }
                                     Text {
                                         width: parent.width - 16 - 70
                                         anchors.verticalCenter: parent.verticalCenter
                                         elide: Text.ElideRight
                                         text: (model.security ? "󰌾 " : "") + model.ssid
-                                        font.family: Theme.fontFamily
+                                        font.family: root.cFont
                                         font.pixelSize: 12
-                                        color: wHover.hovered ? Theme.accentHover : Theme.text
+                                        color: wHover.hovered ? root.cAccentHover : root.cText
                                     }
                                     Text {
                                         width: 62
                                         anchors.verticalCenter: parent.verticalCenter
                                         horizontalAlignment: Text.AlignRight
                                         text: root.wifiSignalIcon(model.signal) + " " + model.signal + "%"
-                                        font.family: Theme.fontFamily
+                                        font.family: root.cFont
                                         font.pixelSize: 11
-                                        color: Theme.muted
+                                        color: root.cMuted
                                     }
                                 }
                                 HoverHandler {
@@ -707,19 +772,26 @@ Scope {
                                 width: parent.width - 70
                                 placeholderText: "Password\u2026"
                                 echoMode: TextInput.Password
-                                font.family: Theme.fontFamily
+                                font.family: root.cFont
                                 font.pixelSize: 12
-                                color: Theme.text
-                                placeholderTextColor: Theme.dim
+                                color: root.cText
+                                placeholderTextColor: root.cDim
                                 background: Rectangle {
-                                    color: Theme.bg
+                                    color: root.cBg
                                     border.width: 1
-                                    border.color: pwInput.activeFocus ? Theme.accent : Theme.borderStrong
-                                    radius: Theme.radius
+                                    border.color: pwInput.activeFocus ? root.cAccent : root.cBorderStrong
+                                    radius: root.cRadius
                                 }
                                 onAccepted: root.joinWifi(root.pendingSsid, text)
                             }
                             SunsetBtn {
+                                cAccent: root.cAccent
+                                cAccentHover: root.cAccentHover
+                                cBorderStrong: root.cBorderStrong
+                                cFont: root.cFont
+                                cRadius: root.cRadius
+                                cRow: root.cRow
+                                cText: root.cText
                                 cols: 1
                                 label: "Join"
                                 width: 64
@@ -729,9 +801,20 @@ Scope {
 
                         // ---- bluetooth ----
                         SectionLabel {
+                            cAccent: root.cAccent
+                            cFont: root.cFont
                             text: "BLUETOOTH"
                         }
                         SwitchRow {
+                            cAccent: root.cAccent
+                            cBorder: root.cBorder
+                            cBorderStrong: root.cBorderStrong
+                            cDim: root.cDim
+                            cFont: root.cFont
+                            cMuted: root.cMuted
+                            cRadius: root.cRadius
+                            cRow: root.cRow
+                            cText: root.cText
                             width: parent.width
                             title: "󰂯 Bluetooth"
                             sub: root.btPowered ? root.btSummary() : "Off"
@@ -748,8 +831,8 @@ Scope {
                             ScrollBar.vertical: ScrollBar {
                                 contentItem: Rectangle {
                                     implicitWidth: 8
-                                    color: Theme.borderStrong
-                                    radius: Theme.radius
+                                    color: root.cBorderStrong
+                                    radius: root.cRadius
                                 }
                             }
                             delegate: Rectangle {
@@ -757,8 +840,8 @@ Scope {
                                 height: 30
                                 color: "transparent"
                                 border.width: 1
-                                border.color: model.connected ? Theme.accent : "transparent"
-                                radius: Theme.radius
+                                border.color: model.connected ? root.cAccent : "transparent"
+                                radius: root.cRadius
                                 Row {
                                     anchors.fill: parent
                                     anchors.leftMargin: 10
@@ -769,25 +852,25 @@ Scope {
                                         height: 8
                                         radius: 4
                                         anchors.verticalCenter: parent.verticalCenter
-                                        color: model.connected ? Theme.accent : Theme.dim
+                                        color: model.connected ? root.cAccent : root.cDim
                                     }
                                     Text {
                                         width: parent.width - 16 - 80
                                         anchors.verticalCenter: parent.verticalCenter
                                         elide: Text.ElideRight
                                         text: model.name
-                                        font.family: Theme.fontFamily
+                                        font.family: root.cFont
                                         font.pixelSize: 12
-                                        color: bHover.hovered ? Theme.accentHover : Theme.text
+                                        color: bHover.hovered ? root.cAccentHover : root.cText
                                     }
                                     Text {
                                         width: 72
                                         anchors.verticalCenter: parent.verticalCenter
                                         horizontalAlignment: Text.AlignRight
                                         text: model.connected ? "connected" : ""
-                                        font.family: Theme.fontFamily
+                                        font.family: root.cFont
                                         font.pixelSize: 11
-                                        color: Theme.muted
+                                        color: root.cMuted
                                     }
                                 }
                                 HoverHandler {
@@ -808,6 +891,8 @@ Scope {
 
                         // ---- power profile ----
                         SectionLabel {
+                            cAccent: root.cAccent
+                            cFont: root.cFont
                             text: "POWER PROFILE"
                         }
                         Row {
@@ -819,17 +904,17 @@ Scope {
                                     visible: index !== 0 || PowerProfiles.hasPerformanceProfile
                                     width: visible ? (parent.width - 12) / 3 : 0
                                     height: 34
-                                    color: PowerProfiles.profile === modelData.prof ? Theme.accent : Theme.row
+                                    color: PowerProfiles.profile === modelData.prof ? root.cAccent : root.cRow
                                     border.width: 1
-                                    border.color: PowerProfiles.profile === modelData.prof ? Theme.accent : Theme.border
-                                    radius: Theme.radius
+                                    border.color: PowerProfiles.profile === modelData.prof ? root.cAccent : root.cBorder
+                                    radius: root.cRadius
                                     Text {
                                         anchors.centerIn: parent
                                         text: modelData.label
-                                        font.family: Theme.fontFamily
+                                        font.family: root.cFont
                                         font.pixelSize: 11
                                         font.bold: true
-                                        color: PowerProfiles.profile === modelData.prof ? Theme.bg : Theme.text
+                                        color: PowerProfiles.profile === modelData.prof ? root.cBg : root.cText
                                     }
                                     MouseArea {
                                         anchors.fill: parent
@@ -845,9 +930,20 @@ Scope {
 
                         // ---- dnd ----
                         SectionLabel {
+                            cAccent: root.cAccent
+                            cFont: root.cFont
                             text: "DO NOT DISTURB"
                         }
                         SwitchRow {
+                            cAccent: root.cAccent
+                            cBorder: root.cBorder
+                            cBorderStrong: root.cBorderStrong
+                            cDim: root.cDim
+                            cFont: root.cFont
+                            cMuted: root.cMuted
+                            cRadius: root.cRadius
+                            cRow: root.cRow
+                            cText: root.cText
                             width: parent.width
                             title: "󰂛 Do Not Disturb"
                             sub: NotificationService.dnd ? "On \u00B7 notifications paused" : "Off"
@@ -861,6 +957,8 @@ Scope {
 
                         // ---- idle timeout ----
                         SectionLabel {
+                            cAccent: root.cAccent
+                            cFont: root.cFont
                             text: "IDLE TIMEOUT"
                         }
                         Row {
@@ -871,17 +969,17 @@ Scope {
                                 delegate: Rectangle {
                                     width: (parent.width - 24) / 5
                                     height: 34
-                                    color: root.idleCurrent === modelData ? Theme.accent : Theme.row
+                                    color: root.idleCurrent === modelData ? root.cAccent : root.cRow
                                     border.width: 1
-                                    border.color: root.idleCurrent === modelData ? Theme.accent : Theme.border
-                                    radius: Theme.radius
+                                    border.color: root.idleCurrent === modelData ? root.cAccent : root.cBorder
+                                    radius: root.cRadius
                                     Text {
                                         anchors.centerIn: parent
                                         text: root.idleShort[modelData] ?? modelData
-                                        font.family: Theme.fontFamily
+                                        font.family: root.cFont
                                         font.pixelSize: 11
                                         font.bold: true
-                                        color: root.idleCurrent === modelData ? Theme.bg : Theme.text
+                                        color: root.idleCurrent === modelData ? root.cBg : root.cText
                                     }
                                     MouseArea {
                                         anchors.fill: parent
@@ -894,9 +992,9 @@ Scope {
                         Text {
                             width: parent.width
                             text: root.msg
-                            font.family: Theme.fontFamily
+                            font.family: root.cFont
                             font.pixelSize: 11
-                            color: Theme.muted
+                            color: root.cMuted
                             elide: Text.ElideRight
                             topPadding: 8
                         }
@@ -905,6 +1003,13 @@ Scope {
                             height: 12
                         }
                         SunsetBtn {
+                            cAccent: root.cAccent
+                            cAccentHover: root.cAccentHover
+                            cBorderStrong: root.cBorderStrong
+                            cFont: root.cFont
+                            cRadius: root.cRadius
+                            cRow: root.cRow
+                            cText: root.cText
                             cols: 1
                             label: "Close"
                             onClicked: root.close()
@@ -913,9 +1018,9 @@ Scope {
                             width: parent.width
                             horizontalAlignment: Text.AlignHCenter
                             text: "tap a network or device to connect \u00B7 \u2191/\u2193 volume \u00B7 M mute \u00B7 Esc closes"
-                            font.family: Theme.fontFamily
+                            font.family: root.cFont
                             font.pixelSize: 10
-                            color: Theme.muted
+                            color: root.cMuted
                             topPadding: 10
                         }
                     }
@@ -939,19 +1044,27 @@ Scope {
     }
 
     component SectionLabel: Text {
+        // injected props (inline component scope is isolated)
+        property color cAccent: "#E85D2F"
+        property string cFont: "JetBrainsMono Nerd Font"
         width: parent ? parent.width : 100
-        font.family: Theme.fontFamily
+        font.family: cFont
         font.pixelSize: 11
         font.bold: true
-        color: Theme.accent
+        color: cAccent
         topPadding: 12
         bottomPadding: 6
     }
 
     component VolSlider: Slider {
+        // injected props (inline component scope is isolated)
+        property color cAccent: "#E85D2F"
+        property color cAccentHover: "#FF8B4A"
+        property color cBg: "#000000"
+        property color cBorder: "#1a1210"
         id: sl
         property real minimum: 0
-        signal moved(real v)
+        signal movedTo(real v)
         from: minimum
         to: 100
         stepSize: 1
@@ -963,12 +1076,12 @@ Scope {
             width: sl.availableWidth
             height: 8
             radius: 4
-            color: Theme.border
+            color: cBorder
             Rectangle {
                 width: sl.visualPosition * parent.width
                 height: parent.height
                 radius: 4
-                color: Theme.accent
+                color: cAccent
             }
         }
         handle: Rectangle {
@@ -977,14 +1090,22 @@ Scope {
             width: 20
             height: 20
             radius: 10
-            color: sl.pressed ? Theme.accentHover : Theme.accent
+            color: sl.pressed ? cAccentHover : cAccent
             border.width: 2
-            border.color: Theme.bg
+            border.color: cBg
         }
-        onMoved: sl.moved(sl.value)
+        onMoved: sl.movedTo(sl.value)
     }
 
     component SunsetBtn: Rectangle {
+        // injected props (inline component scope is isolated)
+        property color cAccent: "#E85D2F"
+        property color cAccentHover: "#FF8B4A"
+        property color cBorderStrong: "#3D2B24"
+        property string cFont: "JetBrainsMono Nerd Font"
+        property int cRadius: 0
+        property color cRow: "#141010"
+        property color cText: "#F7C7A1"
         id: sBtn
         property string label: ""
         property bool hot: false
@@ -993,17 +1114,17 @@ Scope {
         signal clicked
         width: parent ? (parent.width - (cols - 1) * gap) / cols : 100
         height: 32
-        color: Theme.row
+        color: cRow
         border.width: 1
-        border.color: hot ? Theme.accent : Theme.borderStrong
-        radius: Theme.radius
+        border.color: hot ? cAccent : cBorderStrong
+        radius: cRadius
         Text {
             anchors.centerIn: parent
             text: sBtn.label
-            font.family: Theme.fontFamily
+            font.family: cFont
             font.pixelSize: 12
             font.bold: true
-            color: hot ? Theme.accent : (sHover.hovered ? Theme.accentHover : Theme.text)
+            color: hot ? cAccent : (sHover.hovered ? cAccentHover : cText)
         }
         HoverHandler {
             id: sHover
@@ -1016,16 +1137,26 @@ Scope {
     }
 
     component SwitchRow: Rectangle {
+        // injected props (inline component scope is isolated)
+        property color cAccent: "#E85D2F"
+        property color cBorder: "#1a1210"
+        property color cBorderStrong: "#3D2B24"
+        property color cDim: "#555555"
+        property string cFont: "JetBrainsMono Nerd Font"
+        property color cMuted: "#7C8A6A"
+        property int cRadius: 0
+        property color cRow: "#141010"
+        property color cText: "#F7C7A1"
         id: sw
         property string title: ""
         property string sub: ""
         property bool on: false
         signal clicked
         height: 42
-        color: Theme.row
+        color: cRow
         border.width: 1
-        border.color: Theme.border
-        radius: Theme.radius
+        border.color: cBorder
+        radius: cRadius
         Row {
             anchors.fill: parent
             anchors.leftMargin: 10
@@ -1038,18 +1169,18 @@ Scope {
                     width: parent.width
                     elide: Text.ElideRight
                     text: sw.title
-                    font.family: Theme.fontFamily
+                    font.family: cFont
                     font.pixelSize: 13
                     font.bold: true
-                    color: Theme.text
+                    color: cText
                 }
                 Text {
                     width: parent.width
                     elide: Text.ElideRight
                     text: sw.sub
-                    font.family: Theme.fontFamily
+                    font.family: cFont
                     font.pixelSize: 10
-                    color: Theme.muted
+                    color: cMuted
                 }
             }
             Rectangle {
@@ -1059,11 +1190,11 @@ Scope {
                 anchors.verticalCenter: parent.verticalCenter
                 color: "transparent"
                 border.width: 1
-                border.color: sw.on ? Theme.accent : Theme.borderStrong
+                border.color: sw.on ? cAccent : cBorderStrong
                 Rectangle {
                     anchors.fill: parent
                     radius: 12
-                    color: Theme.accent
+                    color: cAccent
                     opacity: 0.25
                     visible: sw.on
                 }
@@ -1073,7 +1204,7 @@ Scope {
                     width: 18
                     height: 18
                     radius: 9
-                    color: sw.on ? Theme.accent : Theme.dim
+                    color: sw.on ? cAccent : cDim
                 }
                 // Only the pill itself is clickable (matches old toggle UX).
                 MouseArea {

@@ -40,6 +40,20 @@ import qs.services
 Scope {
     id: root
 
+    // Theme aliases (inline component scopes cannot see file imports).
+    readonly property color cAccent: Theme.accent
+    readonly property color cAccentHover: Theme.accentHover
+    readonly property color cBg: Theme.bg
+    readonly property color cBorder: Theme.border
+    readonly property color cBorderStrong: Theme.borderStrong
+    readonly property color cDim: Theme.dim
+    readonly property string cFont: Theme.fontFamily
+    readonly property color cMuted: Theme.muted
+    readonly property color cPanel: Theme.panel
+    readonly property int cRadius: Theme.radius
+    readonly property color cRow: Theme.row
+    readonly property color cText: Theme.text
+
     property bool isOpen: false
     // Task term "exclusiveKeyboardFocus" == the Exclusive layer-shell
     // keyboard focus set on the PanelWindow below.
@@ -109,10 +123,10 @@ Scope {
             implicitHeight: Math.min(col.implicitHeight + 32, parent.height - 48)
             width: implicitWidth
             height: implicitHeight
-            color: Theme.panel
+            color: root.cPanel
             border.width: 1
-            border.color: Theme.borderStrong
-            radius: Theme.radius
+            border.color: root.cBorderStrong
+            radius: root.cRadius
 
             FocusScope {
                 id: keys
@@ -149,33 +163,37 @@ Scope {
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
                         text: root.volIcon(AudioService.volume, AudioService.muted)
-                        font.family: Theme.fontFamily
+                        font.family: root.cFont
                         font.pixelSize: 26
-                        color: AudioService.muted ? Theme.dim : Theme.accent
+                        color: AudioService.muted ? root.cDim : root.cAccent
                     }
                     Text {
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
                         text: AudioService.volume + "%"
-                        font.family: Theme.fontFamily
+                        font.family: root.cFont
                         font.pixelSize: 34
                         font.bold: true
-                        color: Theme.text
+                        color: root.cText
                     }
                     Text {
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
                         elide: Text.ElideRight
                         text: AudioService.sinkName !== "" ? AudioService.sinkName : "No output"
-                        font.family: Theme.fontFamily
+                        font.family: root.cFont
                         font.pixelSize: 11
-                        color: Theme.muted
+                        color: root.cMuted
                     }
                     Item {
                         width: parent.width
                         height: 10
                     }
                     VolSlider {
+                        cAccent: root.cAccent
+                        cAccentHover: root.cAccentHover
+                        cBg: root.cBg
+                        cBorder: root.cBorder
                         id: masterSlider
                         width: parent.width
                         Binding {
@@ -184,7 +202,7 @@ Scope {
                             value: AudioService.volume
                             when: !masterSlider.pressed
                         }
-                        onMoved: v => AudioService.setVolumePercent(v)
+                        onMovedTo: v => AudioService.setVolumePercent(v)
                     }
                     Item {
                         width: parent.width
@@ -194,6 +212,13 @@ Scope {
                         width: parent.width
                         spacing: 8
                         SunsetBtn {
+                            cAccent: root.cAccent
+                            cAccentHover: root.cAccentHover
+                            cBorderStrong: root.cBorderStrong
+                            cFont: root.cFont
+                            cRadius: root.cRadius
+                            cRow: root.cRow
+                            cText: root.cText
                             cols: 5
                             gap: 8
                             label: AudioService.muted ? "󰝟 Unmute" : "󰝟 Mute"
@@ -201,24 +226,52 @@ Scope {
                             onClicked: AudioService.toggleMute()
                         }
                         SunsetBtn {
+                            cAccent: root.cAccent
+                            cAccentHover: root.cAccentHover
+                            cBorderStrong: root.cBorderStrong
+                            cFont: root.cFont
+                            cRadius: root.cRadius
+                            cRow: root.cRow
+                            cText: root.cText
                             cols: 5
                             gap: 8
                             label: "25"
                             onClicked: AudioService.setVolumePercent(25)
                         }
                         SunsetBtn {
+                            cAccent: root.cAccent
+                            cAccentHover: root.cAccentHover
+                            cBorderStrong: root.cBorderStrong
+                            cFont: root.cFont
+                            cRadius: root.cRadius
+                            cRow: root.cRow
+                            cText: root.cText
                             cols: 5
                             gap: 8
                             label: "50"
                             onClicked: AudioService.setVolumePercent(50)
                         }
                         SunsetBtn {
+                            cAccent: root.cAccent
+                            cAccentHover: root.cAccentHover
+                            cBorderStrong: root.cBorderStrong
+                            cFont: root.cFont
+                            cRadius: root.cRadius
+                            cRow: root.cRow
+                            cText: root.cText
                             cols: 5
                             gap: 8
                             label: "75"
                             onClicked: AudioService.setVolumePercent(75)
                         }
                         SunsetBtn {
+                            cAccent: root.cAccent
+                            cAccentHover: root.cAccentHover
+                            cBorderStrong: root.cBorderStrong
+                            cFont: root.cFont
+                            cRadius: root.cRadius
+                            cRow: root.cRow
+                            cText: root.cText
                             cols: 5
                             gap: 8
                             label: "100"
@@ -230,10 +283,10 @@ Scope {
                     Text {
                         width: parent.width
                         text: "OUTPUTS"
-                        font.family: Theme.fontFamily
+                        font.family: root.cFont
                         font.pixelSize: 11
                         font.bold: true
-                        color: Theme.accent
+                        color: root.cAccent
                         topPadding: 14
                         bottomPadding: 6
                     }
@@ -247,8 +300,8 @@ Scope {
                             policy: sinkCol.implicitHeight > 148 ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
                             contentItem: Rectangle {
                                 implicitWidth: 8
-                                color: Theme.borderStrong
-                                radius: Theme.radius
+                                color: root.cBorderStrong
+                                radius: root.cRadius
                             }
                         }
                         Column {
@@ -262,10 +315,10 @@ Scope {
                                     readonly property bool isDefault: node === Pipewire.defaultAudioSink
                                     width: sinkCol.width
                                     height: 62
-                                    color: Theme.row
+                                    color: root.cRow
                                     border.width: 1
-                                    border.color: isDefault ? Theme.accent : Theme.border
-                                    radius: Theme.radius
+                                    border.color: isDefault ? root.cAccent : root.cBorder
+                                    radius: root.cRadius
 
                                     PwObjectTracker {
                                         objects: node ? [node] : []
@@ -290,7 +343,7 @@ Scope {
                                             height: 8
                                             radius: 4
                                             anchors.verticalCenter: parent.verticalCenter
-                                            color: isDefault ? Theme.accent : Theme.dim
+                                            color: isDefault ? root.cAccent : root.cDim
                                         }
                                         Column {
                                             width: parent.width - 16 - 44 - 16
@@ -300,11 +353,15 @@ Scope {
                                                 width: parent.width
                                                 elide: Text.ElideRight
                                                 text: (isDefault ? "\u2713 " : "") + (node ? (node.description || node.name) : "")
-                                                font.family: Theme.fontFamily
+                                                font.family: root.cFont
                                                 font.pixelSize: 12
-                                                color: Theme.text
+                                                color: root.cText
                                             }
                                             VolSlider {
+                                                cAccent: root.cAccent
+                                                cAccentHover: root.cAccentHover
+                                                cBg: root.cBg
+                                                cBorder: root.cBorder
                                                 id: rowSlider
                                                 width: parent.width
                                                 compact: true
@@ -314,7 +371,7 @@ Scope {
                                                     value: (node && node.audio) ? Math.round(Math.min(1, node.audio.volume) * 100) : 0
                                                     when: !rowSlider.pressed
                                                 }
-                                                onMoved: v => {
+                                                onMovedTo: v => {
                                                     if (node && node.audio)
                                                         node.audio.volume = Math.max(0, Math.min(1, v / 100));
                                                 }
@@ -325,9 +382,9 @@ Scope {
                                             anchors.verticalCenter: parent.verticalCenter
                                             horizontalAlignment: Text.AlignRight
                                             text: (node && node.audio) ? Math.round(Math.min(1, node.audio.volume) * 100) + "%" : "--"
-                                            font.family: Theme.fontFamily
+                                            font.family: root.cFont
                                             font.pixelSize: 11
-                                            color: Theme.muted
+                                            color: root.cMuted
                                         }
                                     }
                                 }
@@ -342,6 +399,13 @@ Scope {
                     Row {
                         width: parent.width
                         SunsetBtn {
+                            cAccent: root.cAccent
+                            cAccentHover: root.cAccentHover
+                            cBorderStrong: root.cBorderStrong
+                            cFont: root.cFont
+                            cRadius: root.cRadius
+                            cRow: root.cRow
+                            cText: root.cText
                             cols: 1
                             label: "Close"
                             onClicked: root.close()
@@ -351,9 +415,9 @@ Scope {
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
                         text: "drag slider \u00B7 \u2191/\u2193 \u00B15 \u00B7 M mute \u00B7 Esc close"
-                        font.family: Theme.fontFamily
+                        font.family: root.cFont
                         font.pixelSize: 10
-                        color: Theme.muted
+                        color: root.cMuted
                         topPadding: 10
                     }
                 }
@@ -368,9 +432,14 @@ Scope {
 
     // Volume slider (Sunset track + accent fill + round thumb).
     component VolSlider: Slider {
+        // injected props (inline component scope is isolated)
+        property color cAccent: "#E85D2F"
+        property color cAccentHover: "#FF8B4A"
+        property color cBg: "#000000"
+        property color cBorder: "#1a1210"
         id: sl
         property bool compact: false
-        signal moved(real v)
+        signal movedTo(real v)
         from: 0
         to: 100
         stepSize: 1
@@ -382,12 +451,12 @@ Scope {
             width: sl.availableWidth
             height: 8
             radius: 4
-            color: Theme.border
+            color: cBorder
             Rectangle {
                 width: sl.visualPosition * parent.width
                 height: parent.height
                 radius: 4
-                color: Theme.accent
+                color: cAccent
             }
         }
         handle: Rectangle {
@@ -396,14 +465,22 @@ Scope {
             width: compact ? 16 : 20
             height: compact ? 16 : 20
             radius: compact ? 8 : 10
-            color: sl.pressed ? Theme.accentHover : Theme.accent
+            color: sl.pressed ? cAccentHover : cAccent
             border.width: 2
-            border.color: Theme.bg
+            border.color: cBg
         }
-        onMoved: sl.moved(sl.value)
+        onMoved: sl.movedTo(sl.value)
     }
 
     component SunsetBtn: Rectangle {
+        // injected props (inline component scope is isolated)
+        property color cAccent: "#E85D2F"
+        property color cAccentHover: "#FF8B4A"
+        property color cBorderStrong: "#3D2B24"
+        property string cFont: "JetBrainsMono Nerd Font"
+        property int cRadius: 0
+        property color cRow: "#141010"
+        property color cText: "#F7C7A1"
         id: sBtn
         property string label: ""
         // Accent outline (e.g. muted-on) without filling.
@@ -413,17 +490,17 @@ Scope {
         signal clicked
         width: parent ? (parent.width - (cols - 1) * gap) / cols : 100
         height: 32
-        color: Theme.row
+        color: cRow
         border.width: 1
-        border.color: hot ? Theme.accent : Theme.borderStrong
-        radius: Theme.radius
+        border.color: hot ? cAccent : cBorderStrong
+        radius: cRadius
         Text {
             anchors.centerIn: parent
             text: sBtn.label
-            font.family: Theme.fontFamily
+            font.family: cFont
             font.pixelSize: 12
             font.bold: true
-            color: hot ? Theme.accent : (sHover.hovered ? Theme.accentHover : Theme.text)
+            color: hot ? cAccent : (sHover.hovered ? cAccentHover : cText)
         }
         HoverHandler {
             id: sHover
