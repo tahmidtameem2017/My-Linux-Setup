@@ -77,57 +77,39 @@ def load_state():
 
 
 def ensure_beep():
-    """The timer sound: a chiptune rendition of the 'Never Gonna Give You
-    Up' chorus (note table after the classic piezo-buzzer transcription).
+    """The timer sound: a kawaii music-box chime — a soft C6-E6-G6-C7
+    arpeggio with exponential-decay plucks (sine + whisper of harmonics,
+    gentle attack, -6dB peak). Sweet, never alarming.
     Generated locally, no downloads."""
     if os.path.isfile(BEEP_FILE):
         return BEEP_FILE
-    # (freq Hz, None = rest, beat units @100ms). Full chorus, with lyrics
-    # for orientation: Never gonna give you up / let you down / run
-    # around and desert you / make you cry / say goodbye / tell a lie
-    # and hurt you.
-    Bb4, Ab4, F5, Eb5, Db5, C5, Ab5 = 466.16, 415.30, 698.46, 622.25, 554.37, 523.25, 830.61
-    R = None
-    melody = [
-        Bb4, Bb4, Ab4, Ab4, F5, F5, Eb5,
-        Bb4, Bb4, Ab4, Ab4, Eb5, Eb5, Db5,
-        C5, Bb4, Db5, Db5, Db5, Db5, Db5,
-        Eb5, C5, Bb4, Ab4, Ab4, Ab4, Eb5,
-        Db5, Bb4, Bb4, Ab4, Ab4, F5, F5,
-        Eb5, Bb4, Bb4, Ab4, Ab4, Ab5, C5,
-        Db5, C5, Bb4, Db5, Db5, Db5, Db5,
-        Db5, Eb5, C5, Bb4, Ab4, R, Ab4,
-        Eb5, Db5, R,
-    ]
-    rhythm = [
-        1, 1, 1, 1, 3, 3, 6,
-        1, 1, 1, 1, 3, 3, 3,
-        1, 2, 1, 1, 1, 1, 3, 3, 3,
-        1, 2, 2, 2, 4, 8,
-        1, 1, 1, 1, 3, 3, 6,
-        1, 1, 1, 1, 3, 3, 3,
-        1, 2, 1, 1, 1, 1, 3, 3, 3,
-        1, 2, 2, 2, 4, 8, 4,
-    ]
-    assert len(melody) == len(rhythm) == 59, "melody/rhythm length mismatch"
+    # (freq Hz, onset seconds). Each note rings ~0.9s under the next.
+    C6, E6, G6, C7 = 1046.50, 1318.51, 1567.98, 2093.00
+    notes = [(C6, 0.00), (E6, 0.17), (G6, 0.34), (C7, 0.51)]
     try:
-        rate, beat = 44100, 0.10
+        rate, ring = 44100, 0.9
+        total = 0.51 + ring
+        nframes = int(rate * total)
+        buf = [0.0] * nframes
+        for freq, onset in notes:
+            s0 = int(onset * rate)
+            m = int(ring * rate)
+            for t in range(m):
+                i = s0 + t
+                if i >= nframes:
+                    break
+                ts = t / rate
+                # Raised-cosine attack (8ms, no clicks) + exp decay.
+                atk = 0.5 - 0.5 * math.cos(math.pi * min(1.0, ts / 0.008))
+                v = math.sin(2 * math.pi * freq * ts) * math.exp(-ts / 0.22)
+                v += 0.12 * math.sin(2 * math.pi * 3 * freq * ts) * math.exp(-ts / 0.09)
+                v += 0.04 * math.sin(2 * math.pi * 4.01 * freq * ts) * math.exp(-ts / 0.06)
+                buf[i] += atk * v
+        peak = max(abs(v) for v in buf) or 1.0
+        g = 0.5 / peak  # gentle -6dB ceiling
         pcm = bytearray()
-        for freq, units in zip(melody, rhythm):
-            dur = beat * units
-            n = int(rate * dur)
-            if freq is None:
-                pcm += b"\x00\x00" * n
-                continue
-            for t in range(n):
-                # Soft envelope: quick attack, gentle decay (no clicks).
-                env = min(1.0, t / (rate * 0.01)) * (0.55 + 0.45 * (1 - t / n))
-                # Sine + a breath of 2nd harmonic for chiptune warmth.
-                v = math.sin(2 * math.pi * freq * t / rate)
-                v += 0.25 * math.sin(4 * math.pi * freq * t / rate)
-                pcm += struct.pack("<h", int(11000 * env * v / 1.25))
-            gap = int(rate * beat * 0.2)  # separation between notes
-            pcm += b"\x00\x00" * gap
+        for v in buf:
+            pcm += struct.pack("<h", int(max(-1.0, min(1.0, v * g)) * 32767))
         with wave.open(BEEP_FILE, "wb") as w:
             w.setnchannels(1)
             w.setsampwidth(2)

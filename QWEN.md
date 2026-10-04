@@ -8,14 +8,14 @@ This repository contains a complete **niri Wayland compositor configuration** wi
 
 **Key Technologies:**
 - **Window Manager:** niri (scrollable tiling Wayland compositor)
-- **Launcher:** Fuzzel
-- **Panel:** Waybar
-- **Notifications:** dunst
+- **Shell:** Quickshell 0.3.1 (`quickshell -c sunset`) — native QML bar, popups, launcher, toasts (replaces Waybar + dunst + Brave HTML popups)
+- **Launcher:** Quickshell `Launcher.qml` (`Alt+Space`: app search + Controls section dispatching to every control menu). Fuzzel and walker stay on disk, unbound.
+- **Notifications:** Quickshell `Toasts` (dunst runs only in the legacy waybar session)
 - **Terminal:** Alacritty
 - **Lock Screen:** swaylock
-- **Wallpaper:** swaybg + swww
+- **Wallpaper:** swaybg (driven by `scripts/wallpaper.sh` / quickshell `WallpaperService`; knobs in `.state/wallpaper-process.conf`, edited with `scripts/wallpaper-process.sh get|set|setmany|reset` — the GUI editor went away with Settings Center)
 - **Idle Management:** swayidle
-- **Logout Menu:** wlogout
+- **Logout Menu:** quickshell `PowerMenu.qml` (wlogout kept on disk for rollback only)
 - **Clipboard:** cliphist
 
 ## Directory Structure
@@ -23,7 +23,16 @@ This repository contains a complete **niri Wayland compositor configuration** wi
 ```
 niri-setup/
 ├── niri/              # niri compositor configuration (KDL files)
-├── waybar/            # Waybar panel config and scripts
+│   ├── spawn-at-startup.kdl   # LIVE session file (custom quickshell spawn)
+│   ├── spawn-quickshell.kdl   # quickshell session variant
+│   ├── spawn-waybar.kdl       # waybar+dunst rollback gold
+│   └── binds-quickshell.kdl   # quickshell IPC toggles (Mod+Alt+*)
+├── quickshell/sunset/ # LIVE shell (symlinked from ~/.config/quickshell/sunset)
+│   ├── shell.qml      # entry point (Bar + popups + launcher + toasts)
+│   ├── components/    # Bar, widgets, native QML popups
+│   ├── services/      # Theme tokens + Niri/Audio/Media/Wallpaper/Notification
+│   └── assets/icons/  # bar icon set (stroke SVGs)
+├── waybar/            # LEGACY rollback gold only (not spawned)
 │   ├── config         # JSON configuration
 │   ├── style.css      # Styling
 │   ├── modules/       # Additional modules
@@ -51,6 +60,8 @@ niri-setup/
 │   ├── change-power-profile.sh
 │   ├── swayidle.sh
 │   ├── toggle-waybar.sh
+│   ├── switch-shell.sh        # flip live session [waybar|quickshell|status]
+│   ├── rollback-to-waybar.sh  # emergency rollback to waybar gold
 │   ├── wlogout.sh
 │   └── README.md      # Script usage documentation
 ├── wallpapers/        # Wallpaper images
@@ -84,7 +95,13 @@ cd niri-setup
 4. Replaces `$NIRICONF` placeholders with actual paths
 5. Validates niri configuration
 
-## Color Palette: "Frosted Midnight"
+> **Migration gap:** `setup.sh` predates the quickshell migration — it still installs the waybar stack and does not install `quickshell` or link `~/.config/quickshell/sunset` (both done manually). The live shell is `quickshell -c sunset` (0.3.1), spawned with `QT_QPA_PLATFORM=wayland NIRI_SETUP_HOME=<repo>`.
+
+## Color Palette: "Sunset Orange AMOLED" (current)
+
+The live theme. Tokens are defined in `taste.md` and implemented as the single source of truth in `quickshell/sunset/services/Theme.qml` (black backgrounds, orange accents, peach text — JetBrainsMono Nerd Font, sharp rectangles, warm glow on hover/active).
+
+> **Legacy:** `COLOR_PALETTE.md` ("Frosted Midnight") and the table below describe the pre-migration theme, kept for the waybar rollback session only.
 
 A curated color scheme applied consistently across all components:
 
@@ -101,10 +118,12 @@ A curated color scheme applied consistently across all components:
 
 ## Key Features
 
-- **Integrated Desktop Experience:** Complete setup with waybar, fuzzel, dunst, swaylock, and more
-- **Custom Widgets:** Idle time and power profile picker available as waybar widgets and fuzzel menus
+- **Native Quickshell desktop:** bar, calendar/pomodoro, volume mixer, wallpaper picker, quick settings, power menu, launcher, and notification toasts are native QML — no Brave HTML popups, no fuzzel/wlogout fallbacks
+- **Session switching with rollback gold:** `scripts/switch-shell.sh [waybar|quickshell|status]`, emergency `scripts/rollback-to-waybar.sh`
+- **Integrated Desktop Experience:** Complete setup with quickshell, fuzzel, swaylock, and more
+- **Custom Widgets:** Idle time and power profile picker available as quickshell widgets and fuzzel menus
 - **Dynamic Wallpapers:** Script supports random/next/previous wallpaper switching with blurred overview backdrop
-- **Curated Aesthetics:** Consistent "Frosted Midnight" color palette across all components
+- **Curated Aesthetics:** Consistent "Sunset Orange AMOLED" theme tokens across all components
 - **Clean UI:** Minimalistic design optimized for daily driving
 
 ## Configuration Notes
@@ -133,4 +152,4 @@ The following configurations are maintained in a separate [dotfiles repository](
 
 **Path Placeholders:** Configuration files use `$NIRICONF` as a placeholder that gets replaced with the actual installation path during setup.
 
-**Validation:** Run `niri validate` to check configuration syntax after changes.
+**Validation:** Run `niri validate` to check configuration syntax after changes. Restart the live shell with `pkill quickshell; quickshell -c sunset &` (or `Mod+Shift+Q`); toggle a popup headlessly with `qs -c sunset ipc call <target> toggle`.

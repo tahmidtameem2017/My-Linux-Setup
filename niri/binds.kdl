@@ -1,32 +1,56 @@
 binds {
     // Applications
     Mod+Return      { spawn-sh "alacritty --config-file /home/me/niri-setup/alacritty/default.toml"; }
-    Mod+Ctrl+Return { spawn-sh "fuzzel --config /home/me/niri-setup/fuzzel/fuzzel.ini"; }
-    Alt+Space       { spawn-sh "walker"; }
+    // Mod+Ctrl+Return { spawn-sh "fuzzel --config /home/me/niri-setup/fuzzel/fuzzel.ini"; }
+    Mod+Ctrl+Return { spawn-sh "qs -c sunset ipc call launcher toggle"; }
+    // Alt+Space       { spawn-sh "walker"; }
+    Alt+Space       { spawn-sh "qs -c sunset ipc call launcher toggle"; }
     Mod+B           { spawn-sh "/usr/bin/brave"; }
-    Mod+E           { spawn-sh "nautilus"; }
+    Mod+E           { spawn-sh "thunar"; }
     Mod+L           { spawn-sh "/home/me/niri-setup/scripts/swaylock.sh"; }
-    Mod+C           { spawn-sh "copyq toggle"; }
+    // Mod+C           { spawn-sh "copyq toggle"; }
+    Mod+C           { spawn-sh "qs -c sunset ipc call clipboard toggle"; }
     Mod+Shift+C     { spawn-sh "/home/me/niri-setup/scripts/clear-clipboard.sh"; }
     Mod+Shift+D     { spawn-sh "/home/me/niri-setup/scripts/clipboard-delete-last.sh"; }
     Mod+Shift+V     { spawn-sh "/home/me/niri-setup/scripts/clipboard-save-image.sh"; }
-    Mod+I           { spawn-sh "/home/me/niri-setup/scripts/change-idle-time.sh"; }
-    Mod+P           { spawn-sh "/home/me/niri-setup/scripts/change-power-profile.sh"; }
+    // Mod+I           { spawn-sh "/home/me/niri-setup/scripts/change-idle-time.sh"; }
+    Mod+I           { spawn-sh "qs -c sunset ipc call settings toggle"; }
+    // Mod+P           { spawn-sh "/home/me/niri-setup/scripts/change-power-profile.sh"; }
+    Mod+P           { spawn-sh "qs -c sunset ipc call settings toggle"; }
+    // System settings = GNOME Settings (scripts/gnome-settings.sh). It took
+    // over from the native Settings Center popup on 2026-10-02; the old Xfce
+    // manager and KDE systemsettings binds are gone so there is only ONE
+    // settings app to learn. Mod+I/Mod+P stay on the fast bar popup
+    // (quickshell `settings`); Mod+Shift+I lands straight on the Network
+    // panel. Both scripts forward their argument to gnome-control-center.
+    Mod+Shift+I     { spawn-sh "/home/me/niri-setup/scripts/gnome-settings.sh network"; }
+    Mod+Shift+P     { spawn-sh "/home/me/niri-setup/scripts/gnome-settings.sh"; }
     Mod+U           { spawn-sh "alacritty --title 'Updater' --config-file /home/me/niri-setup/alacritty/float.toml -e /home/me/niri-setup/waybar/modules/install-updates.sh"; }
-    Mod+W           { spawn-sh "/home/me/niri-setup/scripts/toggle-waybar.sh"; }
     Mod+Ctrl+W      { spawn-sh "alacritty --title 'Wallpaper Selector' --config-file /home/me/niri-setup/alacritty/float.toml -e /home/me/niri-setup/scripts/change-wallpaper.sh"; }
     Mod+Backspace   { spawn-sh "/home/me/niri-setup/scripts/wlogout.sh"; }
     Mod+Grave       { spawn-sh "/home/me/niri-setup/scripts/dropdown-terminal.sh"; }
-    Mod+Shift+S     { spawn-sh "/home/me/niri-setup/scripts/clip-screenshot.sh"; }
+    // Share via LocalSend
+    Mod+S           { spawn-sh "localsend"; }
+    Mod+Shift+S     { spawn-sh "/home/me/niri-setup/scripts/scroll-screenshot.sh"; }
+    Mod+Shift+5     { spawn-sh "qs -c sunset ipc call capture toggle"; }
     Mod+N           { spawn-sh "dunstctl set-paused toggle && notify-send -a dunst 'Dunst' \"$(dunstctl is-paused && echo 'Do Not Disturb ON' || echo 'Do Not Disturb OFF')\""; }
     Mod+Ctrl+R      { spawn-sh "niri msg action reload-config"; }
+    // Saved workspace sessions (study/entertainment/…): native editor popup.
+    // Profiles live in ~/.local/share/niri-setup/sessions/*.json — the
+    // niri config is never touched. Launcher also lists sessions by name.
+    Mod+Shift+O      { spawn-sh "qs -c sunset ipc call sessions toggle"; }
+    Mod+Ctrl+Shift+O { spawn-sh "obsidian"; }
 
     // Backlight and Audio
-    XF86MonBrightnessUp   allow-when-locked=true { spawn-sh "brightnessctl set +5%" ; }
-    XF86MonBrightnessDown allow-when-locked=true { spawn-sh "brightnessctl set 5%-" ; }
-    XF86AudioRaiseVolume  allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.05+"; }
-    XF86AudioLowerVolume  allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.05-"; }
+    // Brightness keys ping the sunset OSD (`qs ipc call osd brightness`)
+    // so the % is visible even over fullscreen video (bar is hidden there).
+    // Volume keys need no ping: Osd.qml watches AudioService reactively.
+    XF86MonBrightnessUp   allow-when-locked=true { spawn-sh "brightnessctl set +5%; qs -c sunset ipc call osd brightness" ; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn-sh "brightnessctl set 5%-; qs -c sunset ipc call osd brightness" ; }
+    XF86AudioRaiseVolume  allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.02+"; }
+    XF86AudioLowerVolume  allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.02-"; }
     XF86AudioMute         allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"; }
+    XF86AudioMicMute      allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle; qs -c sunset ipc call osd mic"; }
     XF86AudioPlay         allow-when-locked=true { spawn-sh "playerctl play-pause"; }
     XF86AudioPause        allow-when-locked=true { spawn-sh "playerctl pause"; }
     XF86AudioNext         allow-when-locked=true { spawn-sh "playerctl next"; }
@@ -94,5 +118,6 @@ binds {
     Print       { screenshot; }
     Ctrl+Print  { screenshot-window; }
     Shift+Print { screenshot-screen; }
-    Mod+Ctrl+S  { spawn-sh "grim -g \"$(slurp)\" - | swappy -f -"; }
+    Mod+Ctrl+S  { spawn-sh "/home/me/niri-setup/scripts/screenshot.sh"; }
+    Mod+Shift+R { spawn-sh "/home/me/niri-setup/scripts/record-screen.sh"; }
 }

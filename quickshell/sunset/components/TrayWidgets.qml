@@ -4,9 +4,12 @@
 // battery | power; logo goes left). BatteryIcon is kept for *-icon.sh parity
 // but Bar.qml prefers BatteryWidget.qml (UPower) so icon+text stay in sync.
 //
-// Conventions per icon: sharp Rectangle (root.cPanel/border, radius 0, no
-// blur), SVG from waybar/icons/*.svg, hover opacity .65 (logo .75, per
-// style.css). Left clicks that open popups/launcher go through IpcHandler
+// Conventions per icon: flat transparent Rectangle (radius 0, no blur,
+// no border); hover is a faint Theme.row wash only — no scale (texture
+// re-raster cost on weak iGPUs), press is instant. SVG from
+// themed assets/icons/theme/<fp>/, hover icon opacity .65 (logo .75, per style.css)
+// via Theme.animFast fade. Kept Behaviors are color/opacity only.
+// Left clicks that open popups/launcher go through IpcHandler
 // targets (`qs -c sunset ipc call <target> toggle`); middle/scroll actions
 // call scripts/*.sh + waybar/scripts/*.sh paths verbatim (noted per icon).
 
@@ -36,30 +39,46 @@ Item {
     width: 0
     height: 0
 
-    // Logo (waybar image#logo: logo.svg, size 15, hover opacity .75).
+    // Logo (sunset assets/icons/logo.svg 9-square app grid, size 15, hover opacity .75).
+    // Live source is the sunset asset (decoupled from waybar/icons rollback gold;
+    // waybar/icons/logo.svg is synced to the same glyph for rollback parity).
     // Left + middle -> native Launcher popup (unified fuzzel+walker replacement).
     // Old fuzzel fallback stays on disk for rollback, never launched here.
     component LogoIcon: Rectangle {
         // injected props (inline component scope is isolated)
-        property color cBorder: "#1a1210"
-        property color cBorderStrong: "#3D2B24"
-        property color cPanel: "#0a0a0a"
+        property color cBorder: root.cBorder
+        property color cBorderStrong: root.cBorderStrong
+        property color cPanel: root.cPanel
         id: logoBox
         radius: 0
-        color: cPanel
-        border.width: 1
-        border.color: logoArea.containsMouse ? cBorderStrong : cBorder
+        // Flat idle (transparent, no border); hover is a faint row wash
+        // only. No scale (perf: re-raster cost on weak iGPUs).
+        color: logoArea.containsMouse ? Theme.row : "transparent"
+        border.width: 0
         implicitWidth: 15 + 24
         implicitHeight: 24
         Layout.alignment: Qt.AlignVCenter
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.animHover
+                easing.type: Easing.OutCubic
+            }
+        }
 
         Image {
             anchors.centerIn: parent
             width: 15
             height: 15
             fillMode: Image.PreserveAspectFit
-            source: "file:///home/me/niri-setup/waybar/icons/logo.svg"
+            source: "file://" + Theme.iconDir + "logo.svg"
             opacity: logoArea.containsMouse ? 0.75 : 1.0
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.animFast
+                }
+            }
         }
 
         MouseArea {
@@ -74,46 +93,38 @@ Item {
         }
     }
 
-    // Network (native: nmcli directly, no network-icon.sh, no HTML).
-    // Icon: wifi.svg when any active wifi/ethernet connection, else wifi-off.svg.
-    // Click: alacritty float nmtui connect (terminal tool Quickshell keeps).
+    // Network (native WifiService state, no network-icon.sh, no HTML, and no
+    // nmtui). Icon: wifi.svg when any wifi/ethernet connection is up, else
+    // wifi-off.svg. Click -> the top-right WifiPopup (`wifi` IPC target).
+    // The icon state is a binding, not a poll of this file's own: WifiService
+    // already asks nmcli the same question on a 30s timer for the whole shell,
+    // so a second private poll here could disagree with the card's list.
     component NetworkIcon: Rectangle {
         // injected props (inline component scope is isolated)
-        property color cBorder: "#1a1210"
-        property color cBorderStrong: "#3D2B24"
-        property color cPanel: "#0a0a0a"
+        property color cBorder: root.cBorder
+        property color cBorderStrong: root.cBorderStrong
+        property color cPanel: root.cPanel
         id: netBox
         radius: 0
-        color: cPanel
-        border.width: 1
-        border.color: netArea.containsMouse ? cBorderStrong : cBorder
+        // Flat idle (transparent, no border); hover is a faint row wash
+        // only. No scale (perf: re-raster cost on weak iGPUs).
+        color: netArea.containsMouse ? Theme.row : "transparent"
+        border.width: 0
         implicitWidth: 14 + 24
         implicitHeight: 24
         Layout.alignment: Qt.AlignVCenter
 
-        property string iconSrc: "file:///home/me/niri-setup/waybar/icons/wifi.svg"
-        property string tooltipText: ""
-
-        Process {
-            id: netPoll
-            command: ["nmcli", "-t", "-f", "TYPE,STATE", "device", "status"]
-            stdout: StdioCollector {
-                id: netOut
-                onStreamFinished: {
-                    const txt = netOut.text;
-                    const online = /(wifi|ethernet):connected/.test(txt);
-                    netBox.iconSrc = online ? "file:///home/me/niri-setup/waybar/icons/wifi.svg" : "file:///home/me/niri-setup/waybar/icons/wifi-off.svg";
-                }
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.animHover
+                easing.type: Easing.OutCubic
             }
         }
 
-        Timer {
-            interval: 10000
-            running: true
-            repeat: true
-            triggeredOnStart: true
-            onTriggered: netPoll.running = true
-        }
+        // One WifiService instance for the shell answers this (30s poll of
+        // `nmcli radio wifi` + `nmcli dev status`), so this widget costs
+        // nothing but a property read.
+        readonly property string iconSrc: "file://" + Theme.iconDir + (WifiService.connected ? "wifi.svg" : "wifi-off.svg")
 
         Image {
             anchors.centerIn: parent
@@ -122,6 +133,12 @@ Item {
             fillMode: Image.PreserveAspectFit
             source: netBox.iconSrc
             opacity: netArea.containsMouse ? 0.65 : 1.0
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.animFast
+                }
+            }
         }
 
         MouseArea {
@@ -129,98 +146,7 @@ Item {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: Quickshell.execDetached(["alacritty", "--title", "nmtui", "--config-file", "/home/me/niri-setup/alacritty/float.toml", "-e", "nmtui", "connect"])
-        }
-    }
-
-    // Clipboard (native ClipboardPopup; no cliphist-fuzzel dmenu, no HTML).
-    // Left -> IPC `clipboard`. Middle: clear-clipboard.sh (kept engine script).
-    component ClipboardIcon: Rectangle {
-        // injected props (inline component scope is isolated)
-        property color cBorder: "#1a1210"
-        property color cBorderStrong: "#3D2B24"
-        property color cPanel: "#0a0a0a"
-        id: clipBox
-        radius: 0
-        color: cPanel
-        border.width: 1
-        border.color: clipArea.containsMouse ? cBorderStrong : cBorder
-        implicitWidth: 14 + 24
-        implicitHeight: 24
-        Layout.alignment: Qt.AlignVCenter
-
-        Image {
-            anchors.centerIn: parent
-            width: 14
-            height: 14
-            fillMode: Image.PreserveAspectFit
-            source: "file:///home/me/niri-setup/waybar/icons/clipboard.svg"
-            opacity: clipArea.containsMouse ? 0.65 : 1.0
-        }
-
-        MouseArea {
-            id: clipArea
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            acceptedButtons: Qt.LeftButton | Qt.MiddleButton
-            onClicked: (mouse) => {
-                if (mouse.button === Qt.MiddleButton)
-                    Quickshell.execDetached(["/home/me/niri-setup/scripts/clear-clipboard.sh"]);
-                else
-                    Quickshell.execDetached(["qs", "-c", "sunset", "ipc", "call", "clipboard", "toggle"]);
-            }
-        }
-    }
-
-    // Wallpaper (native WallpaperPicker popup; no gallery.sh / Brave HTML).
-    // Left -> IPC `wallpaper`. Middle/scroll: change-wallpaper-simple.sh
-    //   random (middle), next (scroll-up), prev (scroll-down) — kept engine.
-    component WallpaperIcon: Rectangle {
-        // injected props (inline component scope is isolated)
-        property color cBorder: "#1a1210"
-        property color cBorderStrong: "#3D2B24"
-        property color cPanel: "#0a0a0a"
-        id: wallBox
-        radius: 0
-        color: cPanel
-        border.width: 1
-        border.color: wallArea.containsMouse ? cBorderStrong : cBorder
-        implicitWidth: 14 + 24
-        implicitHeight: 24
-        Layout.alignment: Qt.AlignVCenter
-
-        Image {
-            anchors.centerIn: parent
-            width: 14
-            height: 14
-            fillMode: Image.PreserveAspectFit
-            source: "file:///home/me/niri-setup/waybar/icons/wallpaper.svg"
-            opacity: wallArea.containsMouse ? 0.65 : 1.0
-        }
-
-        MouseArea {
-            id: wallArea
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            acceptedButtons: Qt.LeftButton | Qt.MiddleButton
-            onClicked: (mouse) => {
-                if (mouse.button === Qt.MiddleButton)
-                    Quickshell.execDetached(["/home/me/niri-setup/scripts/change-wallpaper-simple.sh", "random"]);
-                else
-                    Quickshell.execDetached(["qs", "-c", "sunset", "ipc", "call", "wallpaper", "toggle"]);
-            }
-        }
-
-        WheelHandler {
-            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-            onWheel: (event) => {
-                if (event.angleDelta.y > 0)
-                    Quickshell.execDetached(["/home/me/niri-setup/scripts/change-wallpaper-simple.sh", "next"]);
-                else if (event.angleDelta.y < 0)
-                    Quickshell.execDetached(["/home/me/niri-setup/scripts/change-wallpaper-simple.sh", "prev"]);
-            }
+            onClicked: Quickshell.execDetached(["qs", "-c", "sunset", "ipc", "call", "wifi", "toggle"])
         }
     }
 
@@ -228,25 +154,39 @@ Item {
     // Left -> IPC `settings`.
     component SettingsIcon: Rectangle {
         // injected props (inline component scope is isolated)
-        property color cBorder: "#1a1210"
-        property color cBorderStrong: "#3D2B24"
-        property color cPanel: "#0a0a0a"
+        property color cBorder: root.cBorder
+        property color cBorderStrong: root.cBorderStrong
+        property color cPanel: root.cPanel
         id: setBox
         radius: 0
-        color: cPanel
-        border.width: 1
-        border.color: setArea.containsMouse ? cBorderStrong : cBorder
+        // Flat idle (transparent, no border); hover is a faint row wash
+        // only. No scale (perf: re-raster cost on weak iGPUs).
+        color: setArea.containsMouse ? Theme.row : "transparent"
+        border.width: 0
         implicitWidth: 14 + 24
         implicitHeight: 24
         Layout.alignment: Qt.AlignVCenter
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.animHover
+                easing.type: Easing.OutCubic
+            }
+        }
 
         Image {
             anchors.centerIn: parent
             width: 14
             height: 14
             fillMode: Image.PreserveAspectFit
-            source: "file:///home/me/niri-setup/waybar/icons/settings.svg"
+            source: "file://" + Theme.iconDir + "settings.svg"
             opacity: setArea.containsMouse ? 0.65 : 1.0
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.animFast
+                }
+            }
         }
 
         MouseArea {
@@ -265,21 +205,29 @@ Item {
     // in sync; this wrapper is kept for layout parity only.
     component BatteryIcon: Rectangle {
         // injected props (inline component scope is isolated)
-        property color cBorder: "#1a1210"
-        property color cBorderStrong: "#3D2B24"
-        property color cPanel: "#0a0a0a"
+        property color cBorder: root.cBorder
+        property color cBorderStrong: root.cBorderStrong
+        property color cPanel: root.cPanel
         id: batIconBox
         radius: 0
-        color: cPanel
-        border.width: 1
-        border.color: batIconArea.containsMouse ? cBorderStrong : cBorder
+        // Flat idle (transparent, no border); hover is a faint row wash
+        // only. No scale (perf: re-raster cost on weak iGPUs).
+        color: batIconArea.containsMouse ? Theme.row : "transparent"
+        border.width: 0
         implicitWidth: 14 + 24
         implicitHeight: 24
         Layout.alignment: Qt.AlignVCenter
 
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.animHover
+                easing.type: Easing.OutCubic
+            }
+        }
+
         visible: batIconBox.iconSrc !== ""
 
-        property string iconSrc: "file:///home/me/niri-setup/waybar/icons/battery.svg"
+        property string iconSrc: "file://" + Theme.iconDir + "battery.svg"
         property bool charging: false
 
         // Native UPower binding; polled refresh keeps desktop-hide semantics
@@ -298,7 +246,7 @@ Item {
                     return;
                 }
                 batIconBox.charging = (dev.state === UPowerDeviceState.Charging || dev.state === UPowerDeviceState.FullyCharged);
-                batIconBox.iconSrc = batIconBox.charging ? "file:///home/me/niri-setup/waybar/icons/battery-charging.svg" : "file:///home/me/niri-setup/waybar/icons/battery.svg";
+                batIconBox.iconSrc = "file://" + Theme.iconDir + (batIconBox.charging ? "battery-charging.svg" : "battery.svg");
             }
         }
 
@@ -309,6 +257,12 @@ Item {
             fillMode: Image.PreserveAspectFit
             source: batIconBox.iconSrc
             opacity: batIconArea.containsMouse ? 0.65 : 1.0
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.animFast
+                }
+            }
         }
 
         MouseArea {
@@ -324,25 +278,39 @@ Item {
     // Left + middle -> IpcHandler `power`. wlogout stays on disk for rollback only.
     component PowerIcon: Rectangle {
         // injected props (inline component scope is isolated)
-        property color cBorder: "#1a1210"
-        property color cBorderStrong: "#3D2B24"
-        property color cPanel: "#0a0a0a"
+        property color cBorder: root.cBorder
+        property color cBorderStrong: root.cBorderStrong
+        property color cPanel: root.cPanel
         id: powerBox
         radius: 0
-        color: cPanel
-        border.width: 1
-        border.color: powerArea.containsMouse ? cBorderStrong : cBorder
+        // Flat idle (transparent, no border); hover is a faint row wash
+        // only. No scale (perf: re-raster cost on weak iGPUs).
+        color: powerArea.containsMouse ? Theme.row : "transparent"
+        border.width: 0
         implicitWidth: 14 + 24
         implicitHeight: 24
         Layout.alignment: Qt.AlignVCenter
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.animHover
+                easing.type: Easing.OutCubic
+            }
+        }
 
         Image {
             anchors.centerIn: parent
             width: 14
             height: 14
             fillMode: Image.PreserveAspectFit
-            source: "file:///home/me/niri-setup/waybar/icons/power.svg"
+            source: "file://" + Theme.iconDir + "power.svg"
             opacity: powerArea.containsMouse ? 0.65 : 1.0
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.animFast
+                }
+            }
         }
 
         MouseArea {

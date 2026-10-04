@@ -1,12 +1,15 @@
 // VolumeWidget.qml — Pipewire default-sink icon + level (waybar group/volume:
 // image#volume + pulseaudio). Icon mapping verbatim from
 // waybar/scripts/volume-icon.sh: muted -> volume-muted.svg else volume.svg.
+// Icon: themed set (Theme.iconDir) -- one neutral, accent-tinted grey for the
+// normal state and a quieter one for muted, so it follows the palette.
 // Text parity with pulseaudio format/format-muted: "NN%" or "muted".
 //   Left: NATIVE mixer popup via IPC (qs -c sunset ipc call volume toggle,
 //     no volume.sh / Brave HTML). Right: wpctl set-mute toggle (native).
-//   Middle: pavucontrol (terminal tool kept). Scroll: AudioService ±5%
+//   Middle: pavucontrol (terminal tool kept). Scroll: AudioService ±2%
 //   with 100% cap (was scripts/set-volume.sh; kept as fallback path).
-// Hover opacity .65, sharp rect, no blur, Theme tokens only.
+// Hover icon opacity .65, sharp rect, no blur, Theme tokens only.
+// Flat idle (transparent, no border); hover is a faint row wash. No scale.
 
 import QtQuick
 import QtQuick.Layouts
@@ -30,12 +33,19 @@ Rectangle {
     readonly property color cRow: Theme.row
     readonly property color cText: Theme.text
     radius: 0
-    color: root.cPanel
-    border.width: 1
-    border.color: volArea.containsMouse ? root.cBorderStrong : root.cBorder
+    // Flat idle (transparent, no border); hover is a faint row wash only.
+    color: volArea.containsMouse ? root.cRow : "transparent"
+    border.width: 0
     implicitWidth: volRow.implicitWidth + 24
     implicitHeight: 24
     Layout.alignment: Qt.AlignVCenter
+
+    Behavior on color {
+        ColorAnimation {
+            duration: Theme.animHover
+            easing.type: Easing.OutCubic
+        }
+    }
 
     readonly property var sink: Pipewire.defaultAudioSink
     readonly property var audio: root.sink ? root.sink.audio : null
@@ -53,8 +63,19 @@ Rectangle {
             width: 14
             height: 14
             fillMode: Image.PreserveAspectFit
-            source: root.muted ? "file:///home/me/niri-setup/waybar/icons/volume-muted.svg" : "file:///home/me/niri-setup/waybar/icons/volume.svg"
+            // Theme.iconDir, NOT waybar/icons: this pointed at the rollback
+            // gold, whose strokes are frozen at the sunset hexes, so the icon
+            // ignored the palette and sat next to themed ones as a different
+            // colour. The themed set also renders muted/off as its own quieter
+            // neutral step (Theme.iconMuted) rather than merely a darker one.
+            source: "file://" + Theme.iconDir + (root.muted ? "volume-muted.svg" : "volume.svg")
             opacity: volArea.containsMouse ? 0.65 : 1.0
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.animFast
+                }
+            }
         }
 
         Text {
@@ -62,7 +83,14 @@ Rectangle {
             text: root.muted ? "muted" : root.pct + "%"
             font.family: "JetBrainsMono Nerd Font"
             font.pointSize: 10
-            color: root.muted ? root.cDim : (volArea.containsMouse ? root.cText : root.cMuted)
+            color: root.muted ? root.cDim : (volArea.containsMouse ? root.cAccentHover : root.cMuted)
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: Theme.animHover
+                    easing.type: Easing.OutCubic
+                }
+            }
         }
     }
 
@@ -87,9 +115,9 @@ Rectangle {
         onWheel: (event) => {
             // Native AudioService (100% cap inside); no set-volume.sh fork.
             if (event.angleDelta.y > 0)
-                AudioService.increase(5);
+                AudioService.increase(2);
             else if (event.angleDelta.y < 0)
-                AudioService.decrease(5);
+                AudioService.decrease(2);
         }
     }
 }

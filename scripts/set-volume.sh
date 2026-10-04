@@ -6,10 +6,10 @@ CURRENT=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print int($2 * 100)}')
 
 case "$ACTION" in
     up)
-        NEW=$((CURRENT + 5))
+        NEW=$((CURRENT + 2))
         ;;
     down)
-        NEW=$((CURRENT - 5))
+        NEW=$((CURRENT - 2))
         ;;
     *)
         exit 1

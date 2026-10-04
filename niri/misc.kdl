@@ -8,3 +8,6 @@ gestures {
         off
     }
 }
+overview {
+    backdrop-color "#000000"
+}

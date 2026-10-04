@@ -2,31 +2,16 @@
 // Find more information on the wiki:
 // https://github.com/YaLTeR/niri/wiki/Configuration:-Window-Rules
 
-// Near-opaque windows (97.5% opacity, subtle transparency)
+// Fully opaque windows (VRAM: opacity < 1.0 on every window blocks
+// direct scanout and forces full-frame alpha-blend buffers, ~one extra
+// 1080p framebuffer. 0.975 vs 1.0 is visually identical — keep opaque
+// on weak hardware.)
 window-rule {
-    opacity 0.975
-}
-
-// Nautilus near-opaque
-window-rule {
-    match app-id="org.gnome.Nautilus"
-    opacity 0.975
-}
-
-// Settings windows near-opaque
-window-rule {
-    match app-id="org.gnome.Settings"
-    opacity 0.975
-}
-
-// Control Center near-opaque
-window-rule {
-    match app-id="org.gnome.ControlCenter"
-    opacity 0.975
+    opacity 1.0
 }
 
 window-rule {
-    geometry-corner-radius 10
+    geometry-corner-radius 0
     clip-to-geometry true
 }
 
@@ -44,9 +29,23 @@ window-rule {
     match app-id="Alacritty" title="nmtui"
     match app-id="Alacritty" title="Wallpaper Selector"
     open-floating true
-    shadow {
-        on
-    }
+}
+
+// Sushi quick-look preview (launcher Ctrl+Space fallback for audio, office
+// docs, HTML, ...). A real toplevel, but it must never tile and must never
+// steal the keyboard from the launcher's overlay surface
+// (WlrKeyboardFocus.Exclusive) — with open-focused true the launcher would
+// lose Ctrl+Space/Esc the moment the preview appeared. Without a parent
+// window Sushi sizes itself to ~400x420, which is uselessly small for a
+// "Quick Look", so the rule sizes it proportionally (Mac Quick Look is
+// roughly a large centered panel, not a fullscreen take-over).
+window-rule {
+    match app-id="org.gnome.NautilusPreviewer"
+    open-floating true
+    open-focused false
+    open-maximized-to-edges false
+    default-column-width { proportion 0.75; }
+    default-window-height { proportion 0.85; }
 }
 
 // Firefox - open maximized
@@ -73,6 +72,12 @@ window-rule {
     open-maximized-to-edges true
 }
 
+// LocalSend (Mod+S share) - open maximized
+window-rule {
+    match app-id="localsend"
+    open-maximized-to-edges true
+}
+
 // HTML clock popup: calendar + pomodoro + timer (clock.sh -> timer-server.py
 // on 127.0.0.4; server persists so timers run with the window closed).
 window-rule {
@@ -81,9 +86,6 @@ window-rule {
     open-maximized-to-edges false
     default-column-width { fixed 400; }
     default-window-height { fixed 490; }
-    shadow {
-        on
-    }
 }
 
 // HTML volume mixer popup (waybar pulseaudio -> volume.sh -> brave --app) - floating
@@ -93,9 +95,6 @@ window-rule {
     open-maximized-to-edges false
     default-column-width { fixed 400; }
     default-window-height { fixed 440; }
-    shadow {
-        on
-    }
 }
 
 // HTML wallpaper gallery popup (bar wallpaper -> gallery --app on localhost).
@@ -105,9 +104,6 @@ window-rule {
     open-maximized-to-edges false
     default-column-width { fixed 760; }
     default-window-height { fixed 560; }
-    shadow {
-        on
-    }
 }
 
 // Dropdown scratchpad terminal (Mod+Grave -> scripts/dropdown-terminal.sh).
@@ -119,9 +115,6 @@ window-rule {
     default-column-width { proportion 0.8; }
     default-window-height { proportion 0.6; }
     default-floating-position x=0 y=40 relative-to="top"
-    shadow {
-        on
-    }
 }
 
 // HTML power menu popup (bar power -> brave --app on 127.0.0.2).
@@ -131,9 +124,6 @@ window-rule {
     open-maximized-to-edges false
     default-column-width { fixed 360; }
     default-window-height { fixed 440; }
-    shadow {
-        on
-    }
 }
 
 // HTML quick-settings popup (bar settings -> brave --app on 127.0.0.3).
@@ -143,12 +133,73 @@ window-rule {
     open-maximized-to-edges false
     default-column-width { fixed 400; }
     default-window-height { fixed 600; }
-    shadow {
-        on
-    }
 }
 
-// File chooser dialogs - floating
+// Custom palette editor (scripts/custom-theme.sh -> custom-theme-server.py on
+// 127.0.0.7). It needs its own host rather than 127.0.0.1 because Chromium
+// derives the app-id from the host, and .1 is already pinned to the legacy
+// volume popup's 400x440 — reusing it would open this editor in a postage
+// stamp. Wider than the popups because the page is a two-column layout (token
+// list + live preview) that collapses to one column when squeezed.
+window-rule {
+    match app-id=r#"^brave-127\.0\.0\.7__-Default$"#
+    open-floating true
+    open-maximized-to-edges false
+    default-column-width { fixed 1160; }
+    default-window-height { fixed 880; }
+}
+
+// Chromium progressive web apps (WhatsApp, YouTube, ...) open maximized to
+// the edges. This matches any Chromium-based browser. Two app-id shapes exist:
+//   installed PWA  <browser>-<32-char a-p extension id>-<Profile>   (--app-id=)
+//   --app=URL      <browser>-<host>__-<Profile>                    (desktop entry)
+// The 32-char a-p id is the PWA extension id, identical for a given PWA
+// across Brave/Chromium/Chrome/Edge/Vivaldi/Opera, so future browsers work
+// without edits. The host form is anchored to exclude the legacy HTML popups
+// below (brave-127.0.0.x__-Default / brave-localhost__-Default), which must
+// stay windowed.
+//
+// These windows are launched with --app=URL rather than --app-id because
+// Chromium draws its own client-side titlebar (it requests
+// xdg-decoration server_side, but niri draws no decoration bar), and only
+// the --app=URL form omits it. See AGENTS.md.
+window-rule {
+    match app-id=r#"^[a-z0-9_.+-]+-[a-p]{32}-[A-Za-z0-9_.-]+$"#
+    // Host must contain a letter, which excludes the 127.0.0.x loopback
+    // popups below (they are all-digits) while matching real hostnames.
+    match app-id=r#"^[a-z0-9_.+-]+-[a-z0-9-]*[a-z][a-z0-9.-]*\.[a-z0-9.-]+__-[A-Za-z0-9_.-]+$"#
+    open-maximized-to-edges true
+}
+
+// Instagram (scripts/instagram.sh -> brave --app=https://www.instagram.com/
+// with a mobile UA). Deliberately NOT maximized: the phone UI is a single
+// ~9:16 column, so a 1280px-wide tile just letterboxes it in the middle of a
+// mostly-empty desktop layout. Pin it to 9:16 instead (360x640 — exactly 9:16)
+// and let it float.
+//
+// Size is bounded by the output, not taste: this screen is 1280x720 logical, so
+// the height is the constraint. A real phone ratio of 9:19.5 (412x915) does NOT
+// fit and niri clamps it, which silently breaks the ratio anyway — that is why
+// this is 9:16 and not the taller phone shape. 360x640 leaves 40px of margin
+// top and bottom, so the window never collides with the 34px bar.
+//
+// Positioned top-anchored rather than centred: a floating window is placed in
+// the middle of the OUTPUT, so a 640px-tall window on a 720px output puts its
+// first 40px behind the 34px bar and hides the page's own header. Anchoring at
+// y=40 puts the whole phone UI below the bar, which is what a phone chrome-less
+// window wants anyway.
+//
+// This must come AFTER the generic Chromium --app=URL rule above, which
+// matches brave-www.instagram.com__-Default and would maximize it: niri
+// evaluates rules in order and the last match wins.
+window-rule {
+    match app-id=r#"^brave-www\.instagram\.com__-Default$"#
+    open-floating true
+    open-maximized-to-edges false
+    default-column-width { fixed 360; }
+    default-window-height { fixed 640; }
+    default-floating-position x=0 y=40 relative-to="top"
+}
 window-rule {
     match app-id="xdg-desktop-portal-gtk"
     open-floating true
@@ -158,5 +209,4 @@ window-rule {
 window-rule {
     match title="Picture-in-Picture"
     open-floating true
-    geometry-corner-radius 12
 }

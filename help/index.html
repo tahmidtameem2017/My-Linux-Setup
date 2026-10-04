@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sunset. — Your Desktop, at a Glance</title>
+<!--
+  help/index.html — the one help page for this desktop.
+
+  DESIGN: progressive disclosure. Ten headings, ONE section open at a time
+  (Start here ships open). The first screen is a list of ten short lines, so
+  you can see the whole guide without reading any of it. You open only the
+  section you need; searching below opens the matches and nothing else.
+
+  Rules for editing:
+    * Ten sections, no more. If a section grows past ~20 rows, split the
+      overflow into its own section or push it into a collapsed <details>.
+    * Every row answers "I want to ___", never "the action called ___ does".
+    * Group rows under a short .sub label (Move / Resize / Close) so the open
+      section scans in chunks instead of one long list.
+    * Accent orange means ONE thing: a key you press. Prose never wears it.
+    * Prose is sans-serif; the mono face is reserved for the wordmark,
+      keycaps and commands.
+    * Terminal material, config paths and IPC targets go in a collapsed
+      <details class="more"> at the bottom of a section — never inline.
+    * Only real, currently-bound things get a shortcut. No aspirational
+      controls, no placeholders.
+  Replaces the in-shell Help Center popup (deleted 2026-10-02); opened by
+  scripts/open-help.sh (Mod+Alt+H) in a Brave --app window, re-run to close.
+  Self-contained: inline CSS + JS, no external deps.
+  Theme: Sunset Orange AMOLED (taste.md tokens).
+
+  Updated 2026-10-04 to cover the utilities added since it was written:
+  voice dictation (whisrs, Mod+Alt+D / Mod+Alt+Shift+D / Mod+Alt+Escape),
+  the launcher Quick Look preview (Ctrl+Space), the screenshot menu's real
+  row list, the Now Playing card as a player AND a downloader (Mod+Alt+M),
+  and the launcher's pinned Controls section. Every keycap on this page is
+  checked against niri/binds.kdl + niri/binds-quickshell.kdl, and every
+  "rows 1-N" claim is checked against the owning QML's own list.
+-->
+<style>
+  /* ------------------------------------------------------------------
+     Palette. Warm off-white ramp on AMOLED black so body text is
+     comfortable to read for long stretches; the sunset orange is reserved
+     for ONE job — something you can press. Olive is the quiet second
+     voice (section numbers, counts). Everything has >= 4.5:1 on #000.
+     ------------------------------------------------------------------ */
+  :root {
+    --bg: #000000;
+    --bg-soft: #070504;
+    --panel: #0C0807;
+    --panel-warm: #150F0C;
+    --line: #241A15;
+    --line-strong: #4A332A;
+    --accent: #E85D2F;
+    --accent-hi: #FF8B4A;
+    --olive: #A9BE86;
+    --olive-dim: rgba(169, 190, 134, 0.16);
+    --text: #F6E7D9;
+    --text-hi: #FFF6EE;
+    --text-2: #C2AE9E;
+    --text-3: #98897D;
+    --sans: "Noto Sans", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+    --mono: "JetBrainsMono NF", "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  /* Resting glow, top right. No animation — taste.md: glow only at rest. */
+  body::before {
+    content: ""; position: fixed; top: 0; left: 0; right: 0; height: 460px;
+    pointer-events: none; z-index: 0;
+    background: radial-gradient(940px 380px at 72% -16%, rgba(var(--accent-rgb), 0.2), transparent 72%);
+  }
+  ::selection { background: var(--accent); color: var(--bg); }
+  .wrap { position: relative; z-index: 1; max-width: 880px; margin: 0 auto; padding: 0 24px 150px; }
+
+  /* ---------------- header ---------------- */
+  header.hero { position: relative; padding: 48px 0 26px; border-bottom: 1px solid var(--line); }
+  header.hero::after {
+    content: ""; position: absolute; left: 0; bottom: -1px;
+    width: 90px; height: 2px; background: var(--accent);
+  }
+  .wordmark {
+    font-family: var(--mono); font-size: 32px; font-weight: 700;
+    letter-spacing: -1.5px; color: var(--text-hi);
+  }
+  .wordmark .dot { color: var(--accent); }
+  .hero .sub {
+    margin-top: 12px; font-family: var(--mono); font-size: 11px;
+    letter-spacing: 3px; color: var(--text-3);
+  }
+  .hero .lead {
+    margin-top: 16px; max-width: 60ch; color: var(--text-2); font-size: 15.5px;
+  }
+  .hero .lead b { color: var(--text-hi); font-weight: 600; }
+
+  /* ---------------- keycaps: the only orange in the body ---------------- */
+  kbd {
+    font-family: var(--mono); font-size: 11.5px; line-height: 1.5;
+    color: var(--accent-hi); background: var(--panel-warm);
+    border: 1px solid var(--line-strong); border-radius: 0;
+    padding: 3px 7px; white-space: nowrap;
+    box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.45);
+  }
+
+  /* ---------------- search ---------------- */
+  .toolbar {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(0, 0, 0, 0.93);
+    backdrop-filter: blur(10px);
+    padding: 18px 0 16px;
+    display: flex; gap: 16px; align-items: center;
+  }
+  .searchbox { position: relative; flex: 1; }
+  .searchbox input {
+    width: 100%; background: var(--panel); color: var(--text-hi);
+    border: 1px solid var(--line-strong); padding: 13px 14px 13px 38px;
+    font-family: var(--sans); font-size: 15.5px; outline: none;
+    transition: border-color 120ms linear, box-shadow 120ms linear;
+  }
+  .searchbox input::placeholder { color: var(--text-3); }
+  .searchbox input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.13); }
+  .searchbox .mag { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-3); font-size: 14px; pointer-events: none; }
+  .searchbox .kbd-hint { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); }
+  .count { font-family: var(--mono); font-size: 12px; color: var(--olive); white-space: nowrap; }
+
+  /* ---------------- collapsed side panels ---------------- */
+  details.vocab { margin-top: 22px; background: var(--bg-soft); border: 1px solid var(--line); }
+  details.vocab > summary, details.more > summary {
+    cursor: pointer; padding: 14px 18px; color: var(--text-2);
+    font-size: 14.5px; list-style: none;
+    transition: color 120ms linear, background 120ms linear;
+  }
+  details.vocab > summary::-webkit-details-marker, details.more > summary::-webkit-details-marker { display: none; }
+  details.vocab > summary::before, details.more > summary::before {
+    content: "+"; display: inline-block; width: 20px;
+    font-family: var(--mono); font-size: 13px; color: var(--accent);
+  }
+  details.vocab[open] > summary::before, details.more[open] > summary::before { content: "2"; }
+  details.vocab > summary:hover, details.more > summary:hover { color: var(--text-hi); background: rgba(var(--text-rgb), 0.02); }
+  .vocab-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 26px 34px; padding: 8px 18px 24px;
+  }
+  .vocab-grid dt { color: var(--text-hi); font-size: 14.5px; font-weight: 600; }
+  .vocab-grid dd { color: var(--text-2); font-size: 13.5px; margin-top: 4px; }
+
+  /* ---------------- sections: one open at a time ---------------- */
+  main { margin-top: 32px; }
+  details.sec { border-top: 1px solid var(--line); }
+  details.sec.hidden { display: none; }
+  details.sec > summary {
+    cursor: pointer; list-style: none;
+    display: flex; align-items: center; gap: 20px;
+    padding: 18px 20px; margin: 0 -20px;
+    border-left: 2px solid transparent;
+    transition: background 130ms linear, border-color 130ms linear;
+  }
+  details.sec > summary::-webkit-details-marker { display: none; }
+  details.sec > summary:hover { background: var(--bg-soft); }
+  .sec-num { font-family: var(--mono); font-size: 11px; color: var(--olive); letter-spacing: 1px; min-width: 20px; }
+  .sec-main { flex: 1 1 auto; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .sec-title { font-size: 17.5px; font-weight: 600; color: var(--text); letter-spacing: 0.1px; }
+  .sec-hint { font-size: 13.5px; color: var(--text-3); }
+  .sec-meta { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+  .sec-count {
+    font-family: var(--mono); font-size: 11.5px; color: var(--olive);
+    background: var(--olive-dim); border: 1px solid rgba(var(--olive-rgb), 0.2);
+    padding: 2px 8px; white-space: nowrap;
+  }
+  .chev { font-size: 17px; color: var(--text-2); transition: transform 160ms ease, color 160ms ease; display: inline-block; line-height: 1; }
+  details.sec > summary:hover .chev { color: var(--accent-hi); }
+  details.sec > summary:hover .sec-title { color: var(--text-hi); }
+  details.sec > summary:hover .sec-count { background: rgba(var(--olive-rgb), 0.22); }
+  details.sec[open] > summary {
+    border-left-color: var(--accent);
+    background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.09), rgba(var(--accent-rgb), 0) 55%);
+  }
+  details.sec[open] > summary .sec-title { color: var(--text-hi); }
+  details.sec[open] > summary .sec-hint { color: var(--text-2); }
+  details.sec[open] .chev { transform: rotate(90deg); color: var(--accent); }
+
+  .sec-body {
+    padding: 6px 0 40px 22px;
+    border-left: 1px solid var(--line);
+    margin-left: 9px;
+  }
+  details.sec[open] > .sec-body { border-left-color: rgba(var(--accent-rgb), 0.4); }
+  .sec-body .blurb { color: var(--text-2); font-size: 15px; max-width: 62ch; margin: 6px 0 26px; }
+  .sec-body .blurb kbd { font-size: 11px; }
+
+  /* ---------------- chunk labels inside an open section ---------------- */
+  .sub {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 2.2px;
+    color: var(--olive); text-transform: uppercase;
+    margin: 30px 0 8px;
+  }
+  .sub::before { content: ""; width: 14px; height: 2px; background: var(--accent); flex: 0 0 auto; }
+  .sub::after { content: ""; flex: 1 1 auto; height: 1px; background: linear-gradient(90deg, var(--line-strong), transparent); }
+  .sub:first-of-type { margin-top: 8px; }
+
+  /* ---------------- rows ---------------- */
+  .rows { border-top: 1px solid var(--line); }
+  .row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px 30px; padding: 12px 12px; margin: 0 -12px;
+    border-bottom: 1px solid var(--line); flex-wrap: wrap;
+    transition: background 110ms linear;
+  }
+  .row:hover { background: rgba(var(--text-rgb), 0.022); }
+  .row.hidden { display: none; }
+  .row .desc { color: var(--text); font-size: 15px; min-width: 0; flex: 1 1 280px; }
+  .row .desc .dim { color: var(--text-3); }
+  .row .desc .danger { color: var(--accent-hi); }
+  .row .keys { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+  .row > * { min-width: 0; }
+  .row .hint { font-size: 13.5px; color: var(--text-3); white-space: nowrap; }
+  .pill {
+    font-family: var(--mono); font-size: 11.5px; color: var(--text-2);
+    background: var(--panel); border: 1px solid var(--line);
+    padding: 3px 8px; max-width: 100%; overflow-wrap: anywhere;
+  }
+  .pill.cmd { color: var(--accent-hi); border-color: var(--line-strong); background: var(--panel-warm); }
+  .empty-msg {
+    display: none; margin-top: 26px; padding: 18px 20px;
+    background: var(--bg-soft); border: 1px solid var(--line);
+    color: var(--text-2); font-size: 15px;
+  }
+  .empty-msg.visible { display: block; }
+
+  /* searching: mark what survived */
+  body.filtering .row:not(.hidden) { background: rgba(var(--accent-rgb), 0.07); }
+  body.filtering .row:not(.hidden):hover { background: rgba(var(--accent-rgb), 0.11); }
+
+  /* ---------------- notes & collapsed extras ---------------- */
+  .note {
+    margin: 26px 0 6px; padding: 15px 20px;
+    background: rgba(var(--text-rgb), 0.028);
+    border-left: 2px solid var(--accent);
+    color: var(--text-2); font-size: 14.5px; max-width: 66ch;
+  }
+  .note b { color: var(--text-hi); font-weight: 600; }
+  code { font-family: var(--mono); font-size: 12.5px; color: var(--text-2); }
+  .note code { color: var(--accent-hi); }
+  a { color: var(--accent-hi); text-decoration: none; border-bottom: 1px solid var(--line-strong); }
+  a:hover { border-bottom-color: var(--accent); }
+
+  details.more { margin-top: 28px; background: var(--bg-soft); border: 1px solid var(--line); }
+  details.more > summary {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+  }
+  details.more .inner { padding: 4px 18px 20px; }
+  details.more p { color: var(--text-2); font-size: 14.5px; margin: 14px 0 18px; max-width: 66ch; }
+
+  footer { position: relative; margin-top: 78px; padding-top: 26px; border-top: 1px solid var(--line); color: var(--text-3); font-size: 13.5px; }
+  footer::after { content: ""; position: absolute; left: 0; top: -1px; width: 46px; height: 2px; background: var(--line-strong); }
+
+  @media (max-width: 720px) {
+    .wrap { padding: 0 16px 90px; }
+    .sec-hint { display: none; }
+    .row { align-items: flex-start; }
+    .row .keys { justify-content: flex-start; }
+    .sec-body { padding-left: 0; margin-left: 0; border-left: 0; }
+    details.sec > summary { padding: 16px 12px; margin: 0 -12px; }
+  }
+  @media print {
+    .toolbar { display: none; }
+    details.sec { page-break-inside: avoid; }
+    details.sec > summary { display: none; }
+    body::before { display: none; }
+    body { font-size: 12px; }
+  }
+</style>
+<!-- Dynamic palette: written by scripts/sync-external-theme.py from the palette
+     quickshell has active (services/Theme.qml). Loaded AFTER the inline <style>
+     so its :root wins on equal specificity; the inline block above is the
+     sunset fallback for when this file has not been generated yet. Reload the
+     page after switching theme. -->
+<link rel="stylesheet" href="theme.css">
+
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="wordmark">sunset<span class="dot">.</span></div>
+    <div class="sub">YOUR DESKTOP, ONE SECTION AT A TIME</div>
+    <p class="lead">
+      Everything here is a shortcut. Open a heading, read one line, close it.
+      Nothing else is going on. Press <b>/</b> to search instead of scrolling,
+      or <b>Mod+Alt+H</b> to bring this window back later.
+    </p>
+  </header>
+
+  <div class="toolbar">
+    <div class="searchbox">
+      <span class="mag">/</span>
+      <input id="search" type="text" placeholder="Search every shortcut at once…" autocomplete="off" spellcheck="false">
+      <span class="kbd-hint"><kbd>/</kbd></span>
+    </div>
+    <div class="count" id="count"></div>
+  </div>
+
+  <details class="vocab">
+    <summary>What the words mean</summary>
+    <div class="vocab-grid">
+      <div><dt>Mod</dt><dd>The Windows / Super key. Every shortcut here starts with it.</dd></div>
+      <div><dt>Column</dt><dd>One window. Windows sit side by side instead of on top of each other.</dd></div>
+      <div><dt>Workspace</dt><dd>A separate screenful of windows — tabs for your whole desktop.</dd></div>
+      <div><dt>The bar</dt><dd>The thin strip at the top: clock, sound, wifi, battery, power.</dd></div>
+      <div><dt>Popup</dt><dd>A small panel over the desktop. <kbd>Esc</kbd> closes it.</dd></div>
+      <div><dt>Screenshot menu</dt><dd>The one panel holding every capture tool — region, window, screen, scrolling, recording and text extraction. <kbd>Mod+Shift+5</kbd>.</dd></div>
+      <div><dt>Dictation</dt><dd>You talk, the words are typed into whatever you were already typing in. Entirely on this machine — no account, no internet. <kbd>Mod+Alt+D</kbd>.</dd></div>
+      <div><dt>Preview</dt><dd>Look at a file without opening it. Inside the launcher, <kbd>Ctrl+Space</kbd>.</dd></div>
+      <div><dt>Now Playing</dt><dd>The music card under the bar — what is playing, plus a player for your own <code>~/Music</code>. <kbd>Mod+Alt+M</kbd>.</dd></div>
+    </div>
+  </details>
+
+  <main id="main">
+    <p class="empty-msg" id="empty">Nothing matches that. Try one word — <kbd>wallpaper</kbd>, <kbd>screenshot</kbd>, <kbd>wifi</kbd>.</p>
+
+    <!-- ================= 00 ================= -->
+    <details class="sec" id="start" open>
+      <summary>
+        <span class="sec-num">00</span>
+        <span class="sec-main">
+          <span class="sec-title">Start here</span>
+          <span class="sec-hint">the eleven you will use most</span>
+        </span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">11</span></span><span class="chev">&#8250;</span></span>
+      </summary>
+      <div class="sec-body">
+        <div class="rows">
+          <div class="row"><span class="desc">Open an app</span><span class="keys"><kbd>Alt+Space</kbd><span class="hint">or click the logo</span></span></div>
+          <div class="row"><span class="desc">Open a terminal</span><span class="keys"><kbd>Mod+Return</kbd></span></div>
+          <div class="row"><span class="desc">Close a window</span><span class="keys"><kbd>Mod+Q</kbd></span></div>
+          <div class="row"><span class="desc">See every window at once</span><span class="keys"><kbd>Mod+A</kbd></span></div>
+          <div class="row"><span class="desc">Change the wallpaper</span><span class="keys"><kbd>Mod+Alt+W</kbd></span></div>
+          <div class="row"><span class="desc">Stop notifications interrupting you</span><span class="keys"><kbd>Mod+Alt+N</kbd></span></div>
+          <div class="row"><span class="desc">Wi-Fi, sound, brightness</span><span class="keys"><kbd>Mod+I</kbd></span></div>
+          <div class="row"><span class="desc">All system settings</span><span class="keys"><kbd>Mod+Alt+S</kbd></span></div>
+          <div class="row"><span class="desc">Speak instead of typing — press again to stop, the words are typed for you</span><span class="keys"><kbd>Mod+Alt+D</kbd></span></div>
+          <div class="row"><span class="desc">Look at a file without opening it</span><span class="keys"><kbd>Alt+Space</kbd><kbd>Ctrl+Space</kbd></span></div>
+          <div class="row"><span class="desc">Walk away from the computer</span><span class="keys"><kbd>Mod+L</kbd></span></div>
+        </div>
+        <div class="note">Popups close with <kbd>Esc</kbd>, or with the same button you opened them with. A desktop that looks stuck is usually a popup waiting for <kbd>Esc</kbd>.</div>
+      </div>
+    </details>
+
+    <!-- ================= 01 ================= -->
+    <details class="sec" id="everyday">
+      <summary>
+        <span class="sec-num">01</span>
+        <span class="sec-main">
+          <span class="sec-title">Everyday things</span>
+          <span class="sec-hint">apps, files, clipboard, screenshots, leaving</span>
+        </span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">52</span></span><span class="chev">&#8250;</span></span>
+      </summary>
+      <div class="sec-body">
+        <div class="sub">Opening things</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Open any app — type its name</span><span class="keys"><kbd>Alt+Space</kbd><kbd>Mod+Ctrl+Return</kbd></span></div>
+          <div class="row"><span class="desc">Open a terminal</span><span class="keys"><kbd>Mod+Return</kbd></span></div>
+          <div class="row"><span class="desc">Open a terminal that slides in and out of the way</span><span class="keys"><kbd>Mod+Grave</kbd></span></div>
+          <div class="row"><span class="desc">Open the web browser</span><span class="keys"><kbd>Mod+B</kbd></span></div>
+          <div class="row"><span class="desc">Open the file manager</span><span class="keys"><kbd>Mod+E</kbd></span></div>
+          <div class="row"><span class="desc">Find a file anywhere in your home</span><span class="keys"><kbd>Alt+Space</kbd><kbd>/</kbd><span class="hint">then the name</span></span></div>
+          <div class="row"><span class="desc">Jump to a window that is already open</span><span class="keys"><kbd>Alt+Space</kbd><kbd>$</kbd><span class="hint">then its name</span></span></div>
+        </div>
+
+        <div class="sub">Clipboard</div>
+        <div class="rows">
+          <div class="row"><span class="desc">See the things you copied</span><span class="keys"><kbd>Mod+C</kbd></span></div>
+          <div class="row"><span class="desc">Throw the clipboard away and start fresh</span><span class="keys"><kbd>Mod+Shift+C</kbd></span></div>
+          <div class="row"><span class="desc">Save whatever is on the clipboard as a picture</span><span class="keys"><kbd>Mod+Shift+V</kbd></span></div>
+          <div class="row"><span class="desc">Delete only the newest clipboard entry</span><span class="keys"><kbd>Mod+Shift+D</kbd></span></div>
+        </div>
+
+        <div class="sub">Screenshots</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Open the screenshot menu — every capture tool in one place</span><span class="keys"><kbd>Mod+Shift+5</kbd><kbd>Mod+Alt+Shift+S</kbd></span></div>
+          <div class="row"><span class="desc">Pick, annotate &amp; redact — then a floating bar offers OCR (copy recognized text), Copy, Open, Delete</span><span class="keys"><kbd>Mod+Ctrl+S</kbd></span></div>
+          <div class="row"><span class="desc">Scrolling capture — pick the area, it scrolls &amp; stitches; press again to stop early</span><span class="keys"><kbd>Mod+Shift+S</kbd></span></div>
+          <div class="row"><span class="desc">Copy the text out of your last screenshot</span><span class="keys"><span class="hint">screenshot menu → OCR</span></span></div>
+          <div class="row"><span class="desc">Start or stop a screen recording</span><span class="keys"><kbd>Mod+Shift+R</kbd><span class="hint">or the red dot beside the clock</span></span></div>
+          <div class="row"><span class="desc">One window, or the whole screen, straight to a file</span><span class="keys"><kbd>Ctrl+Print</kbd><kbd>Shift+Print</kbd></span></div>
+          <div class="row"><span class="desc">Open the same menu from the desktop or the bar</span><span class="keys"><span class="hint">right-click either one</span></span></div>
+          <div class="row"><span class="desc">Find it by name instead of remembering the key</span><span class="keys"><kbd>Alt+Space</kbd><span class="hint">then</span><span class="pill">screenshot</span></span></div>
+        </div>
+
+        <details class="more">
+          <summary>How the screenshot menu itself works</summary>
+          <div class="inner">
+            <p>The menu is the one place every capture tool lives, and it is entirely keyboard-driven. Pick a row with <kbd>↑</kbd> <kbd>↓</kbd> or <kbd>j</kbd> <kbd>k</kbd>, press <kbd>1</kbd>–<kbd>9</kbd> to jump straight to one, then <kbd>Enter</kbd> to run it. <kbd>Esc</kbd> closes it without doing anything. <b>The digit only moves the selection</b> — it never starts a capture, so a slip of the finger cannot begin a screen recording. The line at the bottom always explains what the selected row will do.</p>
+            <div class="rows">
+              <div class="row"><span class="desc">Move, then run</span><span class="keys"><kbd>↑</kbd><kbd>↓</kbd><kbd>Enter</kbd></span></div>
+              <div class="row"><span class="desc">Jump to a row without running it</span><span class="keys"><kbd>1</kbd>–<kbd>9</kbd></span></div>
+              <div class="row"><span class="desc">Open it</span><span class="keys"><kbd>Mod+Shift+5</kbd><kbd>Mod+Alt+Shift+S</kbd><span class="hint">or</span><span class="pill">screenshot</span></span></div>
+              <div class="row"><span class="desc">Region · Window · Screen</span><span class="keys"><span class="hint">rows 1–3</span></span></div>
+              <div class="row"><span class="desc">Scroll · Record · OCR</span><span class="keys"><span class="hint">rows 4–6</span></span></div>
+              <div class="row"><span class="desc">Screenshots folder · Videos folder</span><span class="keys"><span class="hint">rows 7–8</span></span></div>
+              <div class="row"><span class="desc">Take the camera icon out of the bar</span><span class="keys"><span class="hint">row 9 · Unpin from bar</span></span></div>
+              <div class="row"><span class="desc">Where pictures are saved</span><span class="keys"><span class="pill">~/Pictures/Screenshots</span></span></div>
+              <div class="row"><span class="desc">The same menu, from a terminal or a script</span><span class="keys"><span class="pill cmd">qs -c sunset ipc call capture toggle</span></span></div>
+            </div>
+          </div>
+        </details>
+
+        <div class="sub">Voice typing</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Start talking — press <b>again</b> to stop, and the words are typed into whatever you were typing in</span><span class="keys"><kbd>Mod+Alt+D</kbd></span></div>
+          <div class="row"><span class="desc">Throw away the sentence you just said</span><span class="keys"><kbd>Mod+Alt+Shift+D</kbd></span></div>
+          <div class="row"><span class="desc">Voice typing is stuck and will not stop — this always frees it</span><span class="keys"><kbd>Mod+Alt+Escape</kbd></span></div>
+          <div class="row"><span class="desc">See who is using the microphone right now</span><span class="keys"><span class="hint">the panic key, then <b>mic</b></span></span></div>
+        </div>
+
+        <div class="sub">Music</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Open the music card — what is playing, with its own seek bar</span><span class="keys"><kbd>Mod+Alt+M</kbd><span class="hint">or the note in the bar</span></span></div>
+          <div class="row"><span class="desc">Play your own music from <code>~/Music</code> — pick a track from the list inside the card</span><span class="keys"><span class="hint">card → Library</span></span></div>
+          <div class="row"><span class="desc">Play the whole folder shuffled, forever</span><span class="keys"><span class="hint">card → Library → shuffle</span></span></div>
+          <div class="row"><span class="desc">Save what you are listening to into <code>~/Music</code> — as an MP3 or an MP4</span><span class="keys"><span class="hint">card → download arrow</span></span></div>
+          <div class="row"><span class="desc">Save some <b>other</b> video instead — paste its link into the same box</span><span class="keys"><span class="hint">card → download arrow → link</span></span></div>
+        </div>
+
+        <details class="more">
+          <summary>How voice typing behaves</summary>
+          <div class="inner">
+            <p>It runs entirely on this machine: nothing is uploaded and there is no account. It listens when you ask and stops on a pause, and it types into whichever window you were already using — a terminal, a chat, a document — rather than opening one of its own.</p>
+            <div class="rows">
+              <div class="row"><span class="desc">It is a toggle, not hold-to-talk</span><span class="keys"><span class="hint">press once to start, once to stop</span></span></div>
+              <div class="row"><span class="desc">Stop when you go quiet</span><span class="keys"><span class="hint">a pause ends the recording</span></span></div>
+              <div class="row"><span class="desc">Know when it is listening</span><span class="keys"><span class="hint">an overlay, plus a dot in the bar</span></span></div>
+              <div class="row"><span class="desc">If the dot in the bar lights up for another program, that one is recording too</span><span class="keys"><span class="hint">the dot follows the microphone, not the app</span></span></div>
+            </div>
+            <p>The <kbd>Mod+Alt+Escape</kbd> key is the escape hatch. A normal stop is enough almost every time; it exists for the rare moment where the microphone stays open no matter what you press, and it is safe to mash — it touches nothing else on your computer.</p>
+          </div>
+        </details>
+
+        <details class="more">
+          <summary>How saving music works</summary>
+          <div class="inner">
+            <p>Leave the link box empty and the card saves <b>what is playing right now</b>. Paste a link into it and the card saves <b>that</b> instead — if the link is unusable it tells you why rather than quietly saving something else.</p>
+            <div class="rows">
+              <div class="row"><span class="desc">Audio, best quality</span><span class="keys"><span class="pill">Audio · MP3 · Best</span></span></div>
+              <div class="row"><span class="desc">Audio, smaller file</span><span class="keys"><span class="pill">320k</span><span class="pill">128k</span></span></div>
+              <div class="row"><span class="desc">Video</span><span class="keys"><span class="pill">MP4 · 1080p</span><span class="pill">720p</span><span class="pill">480p</span></span></div>
+              <div class="row"><span class="desc">Use the link the player already knows</span><span class="keys"><span class="hint">link box → Use this track's link</span></span></div>
+              <div class="row"><span class="desc">Where it lands</span><span class="keys"><span class="pill">~/Music</span></span></div>
+              <div class="row"><span class="desc">A second copy of the same song is caught and removed for you</span><span class="keys"><span class="hint">you are told which one was kept</span></span></div>
+              <div class="row"><span class="dim">A saved link keeps its own title and name. Browsers often hide the real link from their players, so with nothing pasted the card searches for the artist and title instead.</span><span class="keys"></span></div>
+            </div>
+          </div>
+        </details>
+
+        <div class="sub">Sharing</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Send a file to your phone or another computer</span><span class="keys"><kbd>Mod+S</kbd></span></div>
+        </div>
+
+        <div class="sub">Leaving</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Lock the screen and step away</span><span class="keys"><kbd>Mod+L</kbd></span></div>
+          <div class="row"><span class="desc">Power off, restart, log out — a menu of choices</span><span class="keys"><span class="hint">click the power icon in the bar</span></span></div>
+          <div class="row"><span class="desc">The same menu from anywhere</span><span class="keys"><span class="hint">right-click the bar</span></span></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ================= 02 ================= -->
+    <details class="sec" id="windows">
+      <summary>
+        <span class="sec-num">02</span>
+        <span class="sec-main">
+          <span class="sec-title">Windows</span>
+          <span class="sec-hint">moving, resizing, closing</span>
+        </span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">18</span></span><span class="chev">&#8250;</span></span>
+      </summary>
+      <div class="sec-body">
+        <p class="blurb">Windows sit side by side in columns instead of covering each other. Both <kbd>Mod+HJKL</kbd> and the arrow keys move between them.</p>
+
+        <div class="sub">Moving around</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Window on the left / right / up / down</span><span class="keys"><kbd>Mod+H</kbd><kbd>Mod+Shift+H</kbd><kbd>Mod+K</kbd><kbd>Mod+J</kbd></span></div>
+          <div class="row"><span class="desc">The very first / the very last window</span><span class="keys"><kbd>Mod+Home</kbd><kbd>Mod+End</kbd></span></div>
+          <div class="row"><span class="desc">Scroll sideways to reach columns off-screen</span><span class="keys"><span class="hint">wheel · two-finger swipe</span></span></div>
+        </div>
+
+        <div class="sub">Moving windows</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Push this window left / right / up / down</span><span class="keys"><kbd>Mod+Ctrl+Left</kbd><kbd>Mod+Ctrl+Right</kbd><kbd>Mod+Ctrl+Up</kbd><kbd>Mod+Ctrl+Down</kbd></span></div>
+          <div class="row"><span class="desc">Send it to the very start / the very end</span><span class="keys"><kbd>Mod+Ctrl+Home</kbd><kbd>Mod+Ctrl+End</kbd></span></div>
+          <div class="row"><span class="desc">Pull it out into a column of its own</span><span class="keys"><kbd>Mod+Comma</kbd></span></div>
+          <div class="row"><span class="desc">Push it into the column on the other side</span><span class="keys"><kbd>Mod+Period</kbd></span></div>
+          <div class="row"><span class="desc">Swap it with the window next to it</span><span class="keys"><kbd>Mod+BracketLeft</kbd><kbd>Mod+BracketRight</kbd></span></div>
+        </div>
+
+        <div class="sub">Sizing</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Column wider / narrower</span><span class="keys"><kbd>Mod+Shift+Left</kbd><kbd>Mod+Shift+Right</kbd></span></div>
+          <div class="row"><span class="desc">Window taller / shorter</span><span class="keys"><kbd>Mod+Shift+Up</kbd><kbd>Mod+Shift+Down</kbd></span></div>
+          <div class="row"><span class="desc">Column takes the whole width</span><span class="keys"><kbd>Mod+M</kbd></span></div>
+          <div class="row"><span class="desc">Window fills the screen <span class="dim">— press again to leave</span></span><span class="keys"><kbd>Mod+F</kbd></span></div>
+          <div class="row"><span class="desc">Any edge, by hand</span><span class="keys"><span class="hint">drag the border</span></span></div>
+        </div>
+
+        <div class="sub">Changing a window</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Close it</span><span class="keys"><kbd>Mod+Q</kbd></span></div>
+          <div class="row"><span class="desc">Let it hover on top instead of tiling</span><span class="keys"><kbd>Mod+T</kbd></span></div>
+          <div class="row"><span class="desc">Line up a column's windows as tabs</span><span class="keys"><kbd>Mod+Shift+T</kbd></span></div>
+          <div class="row"><span class="desc">See everything on this workspace, big</span><span class="keys"><kbd>Mod+A</kbd><span class="hint">Esc to leave</span></span></div>
+          <div class="row"><span class="desc">Close several windows quickly</span><span class="keys"><kbd>Mod+Q</kbd><span class="hint">repeat while holding Mod</span></span></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ================= 03 ================= -->
+    <details class="sec" id="spaces">
+      <summary>
+        <span class="sec-num">03</span>
+        <span class="sec-main">
+          <span class="sec-title">Workspaces</span>
+          <span class="sec-hint">ten separate screens of windows</span>
+        </span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">6</span></span><span class="chev">&#8250;</span></span>
+      </summary>
+      <div class="sec-body">
+        <p class="blurb">Give one to work, one to chat, one to videos. You never have to close anything to get a clean desktop.</p>
+        <div class="rows">
+          <div class="row"><span class="desc">Jump to workspace 1 … 10</span><span class="keys"><kbd>Mod+1</kbd><kbd>Mod+2</kbd><kbd>…</kbd><kbd>Mod+0</kbd></span></div>
+          <div class="row"><span class="desc">Next / previous workspace</span><span class="keys"><kbd>Mod+Page_Down</kbd><kbd>Mod+Page_Up</kbd></span></div>
+          <div class="row"><span class="desc">Take this window with me</span><span class="keys"><kbd>Mod+Ctrl+1</kbd><kbd>Mod+Ctrl+2</kbd><kbd>…</kbd><kbd>Mod+Ctrl+0</kbd></span></div>
+          <div class="row"><span class="desc">Send it to the next / previous workspace</span><span class="keys"><kbd>Mod+Ctrl+Page_Down</kbd><kbd>Mod+Ctrl+Page_Up</kbd></span></div>
+          <div class="row"><span class="desc">See which workspaces have windows</span><span class="keys"><span class="hint">the squares at the left of the bar</span></span></div>
+          <div class="row"><span class="desc">Go straight to one by clicking its square</span><span class="keys"><span class="hint">click</span></span></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ================= 04 ================= -->
+    <details class="sec" id="launcher">
+      <summary>
+        <span class="sec-num">04</span>
+        <span class="sec-main">
+          <span class="sec-title">The launcher</span>
+          <span class="sec-hint">one box for apps, files, maths, the web</span>
+        </span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">32</span></span><span class="chev">&#8250;</span></span>
+      </summary>
+      <div class="sec-body">
+        <p class="blurb">Press <kbd>Alt+Space</kbd>, type what you want, press <kbd>Enter</kbd>. Start the line with a symbol and it searches something different instead.</p>
+
+        <div class="sub">The symbols</div>
+        <div class="rows">
+          <div class="row"><span class="desc"><span class="dim">nothing</span> — apps, just type a name</span><span class="keys"><span class="hint">Applications</span></span></div>
+          <div class="row"><span class="desc">Do maths without leaving the keyboard</span><span class="keys"><kbd>=</kbd><span class="hint">then 12*8</span></span></div>
+          <div class="row"><span class="desc">Jump to a window that is already open</span><span class="keys"><kbd>$</kbd><span class="hint">then its name</span></span></div>
+          <div class="row"><span class="desc">Paste something you copied earlier</span><span class="keys"><kbd>:</kbd></span></div>
+          <div class="row"><span class="desc">Search the web</span><span class="keys"><kbd>@</kbd><span class="hint">then the words</span></span></div>
+          <div class="row"><span class="desc">Find a file anywhere in your home</span><span class="keys"><kbd>/</kbd><span class="hint">then the name</span></span></div>
+          <div class="row"><span class="desc">Run a shell command</span><span class="keys"><kbd>&gt;</kbd></span></div>
+          <div class="row"><span class="desc">Insert an emoji or a symbol by name</span><span class="keys"><kbd>.</kbd></span></div>
+          <div class="row"><span class="desc">A to-do list you keep without opening anything</span><span class="keys"><kbd>!</kbd><span class="hint">add · done · rm</span></span></div>
+          <div class="row"><span class="desc">Your saved websites</span><span class="keys"><kbd>%</kbd></span></div>
+          <div class="row"><span class="desc">Every symbol above, plus the popups and settings</span><span class="keys"><kbd>;</kbd></span></div>
+        </div>
+
+        <div class="sub">Before you open it</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Look at a file without opening it — move with the arrows, close with <kbd>Esc</kbd></span><span class="keys"><kbd>Ctrl+Space</kbd></span></div>
+          <div class="row"><span class="desc">See a picture, a PDF or a text file right here in the launcher</span><span class="keys"><span class="hint">preview pane, beside the list</span></span></div>
+          <div class="row"><span class="desc">Audio, video, office documents and fonts</span><span class="keys"><span class="hint">opens the system previewer</span></span></div>
+          <div class="row"><span class="desc">Turn through the pages of a PDF</span><span class="keys"><kbd>Ctrl+F</kbd><kbd>Ctrl+R</kbd></span></div>
+          <div class="row"><span class="desc">Close just the preview, keep searching</span><span class="keys"><kbd>Esc</kbd><span class="hint">again closes the launcher</span></span></div>
+          <div class="row"><span class="desc">Keep typing while the preview is open</span><span class="keys"><span class="hint">Space keeps searching</span></span></div>
+        </div>
+
+        <div class="sub">The pinned controls</div>
+        <div class="rows">
+          <div class="row"><span class="desc">A short list of the things you actually use, above everything else</span><span class="keys"><span class="hint">shown with nothing typed</span></span></div>
+          <div class="row"><span class="desc">Settings · Help &amp; Guide · Themes · Custom Editor</span><span class="keys"><span class="hint">rows 1–4</span></span></div>
+          <div class="row"><span class="desc">Quick Settings · Wi-Fi · Wallpaper · Power · Volume</span><span class="keys"><span class="hint">rows 5–9</span></span></div>
+          <div class="row"><span class="desc">Now Playing · Clipboard · Screenshot · Calendar</span><span class="keys"><span class="hint">rows 10–13</span></span></div>
+          <div class="row"><span class="desc">Crack the whip · Do Not Disturb</span><span class="keys"><span class="hint">rows 14–15</span></span></div>
+          <div class="row"><span class="desc">Jump straight to a window you already have open</span><span class="keys"><span class="hint">the <b>Open</b> section — one row per running app</span></span></div>
+          <div class="row"><span class="desc">Your saved sites</span><span class="keys"><kbd>%</kbd></span></div>
+        </div>
+
+        <div class="sub">Getting more out of it</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Only pictures / videos / music / documents / code</span><span class="keys"><kbd>/</kbd><span class="hint">then</span><span class="pill">!img !vid !aud !doc !code</span></span></div>
+          <div class="row"><span class="desc">Only inside one folder</span><span class="keys"><kbd>/</kbd><span class="hint">then</span><span class="pill">@home @documents @downloads</span></span></div>
+          <div class="row"><span class="desc">Narrow a search by adding words after the slash</span><span class="keys"><span class="pill">/ .pdf invoice @downloads</span></span></div>
+          <div class="row"><span class="desc">Drag a file row into a chat or a document</span><span class="keys"><span class="hint">press and drag</span></span></div>
+          <div class="row"><span class="desc">Copy a search result instead of opening it</span><span class="keys"><span class="hint">right-click the row</span></span></div>
+          <div class="row"><span class="desc">Open the usual sites by name</span><span class="keys"><kbd>@</kbd><span class="hint">then</span><span class="pill">gh yt wiki so r maps</span></span></div>
+          <div class="row"><span class="desc">Save a site you use often</span><span class="keys"><kbd>@</kbd><span class="hint">then type</span><span class="pill">-bookmark</span></span></div>
+          <div class="row"><span class="desc">Write a note without leaving the keyboard</span><span class="keys"><kbd>!</kbd><span class="hint">add milk</span></span></div>
+        </div>
+
+        <div class="note">
+          <kbd>Enter</kbd> opens · <kbd>↑</kbd> <kbd>↓</kbd> move · <kbd>Esc</kbd> closes.
+          Typing <kbd>/</kbd> in the middle of your words switches to file search without starting over.
+        </div>
+
+        <details class="more">
+          <summary>Why a file sometimes is not found</summary>
+          <div class="inner">
+            <p>Dot-folders and folders ignored by git are never searched — that is why <code>~/.config</code> and <code>node_modules</code> stay invisible. The list of files is cached; delete <code>~/.cache/niri-setup/file-index/</code> to rebuild it after moving a lot of files around.</p>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <!-- ================= 05 ================= -->
+    <details class="sec" id="looks">
+      <summary>
+        <span class="sec-num">05</span>
+        <span class="sec-main">
+          <span class="sec-title">Wallpaper, colours, sound, light</span>
+          <span class="sec-hint">the looks and the noise</span>
+        </span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">23</span></span><span class="chev">&#8250;</span></span>
+      </summary>
+      <div class="sec-body">
+        <div class="sub">Wallpaper</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Open the wallpaper menu</span><span class="keys"><kbd>Mod+Alt+W</kbd></span></div>
+          <div class="row"><span class="desc">Next / the one before / a random one</span><span class="keys"><span class="hint">wallpaper menu, rows 1–3</span></span></div>
+          <div class="row"><span class="desc">Choose a picture by looking at thumbnails</span><span class="keys"><span class="hint">wallpaper menu → Pick…</span></span></div>
+          <div class="row"><span class="desc">Fetch a brand new wallpaper</span><span class="keys"><span class="hint">wallpaper menu → Download</span></span></div>
+          <div class="row"><span class="desc">Let it change by itself — start, stop, check</span><span class="keys"><span class="hint">wallpaper menu → Auto</span></span></div>
+        </div>
+
+        <div class="sub">Colours</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Recolour the bar and every popup</span><span class="keys"><kbd>Mod+Alt+T</kbd></span></div>
+          <div class="row"><span class="desc">Edit the <b>Custom</b> palette by hand, with a live preview and contrast warnings</span><span class="keys"><kbd>Mod+Alt+Shift+T</kbd></span></div>
+          <div class="row"><span class="desc">The same thing, found by name</span><span class="keys"><kbd>;</kbd><span class="hint">then Themes</span></span></div>
+        </div>
+
+        <div class="sub">Sound</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Volume up / down</span><span class="keys"><span class="hint">the sound keys</span></span></div>
+          <div class="row"><span class="desc">Mute / unmute</span><span class="keys"><span class="hint">the mute key, or click the sound pill</span></span></div>
+          <div class="row"><span class="desc">Pick which speakers and microphone to use</span><span class="keys"><span class="hint">left-click the sound pill</span></span></div>
+          <div class="row"><span class="desc">Skip / pause the music that is playing</span><span class="keys"><span class="hint">the media keys</span></span></div>
+        </div>
+
+        <div class="sub">Light &amp; battery</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Brightness up / down</span><span class="keys"><span class="hint">the sun keys</span></span></div>
+          <div class="row"><span class="desc">Save battery — power saving / balanced / performance</span><span class="keys"><span class="hint">quick settings → Power profile</span></span></div>
+          <div class="row"><span class="desc">Bluetooth on or off, and see paired devices</span><span class="keys"><span class="hint">click the bluetooth icon</span></span></div>
+          <div class="row"><span class="desc">Switch network, add a password, forget one</span><span class="keys"><kbd>Mod+Alt+F</kbd><span class="hint">or the Wi-Fi icon</span></span></div>
+          <div class="row"><span class="desc">Stop every notification, and bring them back</span><span class="keys"><kbd>Mod+Alt+N</kbd></span></div>
+        </div>
+
+        <details class="more">
+          <summary>The nine wallpaper settings</summary>
+          <div class="inner">
+            <p>The menu is for pictures. Deeper settings — how often it rotates, how big the copy may be, jpeg or png, whether the terminal colours follow the picture — live in one small file and are edited with a script. There is no clickable editor for them.</p>
+            <div class="rows">
+              <div class="row"><span class="desc">See every setting and its value</span><span class="keys"><span class="pill cmd">scripts/wallpaper-process.sh get</span></span></div>
+              <div class="row"><span class="desc">Change how often it rotates</span><span class="keys"><span class="pill cmd">… set INTERVAL 10m</span></span></div>
+              <div class="row"><span class="desc">Change several at once, checked before writing</span><span class="keys"><span class="pill cmd">… setmany DOWNSCALE 1920 FORMAT jpeg</span></span></div>
+              <div class="row"><span class="desc">Put everything back as it shipped</span><span class="keys"><span class="pill cmd">… reset</span></span></div>
+              <div class="row"><span class="desc">Where they are stored</span><span class="keys"><span class="pill">.state/wallpaper-process.conf</span></span></div>
+              <div class="row"><span class="desc">The nine names</span><span class="keys"><span class="pill">INTERVAL · DOWNSCALE · FORMAT · JPEG_QUALITY · PNG_COMPRESSION · CANVAS_COLOR · WALLUST · POST_CMD · AUTOSTART</span></span></div>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <!-- ================= 06 ================= -->
+    <details class="sec" id="settings">
+      <summary>
+        <span class="sec-num">06</span>
+        <span class="sec-main">
+          <span class="sec-title">Settings</span>
+          <span class="sec-hint">the GNOME app, one panel per job</span>
+        </span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">13</span></span><span class="chev">&#8250;</span></span>
+      </summary>
+      <div class="sec-body">
+        <p class="blurb">Anything about the machine itself lives in one normal app — the same one any Linux desktop has. It looks a little like a phone: icons down the left, the settings down the right.</p>
+
+        <div class="sub">Opening it</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Open Settings</span><span class="keys"><kbd>Mod+Alt+S</kbd><kbd>Mod+Shift+P</kbd></span></div>
+          <div class="row"><span class="desc">Go straight to the Wi-Fi panel</span><span class="keys"><kbd>Mod+Shift+I</kbd></span></div>
+          <div class="row"><span class="desc">From the launcher or a right-click</span><span class="keys"><span class="hint">Alt+Space → Settings</span></span></div>
+          <div class="row"><span class="desc">Close it — this desktop draws no title buttons</span><span class="keys"><kbd>Mod+Q</kbd></span></div>
+        </div>
+
+        <div class="sub">Where each thing lives</div>
+        <div class="rows">
+          <div class="row"><span class="desc">Wi-Fi, cables, connections</span><span class="keys"><span class="hint">Network</span></span></div>
+          <div class="row"><span class="desc">Volume, microphones, which speaker plays what</span><span class="keys"><span class="hint">Sound</span></span></div>
+          <div class="row"><span class="desc">Brightness, night light, screen arrangement</span><span class="keys"><span class="hint">Displays</span></span></div>
+          <div class="row"><span class="desc">Bluetooth, mouse, keyboard, printers</span><span class="keys"><span class="hint">Bluetooth · Devices</span></span></div>
+          <div class="row"><span class="desc">Your account, password, other users</span><span class="keys"><span class="hint">Users</span></span></div>
+          <div class="row"><span class="desc">The clock, timezone, date format</span><span class="keys"><span class="hint">Date &amp; Time</span></span></div>
+          <div class="row"><span class="desc">What apps may look at your camera or files</span><span class="keys"><span class="hint">Privacy</span></span></div>
+          <div class="row"><span class="desc">Installed programs and new ones</span><span class="keys"><span class="hint">Applications</span></span></div>
+          <div class="row"><span class="desc">Update the system</span><span class="keys"><kbd>Mod+U</kbd><span class="hint">a small updater window</span></span></div>
+        </div>
+
+        <div class="note">
+          The fast everyday things — brightness, mute, do-not-disturb, power mode — are also in the bar popup on <kbd>Mod+I</kbd>.
+          Wi-Fi has its own card (<kbd>Mod+Alt+F</kbd>, or click the Wi-Fi icon) and Bluetooth its own too, both in the
+          top-right corner under the bar. Use those for speed and this app for everything else. Window and workspace
+          shortcuts are <b>not</b> in here; they are in this guide and in <code>~/niri-setup/niri/binds.kdl</code>.
+        </div>
+      </div>
+    </details>
+
+    <!-- ================= 07 ================= -->
+    <details class="sec" id="focus">
+      <summary>
+        <span class="sec-num">07</span>
+        <span class="sec-main">
+          <span class="sec-title">Timers &amp; saved setups</span>
+          <span class="sec-hint">focus blocks, weather, layouts you reuse</span>
+        </span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">6</span></span><span class="chev">&#8250;</span></span>
+      </summary>
+      <div class="sec-body">
+        <div class="rows">
+          <div class="row"><span class="desc">Calendar, focus timer and stopwatch</span><span class="keys"><span class="hint">click the clock in the bar</span></span></div>
+          <div class="row"><span class="desc">Start / pause the timer without the mouse</span><span class="keys"><kbd>Mod+Alt+C</kbd><kbd>Mod+Alt+Shift+C</kbd></span></div>
+          <div class="row"><span class="desc">Weather where you are</span><span class="keys"><span class="hint">click the weather, left of the clock</span></span></div>
+          <div class="row"><span class="desc">Save “study”, “gaming”, “clean up” layouts and jump between them</span><span class="keys"><kbd>Mod+Shift+O</kbd></span></div>
+          <div class="row"><span class="desc">Open a saved setup by name</span><span class="keys"><kbd>;</kbd><span class="hint">then the name</span></span></div>
+          <div class="row"><span class="desc">Crack the whip, because you can</span><span class="keys"><kbd>Mod+Alt+L</kbd></span></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ================= 08 ================= -->
+    <details class="sec" id="fixit">
+      <summary>
+        <span class="sec-num">08</span>
+        <span class="sec-main">
+          <span class="sec-title">Something went wrong</span>
+          <span class="sec-hint">symptom first, fix second</span>
+        </span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">15</span></span><span class="chev">&#8250;</span></span>
+      </summary>
+      <div class="sec-body">
+        <div class="rows">
+          <div class="row"><span class="desc"><span class="danger">Bar gone, popup frozen, anything looks stale</span></span><span class="keys"><kbd>Mod+Shift+Q</kbd></span></div>
+          <div class="row"><span class="desc">A popup opened and will not go away</span><span class="keys"><kbd>Esc</kbd></span></div>
+          <div class="row"><span class="desc">Settings did not open</span><span class="keys"><span class="hint">Alt+Space → Settings</span></span></div>
+          <div class="row"><span class="desc">A window has no close button and no title bar</span><span class="keys"><kbd>Mod+Q</kbd><span class="hint">that is by design</span></span></div>
+          <div class="row"><span class="desc">Notifications stopped arriving</span><span class="keys"><kbd>Mod+Alt+N</kbd><span class="hint">toggles do-not-disturb</span></span></div>
+          <div class="row"><span class="desc">The wallpaper paused for a moment</span><span class="keys"><span class="hint">huge 4K pictures are resized</span></span></div>
+          <div class="row"><span class="desc">File search finds nothing in a dot-folder</span><span class="keys"><span class="hint">they are never searched</span></span></div>
+          <div class="row"><span class="desc">The screen looks wrong after changing a monitor</span><span class="keys"><kbd>Mod+Alt+S</kbd><span class="hint">then Displays</span></span></div>
+          <div class="row"><span class="desc">The microphone stayed open after dictation</span><span class="keys"><kbd>Mod+Alt+Escape</kbd><span class="hint">works even when the daemon is wedged</span></span></div>
+          <div class="row"><span class="desc">Dictation typed nothing, or typed the wrong thing</span><span class="keys"><span class="hint">a quiet room helps — the microphone gain is high</span></span></div>
+          <div class="row"><span class="desc">A saved music file came out empty, or nothing was saved</span><span class="keys"><span class="hint">the card says why underneath the buttons</span></span></div>
+          <div class="row"><span class="desc">The same song appeared in <code>~/Music</code> twice</span><span class="keys"><span class="hint">the second one is removed and you are told</span></span></div>
+          <div class="row"><span class="desc">A preview will not open for an audio, video or document file</span><span class="keys"><span class="pill cmd">pacman -S sushi</span></span></div>
+          <div class="row"><span class="desc">You want the old bar and the old desktop back</span><span class="keys"><span class="pill cmd">scripts/rollback-to-waybar.sh</span></span></div>
+          <div class="row"><span class="desc">You want to choose the bar deliberately</span><span class="keys"><span class="pill cmd">scripts/switch-shell.sh quickshell|waybar</span></span></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ================= 09 ================= -->
+    <details class="sec" id="tech">
+      <summary>
+        <span class="sec-num">09</span>
+        <span class="sec-main">
+          <span class="sec-title">Under the hood</span>
+          <span class="sec-hint">only if you like this sort of thing</span>
+        </span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">25</span></span><span class="chev">&#8250;</span></span>
+      </summary>
+      <div class="sec-body">
+        <p class="blurb">Everything above is enough for day to day. This section is for when you want to see, or change, the machine itself.</p>
+        <div class="rows">
+          <div class="row"><span class="desc">The desktop is two programs: niri draws the windows, quickshell draws the bar and popups</span><span class="keys"><span class="pill cmd">niri</span><span class="pill cmd">quickshell -c sunset</span></span></div>
+          <div class="row"><span class="desc">Everything lives in one folder</span><span class="keys"><span class="pill">~/niri-setup</span></span></div>
+          <div class="row"><span class="desc">Window rules, colours, startup programs</span><span class="keys"><span class="pill">niri/*.kdl</span></span></div>
+          <div class="row"><span class="desc">Every keyboard shortcut, in full</span><span class="keys"><span class="pill">niri/binds.kdl</span><span class="pill">niri/binds-quickshell.kdl</span></span></div>
+          <div class="row"><span class="desc">The bar, launcher and popups</span><span class="keys"><span class="pill">quickshell/sunset/</span></span></div>
+          <div class="row"><span class="desc">The colours used everywhere</span><span class="keys"><span class="pill">taste.md</span></span></div>
+          <div class="row"><span class="desc">Check a config file for mistakes without breaking anything</span><span class="keys"><span class="pill cmd">niri validate</span></span></div>
+          <div class="row"><span class="desc">Apply the config without logging out</span><span class="keys"><span class="pill cmd">niri msg action load-config-file</span></span></div>
+          <div class="row"><span class="desc">Ask the desktop what it thinks is happening</span><span class="keys"><span class="pill cmd">niri msg windows</span><span class="pill cmd">niri msg workspaces</span></span></div>
+          <div class="row"><span class="desc">Open a popup from a terminal</span><span class="keys"><span class="pill cmd">qs -c sunset ipc call &lt;name&gt; toggle</span></span></div>
+          <div class="row"><span class="desc">The popup names</span><span class="keys"><span class="pill">launcher · calendar · volume · settings · wallpaper · wallpaper-menu · clipboard · capture · screenshots · notifications · themes · sessions · whip · weather · now-playing · power · wifi · bluetooth · osd · menu</span></span></div>
+          <div class="row"><span class="desc">Tell the music card to save something</span><span class="keys"><span class="pill cmd">qs -c sunset ipc call now-playing download &lt;audio|video&gt; &lt;quality&gt;</span></span></div>
+          <div class="row"><span class="desc">Save a specific link instead of what is playing</span><span class="keys"><span class="pill cmd">… downloadUrl &lt;audio|video&gt; &lt;quality&gt; &lt;url&gt;</span></span></div>
+          <div class="row"><span class="desc">Dictation from a terminal, or stop it for good</span><span class="keys"><span class="pill cmd">whisrs toggle</span><span class="pill cmd">scripts/dictation-reset.sh</span></span></div>
+          <div class="row"><span class="desc">Edit config files <span class="dim">— you will need this one day</span></span><span class="keys"><span class="pill">helix · nvim · nano</span></span></div>
+          <div class="row"><span class="desc">Manage tmux sessions without relearning it</span><span class="keys"><a href="tmux.html"><span class="pill">open the tmux cheat sheet →</span></a></span></div>
+        </div>
+
+        <details class="more">
+          <summary>Where the live config actually is</summary>
+          <div class="inner">
+            <p>niri reads its config from your home folder, not from this folder, and the two are separate copies. After editing something in <code>~/niri-setup/niri/</code>, copy it over and reload:</p>
+            <div class="rows">
+              <div class="row"><span class="desc">Copy one file, check it, apply it</span><span class="keys"><span class="pill cmd">cp niri/rules.kdl ~/.config/niri/rules.kdl &amp;&amp; niri validate &amp;&amp; niri msg action load-config-file</span></span></div>
+              <div class="row"><span class="desc">quickshell reads this folder directly</span><span class="keys"><span class="pill cmd">pkill quickshell; quickshell -c sunset &amp;</span><span class="hint">or Mod+Shift+Q</span></span></div>
+              <div class="row"><span class="desc">Which shell the next login will start</span><span class="keys"><span class="pill cmd">scripts/switch-shell.sh status</span></span></div>
+              <div class="row"><span class="desc">Wallpapers are generated, never stored</span><span class="keys"><span class="pill">wallpapers/workspace.jpg</span></span></div>
+            </div>
+          </div>
+        </details>
+
+        <details class="more">
+          <summary>What was replaced, and by what</summary>
+          <div class="inner">
+            <div class="rows">
+              <div class="row"><span class="desc">A hand-written settings screen inside the shell</span><span class="keys"><span class="pill">now GNOME Settings — Mod+Alt+S</span></span></div>
+              <div class="row"><span class="desc">A hand-written manual inside the shell, and its <kbd>?</kbd> mode</span><span class="keys"><span class="pill">now this page — Mod+Alt+H</span></span></div>
+              <div class="row"><span class="desc">A clickable editor for the wallpaper settings</span><span class="keys"><span class="pill">now scripts/wallpaper-process.sh</span></span></div>
+              <div class="row"><span class="desc">Hand-editing <code>theme-custom.json</code> in a text editor</span><span class="keys"><span class="pill">now the Custom Editor — Mod+Alt+Shift+T</span></span></div>
+              <div class="row"><span class="desc">Two settings programs from other desktops</span><span class="keys"><span class="pill">now GNOME Settings for both</span></span></div>
+            </div>
+            <p>Nothing was lost: the same jobs are done by programs that already do them well. A second copy of a settings screen, or a second copy of this manual, is not worth maintaining.</p>
+          </div>
+        </details>
+      </div>
+    </details>
+  </main>
+
+  <footer>
+    <kbd>Mod+Alt+H</kbd> opens this page again · <kbd>/</kbd> searches it · <kbd>Esc</kbd> clears the search.<br>
+    Also the <a href="tmux.html">tmux cheat sheet</a> for splitting terminal windows. File: <code>~/niri-setup/help/index.html</code>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var input = document.getElementById("search");
+  var countEl = document.getElementById("count");
+  var emptyMsg = document.getElementById("empty");
+  var secs = Array.prototype.slice.call(document.querySelectorAll("details.sec"));
+  var rows = Array.prototype.slice.call(document.querySelectorAll(".row"));
+  var extras = Array.prototype.slice.call(document.querySelectorAll("details.more"));
+  var index = rows.map(function (r) { return (r.textContent || "").toLowerCase(); });
+  var filtering = false;
+
+  // One section open at a time: opening a section closes the rest. Search is
+  // the only thing allowed to open several, and it hands them back on clear.
+  secs.forEach(function (s) {
+    s.addEventListener("toggle", function () {
+      if (!s.open || filtering || s.getAttribute("data-auto") === "1") return;
+      secs.forEach(function (o) {
+        if (o !== s && o.open && o.getAttribute("data-auto") !== "1") o.open = false;
+      });
+    });
+  });
+
+  function setExtraOpen(extra, want) {
+    if (want) { extra.setAttribute("data-auto", "1"); extra.open = true; }
+    else if (extra.getAttribute("data-auto") === "1") { extra.open = false; extra.removeAttribute("data-auto"); }
+  }
+
+  function applyFilter() {
+    var terms = (input.value || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+    filtering = terms.length > 0;
+    document.body.classList.toggle("filtering", filtering);
+    var shown = 0;
+
+    rows.forEach(function (r, i) {
+      var ok = terms.every(function (t) { return index[i].indexOf(t) !== -1; });
+      r.classList.toggle("hidden", !ok);
+      if (ok) shown++;
+    });
+
+    secs.forEach(function (s) {
+      var vis = s.querySelectorAll(".row:not(.hidden)").length;
+      s.classList.toggle("hidden", vis === 0);
+      s.querySelector(".sec-meta .n").textContent = filtering ? vis + (vis === 1 ? " match" : " matches") : vis;
+      // While searching every matching section must show. The state before
+      // the search is snapshotted once and handed back when it is cleared, so
+      // searching never leaves the page in a different shape.
+      if (filtering) {
+        if (s.getAttribute("data-auto") !== "1") s.setAttribute("data-was-open", s.open ? "1" : "0");
+        s.setAttribute("data-auto", "1");
+        s.open = vis > 0;
+      } else if (s.getAttribute("data-auto") === "1") {
+        s.open = s.getAttribute("data-was-open") === "1";
+        s.removeAttribute("data-auto");
+        s.removeAttribute("data-was-open");
+      }
+    });
+
+    extras.forEach(function (e) {
+      setExtraOpen(e, filtering && e.querySelectorAll(".row:not(.hidden)").length > 0);
+    });
+
+    // While searching, the chunk labels and side notes that lead nowhere are
+    // noise: a label goes when every row under it is hidden, a note goes
+    // unless it matches the search itself.
+    var subs = Array.prototype.slice.call(document.querySelectorAll("details.sec .sub"));
+    var notes = Array.prototype.slice.call(document.querySelectorAll("details.sec .note"));
+    subs.forEach(function (sub) {
+      var next = sub.nextElementSibling;
+      var live = next ? next.querySelectorAll(".row:not(.hidden)").length : 0;
+      sub.style.display = (!filtering || live > 0) ? "" : "none";
+    });
+    notes.forEach(function (n) {
+      var t = (n.textContent || "").toLowerCase();
+      n.style.display = (!filtering || terms.every(function (x) { return t.indexOf(x) !== -1; })) ? "" : "none";
+    });
+
+    countEl.textContent = filtering ? shown + " of " + rows.length : rows.length + " shortcuts";
+    emptyMsg.classList.toggle("visible", filtering && shown === 0);
+  }
+
+  var deb = null;
+  input.addEventListener("input", function () {
+    if (deb) clearTimeout(deb);
+    deb = setTimeout(applyFilter, 80);
+  });
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { input.value = ""; applyFilter(); input.blur(); }
+    if (e.key === "Enter") {
+      var first = document.querySelector("details.sec:not(.hidden) .row:not(.hidden)");
+      if (first) first.scrollIntoView({ block: "center" });
+    }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "/" && document.activeElement !== input &&
+        !/INPUT|TEXTAREA/.test((document.activeElement || {}).tagName || "")) {
+      e.preventDefault(); input.focus();
+    }
+  });
+
+  // Printing must not silently drop the collapsed blocks.
+  var wasOpen = null;
+  window.addEventListener("beforeprint", function () {
+    wasOpen = secs.concat(extras).map(function (d) { return d.open; });
+    secs.concat(extras).forEach(function (d) { d.open = true; });
+  });
+  window.addEventListener("afterprint", function () {
+    if (!wasOpen) return;
+    secs.concat(extras).forEach(function (d, i) { d.open = wasOpen[i]; });
+  });
+
+  applyFilter();
+})();
+</script>
+</body>
+</html>

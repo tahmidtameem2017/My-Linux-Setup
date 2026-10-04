@@ -37,12 +37,17 @@ if [ "$SKIP_INSTALL" = false ]; then
   aur=$(gum choose "${available_helpers[@]}" --header "choose an AUR helper:" --select-if-one)
 
   pkgs=(
+    fastfetch
     alacritty
     brightnessctl
     btop
     cliphist
     dunst
+    flameshot-git
+    tesseract
+    tesseract-data-eng
     fuzzel
+    gtk-nocsd-git
     hyprpicker
     jq
     niri
@@ -55,10 +60,18 @@ if [ "$SKIP_INSTALL" = false ]; then
     pwvucontrol
     python-pywayland
     starship
+    sushi
     swaybg
     swayidle
     swaylock-effects
     swww
+    thunar
+    thunar-volman
+    tmux
+    tumbler
+    gvfs
+    xfce4-settings
+    systemsettings
     waybar
     wl-clipboard
     wlogout
@@ -78,6 +91,55 @@ if [ -d "$HOME/.config/niri" ]; then
     exit 1
   fi
 fi
+
+# tmux: beginner keybinds + a GENERATED theme fragment (tmux/ in this repo)
+mkdir -p "$HOME/.config/tmux"
+ln -sf $config_folder/tmux/tmux.conf "$HOME/.config/tmux/tmux.conf"
+ln -sf $config_folder/tmux/cheatsheet.sh "$HOME/.config/tmux/cheatsheet.sh"
+ln -sf $config_folder/tmux/theme.conf "$HOME/.config/tmux/theme.conf"
+if [ ! -f "$HOME/.tmux.conf" ]; then
+  echo "source-file ~/.config/tmux/tmux.conf" >"$HOME/.tmux.conf"
+elif ! grep -q "config/tmux/tmux.conf" "$HOME/.tmux.conf"; then
+  echo "[WARN] ~/.tmux.conf exists but does not source-file the repo config — merge it by hand."
+fi
+
+# Alacritty: both profiles are rendered from alacritty/*.toml.in so the terminal
+# follows the same palette as the bar. Generated at the SAME paths the
+# hand-written files used to occupy, so the ~/.config/alacritty/alacritty.toml
+# symlink and every `--config-file .../float.toml` caller keep working.
+mkdir -p "$HOME/.config/alacritty"
+if [ ! -e "$HOME/.config/alacritty/alacritty.toml" ]; then
+  ln -sf $config_folder/alacritty/default.toml "$HOME/.config/alacritty/alacritty.toml"
+elif [ -e "$HOME/.config/alacritty/alacritty.toml" ] && [ ! -L "$HOME/.config/alacritty/alacritty.toml" ]; then
+  cp -n "$HOME/.config/alacritty/alacritty.toml" "$HOME/.config/alacritty/alacritty.toml.pre-niri-setup"
+  ln -sf $config_folder/alacritty/default.toml "$HOME/.config/alacritty/alacritty.toml"
+fi
+
+# Fastfetch: generate a theme-aware config and link it into place.
+mkdir -p "$HOME/.config/fastfetch" "$HOME/.local/share/niri-setup"
+fastfetch_config="$HOME/.config/fastfetch/config.jsonc"
+fastfetch_target="$HOME/.local/share/niri-setup/fastfetch-config.jsonc"
+fastfetch_install=true
+if [ -e "$fastfetch_config" ] && [ ! -L "$fastfetch_config" ]; then
+  fastfetch_backup="$fastfetch_config.pre-niri-setup"
+  if [ ! -e "$fastfetch_backup" ]; then
+    mv "$fastfetch_config" "$fastfetch_backup"
+    echo "[INFO] existing Fastfetch config backed up to $fastfetch_backup"
+  else
+    echo "[WARN] preserving existing Fastfetch config; backup already exists at $fastfetch_backup"
+    fastfetch_install=false
+  fi
+fi
+python3 "$config_folder/scripts/sync-fastfetch-theme.py" "$config_folder/fastfetch/config.jsonc.in" "$fastfetch_target"
+if [ "$fastfetch_install" = true ] && [ -e "$fastfetch_target" ]; then
+  ln -sfn "$fastfetch_target" "$fastfetch_config"
+fi
+
+# Everything outside quickshell that renders theme colours: tmux/theme.conf,
+# alacritty/{default,float}.toml, niri/layout.kdl and help/theme.css. Normally
+# rewritten by services/Theme.qml on every palette change; running it here means
+# a fresh install is themed correctly before quickshell has ever started.
+python3 "$config_folder/scripts/sync-external-theme.py" --setup-home "$config_folder" || true
 
 sed -i "s|\$NIRICONF|$config_folder|g" $(realpath "$config_folder/niri/spawn-at-startup.kdl")
 sed -i "s|\$NIRICONF|$config_folder|g" $(realpath "$config_folder/niri/wallpapers.kdl")
@@ -111,8 +173,18 @@ if [ -f "$config_folder/scripts/50-cpu-freq.rules" ]; then
   sudo cp "$config_folder/scripts/50-cpu-freq.rules" /etc/polkit-1/rules.d/50-cpu-freq.rules
 fi
 
+# Sunset SDDM login theme (SDDM is live: systemctl is-enabled sddm == enabled)
+if [ -d "$config_folder/sddm/sunset" ]; then
+  echo "[INFO] Sunset SDDM theme available at $config_folder/sddm/sunset"
+  echo "[HINT] to theme login screen: sudo $config_folder/sddm/install.sh"
+  echo "[HINT] preview without reboot: sddm-greeter --test-mode --theme $config_folder/sddm/sunset"
+fi
+
 if niri validate &>/dev/null; then
   echo "[INFO] niri setup all completed"
+  if tmux ls &>/dev/null; then
+    echo "[HINT] tmux is running — reload it with: tmux source-file ~/.config/tmux/tmux.conf"
+  fi
 else
   echo "[ERROR] something went wrong. see the following output:"
   niri validate

@@ -1,12 +1,19 @@
-// Parallel quickshell test binds (A/B session).
-// Include alongside binds.kdl during migration testing, e.g. in config.kdl:
+// Quickshell owns all menus now (no fuzzel/walker on any keybind).
+// Include alongside binds.kdl, e.g. in config.kdl:
 //   include "binds.kdl"
 //   include "binds-quickshell.kdl"
-// Kept fuzzel (Mod+Ctrl+Return), walker (Alt+Space) and toggle-waybar (Mod+W)
-// so waybar and quickshell launchers can be compared side by side.
+// Fuzzel/walker binaries and configs stay installed/on-disk as fallback, just unbound.
 // Quickshell owns: Mod+Alt+Return (launcher), Mod+Alt+N (DND),
-// Mod+Alt+W (wallpaper menu), Mod+Shift+Q (restart).
-// Mod+Alt+* avoids clashing with live Mod+N (dunst) during A/B.
+// Mod+Alt+W (wallpaper menu), Mod+Alt+F (wi-fi), Mod+Alt+Shift+S (screenshot
+// utility), Mod+Shift+Q (restart),
+// plus Mod+Ctrl+Return + Alt+Space (launcher), Mod+C (clipboard),
+// Mod+I + Mod+P (settings) via binds.kdl.
+// Two shortcuts deliberately leave quickshell (2026-10-02):
+//   Mod+Alt+S -> GNOME Settings (scripts/gnome-settings.sh)
+//   Mod+Alt+H -> the HTML guide    (scripts/open-help.sh, help/index.html)
+//   They replaced the native Settings Center + Help Center popups.
+//   gnome-control-center needs XDG_CURRENT_DESKTOP=GNOME to start under
+//   niri; the wrapper script sets it for this spawn only.
 binds {
     // Quickshell launcher toggle (qs side of the A/B).
     Mod+Alt+Return { spawn-sh "qs -c sunset ipc call launcher toggle"; }
@@ -14,11 +21,87 @@ binds {
     Mod+Alt+N { spawn-sh "qs -c sunset ipc call notifications toggleSilent"; }
     // Quickshell wallpaper menu (native 8-row dispatcher -> WallpaperPicker).
     Mod+Alt+W { spawn-sh "qs -c sunset ipc call wallpaper-menu toggle"; }
-    // Restart quickshell sunset session.
+    // Pomodoro controls (native PomodoroService via calendar target;
+    // sticky critical toasts + bar pill surface progress, no auto-open).
+    // More verbs: pomoReset, pomoSkip, timerPause
+    //   e.g. qs -c sunset ipc call calendar pomoSkip
+    Mod+Alt+C { spawn-sh "qs -c sunset ipc call calendar pomoStart"; }
+    Mod+Alt+Shift+C { spawn-sh "qs -c sunset ipc call calendar pomoPause"; }
+    // Fun digital whip overlay (native Whip popup, auto-dismisses).
+    // NOTE: Mod+Alt+W was already taken by wallpaper-menu, so whip is Mod+Alt+L (lash).
+    Mod+Alt+L { spawn-sh "qs -c sunset ipc call whip toggle"; }
+    // Wi-Fi — the top-right WifiPopup (native nmcli: connect with or without a
+    // stored profile, password entry, disconnect, forget, rescan). Mod+Alt+W
+    // is already the wallpaper menu, so wi-fi takes the F. This is the surface
+    // that replaced `nmtui connect` in a floating Alacritty, so nothing needs
+    // a terminal for the network any more. GNOME Settings still owns the
+    // network panel (VPNs, hidden APs, connection secrets) — see
+    // Mod+Shift+I in binds.kdl and the card's "Network Settings" row.
+    Mod+Alt+F { spawn-sh "qs -c sunset ipc call wifi toggle"; }
+    // GNOME Settings — the one place for network/sound/display/accounts/
+    // power (replaced the native Settings Center popup, also reachable from
+    // the launcher "Settings" control row and both right-click menus).
+    // The script carries the XDG_CURRENT_DESKTOP=GNOME + gtk-nocsd
+    // overrides; close the window with Mod+Q (no title buttons).
+    Mod+Alt+S { spawn-sh "/home/me/niri-setup/scripts/gnome-settings.sh"; }
+    // Omarchy-style theme picker (native ThemePicker popup).
+    Mod+Alt+T { spawn-sh "qs -c sunset ipc call themes toggle"; }
+    // Custom Editor — the palette editor for the "Custom" theme row, i.e. the
+    // graphical replacement for hand-editing theme-custom.json. Mod+Alt+T is
+    // already the picker, so this takes the Shift variant (same pattern as
+    // Mod+Alt+Shift+C for pomoPause). Opens help/custom-theme.html served by
+    // scripts/custom-theme-server.py on 127.0.0.7; re-running toggles it shut.
+    // The HTML page needs the server because a file:// page cannot write the
+    // palette file, and the server needs the 127.0.0.7 host because niri/rules.kdl
+    // already pins brave-127.0.0.1__-Default (the legacy volume popup) to
+    // 400x440.
+    Mod+Alt+Shift+T { spawn-sh "/home/me/niri-setup/scripts/custom-theme.sh"; }
+    // Help & Guide — the standalone HTML page help/index.html in a floating
+    // Brave --app window (re-running the bind toggles the window shut; also
+    // on the launcher "Help & Guide" control row and both right-click menus).
+    Mod+Alt+H { spawn-sh "/home/me/niri-setup/scripts/open-help.sh"; }
+    // Saved workspace sessions editor (native SessionEditor popup;
+    // Mod+Shift+O in binds.kdl is the primary bind, this is the mirror).
+    Mod+Alt+O { spawn-sh "qs -c sunset ipc call sessions toggle"; }
+    // Now Playing — minimal top-right card under the bar (native
+    // NowPlayingPopup; also on the bar media icon and the launcher
+    // "Now Playing" row). Left click on the bar icon opens the same card.
+    Mod+Alt+M { spawn-sh "qs -c sunset ipc call now-playing toggle"; }
+    // ---- Voice dictation (whisrs, local whisper.cpp, fully offline) ----
+    // The daemon is whisrs.service (systemd --user); config in
+    // ~/.config/whisrs/config.toml. `toggle` starts/stops recording, so this is
+    // a TOGGLE and not push-to-talk: niri binds have no key-release event, so a
+    // hold-to-speak binding cannot be expressed at all. whisrs also auto-stops
+    // after silence_timeout_ms, which is the closest thing to "release".
+    //
+    // Recording state is visible twice over: whisrs' own bottom overlay, and the
+    // quickshell mic indicator (services/MicService.qml), which lights up on ANY
+    // capture stream — so it also catches other apps recording, not just this.
+    Mod+Alt+D { spawn-sh "whisrs toggle"; }
+    // Abandon the current utterance without transcribing or typing.
+    Mod+Alt+Shift+D { spawn-sh "whisrs cancel"; }
+    // PANIC KEY — force dictation to stop, however wedged it is.
+    // scripts/dictation-reset.sh walks an escalation ladder and stops at the
+    // first rung that works: socket cancel -> systemd restart -> SIGTERM ->
+    // SIGKILL, then reports whether the microphone was actually released. Plain
+    // `whisrs cancel` is not enough on its own, because a daemon wedged
+    // mid-transcription never answers the socket and holds the mic open
+    // indefinitely. Safe to mash: it touches nothing else.
+    Mod+Alt+Escape { spawn-sh "/home/me/niri-setup/scripts/dictation-reset.sh"; }
+    // Screenshot utility — the one place every capture tool lives (region,
+    // window, screen, scroll, record, OCR, folders). Mod+Ctrl+S stays the
+    // single-shot region capture and Mod+Shift+5 the short chord; this is the
+    // Mod+Alt+* pattern every other popup uses. Also on the launcher
+    // "Screenshot" control row, the ";" Capture mode, and the Screenshot row in
+    // both right-click menus.
+    Mod+Alt+Shift+S { spawn-sh "qs -c sunset ipc call capture toggle"; }
+    // Restart the quickshell sunset session.
     Mod+Shift+Q { spawn-sh "pkill quickshell; quickshell -c sunset &"; }
 
-    // A/B keepers (mirrors binds.kdl, must stay in sync):
-    Mod+Ctrl+Return { spawn-sh "fuzzel --config /home/me/niri-setup/fuzzel/fuzzel.ini"; }
-    Alt+Space       { spawn-sh "walker"; }
-    Mod+W           { spawn-sh "/home/me/niri-setup/scripts/toggle-waybar.sh"; }
+
+    // Quickshell menus (mirrors binds.kdl, must stay in sync):
+    // Mod+Ctrl+Return { spawn-sh "fuzzel --config /home/me/niri-setup/fuzzel/fuzzel.ini"; }
+    Mod+Ctrl+Return { spawn-sh "qs -c sunset ipc call launcher toggle"; }
+    // Alt+Space       { spawn-sh "walker"; }
+    Alt+Space       { spawn-sh "qs -c sunset ipc call launcher toggle"; }
 }

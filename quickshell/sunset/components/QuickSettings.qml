@@ -1,4 +1,4 @@
-// QuickSettings.qml — quick-settings popup (volume/brightness/wifi/bt/power/dnd/idle).
+// QuickSettings.qml — quick-settings popup (volume/brightness/bt/power/dnd/idle).
 //
 // Replaces: waybar/settings/settings.html + settings-server.py +
 //           launcher (waybar settings backend on 127.0.0.3) + Brave profile
@@ -8,14 +8,17 @@
 //           same modes). The Brave profile, the settings-server.py daemon
 //           and the 127.0.0.3 backend are all deleted by this migration.
 //
+// Wi-Fi is NOT here (moved 2026-10-03): a network list wants the top-right
+// corner the Bluetooth card already owns, not the middle of a slider card,
+// and it needed no `nmtui connect` terminal once it was its own surface. See
+// components/WifiPopup.qml + services/WifiService.qml and the `wifi` IPC
+// target (bar network icon, launcher row, Mod+Alt+F).
+//
 // Backend parity (from settings-server.py — same commands, same clamps):
 //   volume     -> wpctl set-volume @DEFAULT_AUDIO_SINK@ N% (cap 100) via
 //                 AudioService (Pipewire); mute toggle via AudioService.
 //   brightness -> brightnessctl get/max read, `brightnessctl set N%`
 //                 write, clamp 5-100.
-//   wifi       -> nmcli radio wifi on|off, `nmcli dev wifi connect SSID
-//                 [password PW]`; list parsed like the server
-//                 (ACTIVE:SSID:SIGNAL:SECURITY, top 12, active-first).
 //   bluetooth  -> bluetoothctl power on|off, connect/disconnect <MAC>
 //                 (MAC validated like the server), Connected via info.
 //   power      -> PowerProfiles singleton (radio); `powerprofilesctl set`
@@ -33,7 +36,12 @@
 // Shell contract (landed sunset pattern, cf. ClipboardPopup/Launcher):
 //   - exclusiveKeyboardFocus == WlrLayershell.keyboardFocus Exclusive.
 //   - Esc/M/arrows; outside-click closes; Bar re-click toggles via IPC.
-//   - Card width 400 (old 400x600 window); content scrolls past 600.
+//   - DOCKED TOP-RIGHT under the bar (2026-10-03) with the Bluetooth, Wi-Fi
+//     and mixer cards: one corner for hardware state instead of a centered
+//     card floating over the middle of the screen. `toastOffset` (shell.qml
+//     wires `toasts.occupiedHeight`) keeps it clear of a toast stack.
+//   - Card width 340; the card is height-capped (600, or the screen minus
+//     margins) and the content scrolls inside it.
 //   - niri layer-rule doc (shell owner adds, do NOT edit rules.kdl here):
 //       layer-rule { match namespace="sunset-settings" }
 //     Verify: `niri msg layers`
@@ -65,15 +73,23 @@ Scope {
     readonly property color cText: Theme.text
 
     property bool isOpen: false
+    // Offset from the toast stack (shell.qml wires `toasts.occupiedHeight`).
+    property real toastOffset: 0
+    // Bar height, from Bar.qml (shell.qml wires `bar.implicitHeight`). The
+    // card is anchored to the SCREEN top, so without this it slides under the
+    // bar and loses its own header whenever no toast is up.
+    property int topInset: 0
     // Task term "exclusiveKeyboardFocus" == the Exclusive layer-shell
     // keyboard focus set on the PanelWindow below.
     readonly property bool exclusiveKeyboardFocus: true
 
     function open(): void {
+        swCurrent = 0;
         isOpen = true;
+        focusTimer.restart();
     }
     function close(): void {
-        pendingSsid = "";
+        swCurrent = -1;
         isOpen = false;
     }
     function toggle(): void {
@@ -101,212 +117,37 @@ Scope {
         msg = t;
     }
 
+    // Keyboard focus over the three toggle rows (-1 = volume/sliders,
+    // 0 = bluetooth, 1 = do-not-disturb). Tab cycles,
+    // Enter/Space toggles the focused row (else mutes).
+    property int swCurrent: -1
+    function moveSw(dir: int): void {
+        const order = [-1, 0, 1];
+        let i = order.indexOf(swCurrent);
+        if (i === -1)
+            i = 0;
+        i = (i + dir + order.length) % order.length;
+        swCurrent = order[i];
+    }
+    function toggleSwCurrent(): void {
+        if (swCurrent === 0) {
+            BluetoothService.togglePower();
+        } else if (swCurrent === 1) {
+            NotificationService.toggleDnd();
+        } else {
+            AudioService.toggleMute();
+        }
+    }
+
     // ---------- brightness ----------
     property int briPct: 50
 
-    // ---------- wifi ----------
-    property bool wifiEnabled: false
-    property string wifiSsid: ""
-    property string pendingSsid: ""
-    ListModel {
-        id: wifiModel
-    }
-
     // ---------- bluetooth ----------
-    property bool btPowered: false
-    property var btQueue: []
-    ListModel {
-        id: btModel
-    }
+    // State lives in BluetoothService (Quickshell.Bluetooth live bindings);
+    // this file keeps no btModel/btProc of its own any more.
 
     // ---------- idle ----------
     property string idleCurrent: "10 minutes"
-
-    // ================= poll: wifi =================
-    Process {
-        id: wifiProc
-        command: ["bash", "-c", "echo \"STATE:$(nmcli -t -f WIFI g 2>/dev/null)\"; echo \"ACTIVE:\"; nmcli -t -f NAME,TYPE connection show --active 2>/dev/null; echo \"NETS:\"; nmcli -t -f ACTIVE,SSID,SIGNAL,SECURITY dev wifi 2>/dev/null"]
-        running: false
-        stdout: StdioCollector {
-            id: wifiOut
-            onStreamFinished: root.parseWifi(text)
-        }
-    }
-    function parseWifi(text: string): void {
-        // Section split mirrors the server's three nmcli calls.
-        const lines = text.split("\n");
-        let section = "";
-        let enabled = false;
-        let active = "";
-        const nets = [];
-        const seen = {};
-        for (let i = 0; i < lines.length; ++i) {
-            const ln = lines[i];
-            if (ln.indexOf("STATE:") === 0) {
-                enabled = ln.slice(6).trim() === "enabled";
-                continue;
-            }
-            if (ln === "ACTIVE:") {
-                section = "active";
-                continue;
-            }
-            if (ln === "NETS:") {
-                section = "nets";
-                continue;
-            }
-            if (section === "active") {
-                const ci = ln.lastIndexOf(":");
-                if (ci > 0 && ln.slice(ci + 1) === "802-11-wireless" && active === "")
-                    active = ln.slice(0, ci);
-            } else if (section === "nets") {
-                const parts = ln.split(":");
-                if (parts.length < 4)
-                    continue;
-                const ssid = parts[1];
-                if (!ssid || seen[ssid])
-                    continue;
-                seen[ssid] = true;
-                const sig = parseInt(parts[2]);
-                nets.push({
-                    "ssid": ssid,
-                    "signal": isNaN(sig) ? 0 : sig,
-                    "security": parts[3] !== "" && parts[3] !== "--",
-                    "active": parts[0] === "yes" || ssid === active
-                });
-            }
-        }
-        nets.sort((a, b) => ((b.active ? 1 : 0) - (a.active ? 1 : 0)) || (b.signal - a.signal));
-        wifiEnabled = enabled;
-        wifiSsid = active;
-        wifiModel.clear();
-        const top = nets.slice(0, 12);
-        for (let j = 0; j < top.length; ++j)
-            wifiModel.append(top[j]);
-    }
-    Process {
-        id: wifiToggleProc
-        property string arg: "on"
-        command: ["nmcli", "radio", "wifi", arg]
-        running: false
-        onExited: wifiProcRefresh()
-    }
-    Process {
-        id: wifiJoinProc
-        property string ssid: ""
-        property string password: ""
-        property string outText: ""
-        command: password !== "" ? ["nmcli", "dev", "wifi", "connect", ssid, "password", password] : ["nmcli", "dev", "wifi", "connect", ssid]
-        running: false
-        stdout: StdioCollector {
-            id: wifiJoinOut
-            onStreamFinished: wifiJoinProc.outText = text
-        }
-        onExited: {
-            if (exitCode === 0)
-                root.say("\u2713 Connected to " + ssid);
-            else
-                root.say("\u2717 " + (outText.trim().split("\n").pop() ?? "Failed"));
-            root.pendingSsid = "";
-            wifiProcRefresh();
-        }
-    }
-    function wifiProcRefresh(): void {
-        if (!wifiProc.running)
-            wifiProc.running = true;
-    }
-    function joinWifi(ssid: string, pw: string): void {
-        say("Connecting to " + ssid + "\u2026");
-        pendingSsid = "";
-        wifiJoinProc.ssid = ssid;
-        wifiJoinProc.password = pw;
-        wifiJoinProc.running = true;
-    }
-
-    // ================= poll: bluetooth =================
-    Process {
-        id: btProc
-        command: ["bash", "-c", "echo \"SHOW:\"; bluetoothctl show 2>/dev/null; echo \"DEVS:\"; bluetoothctl devices 2>/dev/null"]
-        running: false
-        stdout: StdioCollector {
-            id: btOut
-            onStreamFinished: root.parseBt(text)
-        }
-    }
-    function parseBt(text: string): void {
-        const lines = text.split("\n");
-        let section = "";
-        let powered = false;
-        const devs = [];
-        for (let i = 0; i < lines.length; ++i) {
-            const ln = lines[i];
-            if (ln === "SHOW:") {
-                section = "show";
-                continue;
-            }
-            if (ln === "DEVS:") {
-                section = "devs";
-                continue;
-            }
-            if (section === "show") {
-                if (/^\s*Powered:\s*yes/.test(ln))
-                    powered = true;
-            } else if (section === "devs") {
-                const m = /^Device\s+(\S+)\s+(.*)/.exec(ln);
-                if (m)
-                    devs.push({
-                        "address": m[1],
-                        "name": m[2],
-                        "connected": false
-                    });
-            }
-        }
-        btPowered = powered;
-        btModel.clear();
-        const top = devs.slice(0, 12);
-        for (let j = 0; j < top.length; ++j)
-            btModel.append(top[j]);
-        // Resolve Connected per device serially (server parity: info call).
-        btQueue = top.map(d => d.address);
-        pumpBtInfo();
-    }
-    Process {
-        id: btInfoProc
-        property string addr: ""
-        command: ["bluetoothctl", "info", addr]
-        running: false
-        stdout: StdioCollector {
-            id: btInfoOut
-            onStreamFinished: {
-                const conn = /^\s*Connected:\s*yes/m.test(text);
-                for (let i = 0; i < btModel.count; ++i) {
-                    if (btModel.get(i).address === btInfoProc.addr)
-                        btModel.setProperty(i, "connected", conn);
-                }
-            }
-        }
-        onExited: root.pumpBtInfo()
-    }
-    function pumpBtInfo(): void {
-        if (btInfoProc.running || btQueue.length === 0)
-            return;
-        btInfoProc.addr = btQueue.shift();
-        btInfoProc.running = true;
-    }
-    function btProcRefresh(): void {
-        if (!btProc.running)
-            btProc.running = true;
-    }
-    Process {
-        id: btOpProc
-        property var cmd: ["bluetoothctl", "power", "on"]
-        command: cmd
-        running: false
-        onExited: btProcRefresh()
-    }
-    function btOp(args: var): void {
-        btOpProc.cmd = args;
-        btOpProc.running = true;
-    }
 
     // ================= brightness =================
     Process {
@@ -348,6 +189,21 @@ Scope {
         running: false
         repeat: false
         onTriggered: AudioService.setVolumePercent(volSlider.value)
+    }
+
+    // Re-assert keyboard focus on open (Launcher/WallpaperMenu parity).
+    Timer {
+        id: focusTimer
+        interval: 60
+        running: false
+        repeat: false
+        onTriggered: keys.forceActiveFocus()
+    }
+
+    function adjustBri(delta: int): void {
+        briPct = Math.max(5, Math.min(100, briPct + delta));
+        briDebounce.stop();
+        briDebounce.start();
     }
 
     // ================= power profile =================
@@ -413,8 +269,6 @@ Scope {
 
     // ================= refresh loop (while open only) =================
     function refreshAll(): void {
-        wifiProcRefresh();
-        btProcRefresh();
         if (!briGetProc.running)
             briGetProc.running = true;
         dndGetProcRefresh();
@@ -429,14 +283,6 @@ Scope {
     onIsOpenChanged: {
         if (isOpen)
             refreshAll();
-    }
-
-    function wifiSignalIcon(sig: int): string {
-        if (sig >= 70)
-            return "󰤨";
-        if (sig >= 40)
-            return "󰤥";
-        return "󰤟";
     }
 
     PanelWindow {
@@ -461,9 +307,17 @@ Scope {
 
         Rectangle {
             id: card
-            anchors.centerIn: parent
-            // Old Brave window was 400x600; content scrolls past 600.
-            implicitWidth: Math.min(400, parent.width - 32)
+            // Pinned top-right under the bar; slides below toasts.
+            anchors {
+                top: parent.top
+                right: parent.right
+                topMargin: root.topInset + root.toastOffset
+                rightMargin: 0
+            }
+            // Same width as the Bluetooth/Wi-Fi/mixer cards. Content scrolls
+            // inside (the idle-timeout + power-profile rows alone are taller
+            // than the cap on a short screen).
+            implicitWidth: Math.min(340, parent.width - 24)
             implicitHeight: Math.min(col.implicitHeight + 26, 600, parent.height - 48)
             width: implicitWidth
             height: implicitHeight
@@ -471,6 +325,34 @@ Scope {
             border.width: 1
             border.color: root.cBorderStrong
             radius: root.cRadius
+            // Micro-animation: subtle entrance (opacity 150ms OutCubic +
+            // scale 0.96->1 180ms OutBack overshoot 1.2 + y -6->0).
+            // Close stays instant (visible flips with isOpen, <200ms).
+            transformOrigin: Item.TopRight
+            scale: root.isOpen ? 1.0 : 0.96
+            opacity: root.isOpen ? 1 : 0
+            transform: Translate {
+                y: root.isOpen ? 0 : -6
+                Behavior on y {
+                    NumberAnimation {
+                        duration: 150
+                        easing.type: Easing.OutCubic
+                    }
+                }
+            }
+            Behavior on scale {
+                NumberAnimation {
+                    duration: 180
+                    easing.type: Easing.OutBack
+                    easing.overshoot: 1.2
+                }
+            }
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 150
+                    easing.type: Easing.OutCubic
+                }
+            }
 
             FocusScope {
                 id: keys
@@ -478,6 +360,30 @@ Scope {
                 focus: true
 
                 Keys.onEscapePressed: root.close()
+                // Tab cycles the toggle rows (kept out of onPressed so Qt
+                // focus navigation never steals it). A focused password
+                // field traps Tab back to the card (single field, nothing
+                // else Qt-focusable in here).
+                Keys.onTabPressed: event => {
+                    const f = win.activeFocusItem;
+                    if (f && (f.objectName === "pwEdit")) {
+                        event.accepted = true;
+                        keys.forceActiveFocus();
+                        return;
+                    }
+                    event.accepted = true;
+                    root.moveSw(1);
+                }
+                Keys.onBacktabPressed: event => {
+                    const f = win.activeFocusItem;
+                    if (f && (f.objectName === "pwEdit")) {
+                        event.accepted = true;
+                        keys.forceActiveFocus();
+                        return;
+                    }
+                    event.accepted = true;
+                    root.moveSw(-1);
+                }
                 Keys.onPressed: event => {
                     const f = win.activeFocusItem;
                     if (f && (f.objectName === "pwEdit"))
@@ -485,11 +391,32 @@ Scope {
                     if (event.key === Qt.Key_M) {
                         AudioService.toggleMute();
                         event.accepted = true;
-                    } else if (event.key === Qt.Key_Up) {
-                        AudioService.increase(5);
+                    } else if (event.key === Qt.Key_Up || event.key === Qt.Key_K) {
+                        AudioService.increase(2);
                         event.accepted = true;
-                    } else if (event.key === Qt.Key_Down) {
-                        AudioService.decrease(5);
+                    } else if (event.key === Qt.Key_Down || event.key === Qt.Key_J) {
+                        AudioService.decrease(2);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_Left) {
+                        root.adjustBri(-5);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_Right) {
+                        root.adjustBri(5);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_PageUp) {
+                        AudioService.increase(10);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_PageDown) {
+                        AudioService.decrease(10);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_Home) {
+                        AudioService.setVolumePercent(0);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_End) {
+                        AudioService.setVolumePercent(100);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                        root.toggleSwCurrent();
                         event.accepted = true;
                     }
                 }
@@ -644,145 +571,6 @@ Scope {
                             }
                         }
 
-                        // ---- wifi ----
-                        SectionLabel {
-                            cAccent: root.cAccent
-                            cFont: root.cFont
-                            text: "WI-FI"
-                        }
-                        SwitchRow {
-                            cAccent: root.cAccent
-                            cBorder: root.cBorder
-                            cBorderStrong: root.cBorderStrong
-                            cDim: root.cDim
-                            cFont: root.cFont
-                            cMuted: root.cMuted
-                            cRadius: root.cRadius
-                            cRow: root.cRow
-                            cText: root.cText
-                            width: parent.width
-                            title: "󰖩 Wi-Fi"
-                            sub: root.wifiEnabled ? (root.wifiSsid !== "" ? root.wifiSsid : "On \u00B7 not connected") : "Off"
-                            on: root.wifiEnabled
-                            onClicked: {
-                                wifiToggleProc.arg = root.wifiEnabled ? "off" : "on";
-                                wifiToggleProc.running = true;
-                            }
-                        }
-                        ListView {
-                            width: parent.width
-                            height: Math.min(contentHeight, 124)
-                            visible: root.wifiEnabled && wifiModel.count > 0
-                            model: wifiModel
-                            clip: true
-                            interactive: contentHeight > height
-                            ScrollBar.vertical: ScrollBar {
-                                contentItem: Rectangle {
-                                    implicitWidth: 8
-                                    color: root.cBorderStrong
-                                    radius: root.cRadius
-                                }
-                            }
-                            delegate: Rectangle {
-                                width: ListView.view.width
-                                height: 30
-                                color: "transparent"
-                                border.width: 1
-                                border.color: model.active ? root.cAccent : "transparent"
-                                radius: root.cRadius
-                                Row {
-                                    anchors.fill: parent
-                                    anchors.leftMargin: 10
-                                    anchors.rightMargin: 10
-                                    spacing: 8
-                                    Rectangle {
-                                        width: 8
-                                        height: 8
-                                        radius: 4
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        color: model.active ? root.cAccent : root.cDim
-                                    }
-                                    Text {
-                                        width: parent.width - 16 - 70
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        elide: Text.ElideRight
-                                        text: (model.security ? "󰌾 " : "") + model.ssid
-                                        font.family: root.cFont
-                                        font.pixelSize: 12
-                                        color: wHover.hovered ? root.cAccentHover : root.cText
-                                    }
-                                    Text {
-                                        width: 62
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        horizontalAlignment: Text.AlignRight
-                                        text: root.wifiSignalIcon(model.signal) + " " + model.signal + "%"
-                                        font.family: root.cFont
-                                        font.pixelSize: 11
-                                        color: root.cMuted
-                                    }
-                                }
-                                HoverHandler {
-                                    id: wHover
-                                }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    onClicked: {
-                                        if (model.active)
-                                            return;
-                                        if (!model.security)
-                                            root.joinWifi(model.ssid, "");
-                                        else {
-                                            root.pendingSsid = model.ssid;
-                                            pwInput.text = "";
-                                            pwInput.forceActiveFocus();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        Item {
-                            width: parent.width
-                            height: 4
-                            visible: root.pendingSsid !== ""
-                        }
-                        Row {
-                            width: parent.width
-                            spacing: 6
-                            visible: root.pendingSsid !== ""
-                            TextField {
-                                id: pwInput
-                                objectName: "pwEdit"
-                                width: parent.width - 70
-                                placeholderText: "Password\u2026"
-                                echoMode: TextInput.Password
-                                font.family: root.cFont
-                                font.pixelSize: 12
-                                color: root.cText
-                                placeholderTextColor: root.cDim
-                                background: Rectangle {
-                                    color: root.cBg
-                                    border.width: 1
-                                    border.color: pwInput.activeFocus ? root.cAccent : root.cBorderStrong
-                                    radius: root.cRadius
-                                }
-                                onAccepted: root.joinWifi(root.pendingSsid, text)
-                            }
-                            SunsetBtn {
-                                cAccent: root.cAccent
-                                cAccentHover: root.cAccentHover
-                                cBorderStrong: root.cBorderStrong
-                                cFont: root.cFont
-                                cRadius: root.cRadius
-                                cRow: root.cRow
-                                cText: root.cText
-                                cols: 1
-                                label: "Join"
-                                width: 64
-                                onClicked: root.joinWifi(root.pendingSsid, pwInput.text)
-                            }
-                        }
-
                         // ---- bluetooth ----
                         SectionLabel {
                             cAccent: root.cAccent
@@ -801,15 +589,16 @@ Scope {
                             cText: root.cText
                             width: parent.width
                             title: "󰂯 Bluetooth"
-                            sub: root.btPowered ? root.btSummary() : "Off"
-                            on: root.btPowered
-                            onClicked: root.btOp(root.btPowered ? ["bluetoothctl", "power", "off"] : ["bluetoothctl", "power", "on"])
+                            kbActive: root.swCurrent === 0
+                            sub: BluetoothService.powered ? root.btSummary() : "Off"
+                            on: BluetoothService.powered
+                            onClicked: BluetoothService.togglePower()
                         }
                         ListView {
                             width: parent.width
                             height: Math.min(contentHeight, 100)
-                            visible: root.btPowered && btModel.count > 0
-                            model: btModel
+                            visible: BluetoothService.powered && BluetoothService.devices.length > 0
+                            model: BluetoothService.devices
                             clip: true
                             interactive: contentHeight > height
                             ScrollBar.vertical: ScrollBar {
@@ -820,38 +609,43 @@ Scope {
                                 }
                             }
                             delegate: Rectangle {
+                                required property var modelData
+                                readonly property bool btConn: modelData.connected
+                                readonly property int btBat: BluetoothService.batteryPercent(modelData)
                                 width: ListView.view.width
                                 height: 30
                                 color: "transparent"
                                 border.width: 1
-                                border.color: model.connected ? root.cAccent : "transparent"
+                                border.color: btConn ? root.cAccent : "transparent"
                                 radius: root.cRadius
                                 Row {
                                     anchors.fill: parent
                                     anchors.leftMargin: 10
                                     anchors.rightMargin: 10
                                     spacing: 8
-                                    Rectangle {
-                                        width: 8
-                                        height: 8
-                                        radius: 4
+                                    Text {
+                                        width: 16
                                         anchors.verticalCenter: parent.verticalCenter
-                                        color: model.connected ? root.cAccent : root.cDim
+                                        horizontalAlignment: Text.AlignHCenter
+                                        text: BluetoothService.glyph(modelData.icon)
+                                        font.family: root.cFont
+                                        font.pixelSize: 13
+                                        color: btConn ? root.cAccent : root.cDim
                                     }
                                     Text {
-                                        width: parent.width - 16 - 80
+                                        width: parent.width - 16 - 76 - 16
                                         anchors.verticalCenter: parent.verticalCenter
                                         elide: Text.ElideRight
-                                        text: model.name
+                                        text: BluetoothService.displayName(modelData)
                                         font.family: root.cFont
                                         font.pixelSize: 12
                                         color: bHover.hovered ? root.cAccentHover : root.cText
                                     }
                                     Text {
-                                        width: 72
+                                        width: 76
                                         anchors.verticalCenter: parent.verticalCenter
                                         horizontalAlignment: Text.AlignRight
-                                        text: model.connected ? "connected" : ""
+                                        text: btConn ? (btBat >= 0 ? btBat + "%" : "connected") : ""
                                         font.family: root.cFont
                                         font.pixelSize: 11
                                         color: root.cMuted
@@ -864,12 +658,32 @@ Scope {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     onClicked: {
-                                        if (!/^[0-9A-Fa-f:]{17}$/.test(model.address))
-                                            return;
-                                        root.say((model.connected ? "Disconnecting " : "Connecting ") + model.name + "\u2026");
-                                        root.btOp(["bluetoothctl", model.connected ? "disconnect" : "connect", model.address]);
+                                        root.say((btConn ? "Disconnecting " : "Connecting ") + BluetoothService.displayName(modelData) + "…");
+                                        BluetoothService.toggleConnection(modelData);
                                     }
                                 }
+                            }
+                        }
+                        Rectangle {
+                            width: parent.width
+                            height: 30
+                            visible: BluetoothService.powered && BluetoothService.devices.length === 0
+                            color: "transparent"
+                            radius: root.cRadius
+                            Text {
+                                anchors.centerIn: parent
+                                text: "No paired devices — open Settings to pair"
+                                font.family: root.cFont
+                                font.pixelSize: 11
+                                color: btEmptyHover.hovered ? root.cAccentHover : root.cMuted
+                            }
+                            HoverHandler {
+                                id: btEmptyHover
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Quickshell.execDetached([root.repoDir + "/scripts/gnome-settings.sh", "bluetooth"])
                             }
                         }
 
@@ -885,23 +699,33 @@ Scope {
                             Repeater {
                                 model: root.powerOptions
                                 delegate: Rectangle {
+                                    readonly property bool isSel: PowerProfiles.profile === modelData.prof
                                     visible: index !== 0 || PowerProfiles.hasPerformanceProfile
                                     width: visible ? (parent.width - 12) / 3 : 0
                                     height: 34
-                                    color: PowerProfiles.profile === modelData.prof ? root.cAccent : root.cRow
+                                    color: isSel ? root.cAccent : root.cRow
                                     border.width: 1
-                                    border.color: PowerProfiles.profile === modelData.prof ? root.cAccent : root.cBorder
+                                    border.color: isSel ? root.cAccent : (ppHover.hovered ? root.cAccentHover : root.cBorder)
                                     radius: root.cRadius
+                                    Behavior on color {
+                                        ColorAnimation {
+                                            duration: 120
+                                        }
+                                    }
                                     Text {
                                         anchors.centerIn: parent
                                         text: modelData.label
                                         font.family: root.cFont
                                         font.pixelSize: 11
                                         font.bold: true
-                                        color: PowerProfiles.profile === modelData.prof ? root.cBg : root.cText
+                                        color: isSel ? Theme.onAccent : (ppHover.hovered ? root.cAccentHover : root.cText)
+                                    }
+                                    HoverHandler {
+                                        id: ppHover
                                     }
                                     MouseArea {
                                         anchors.fill: parent
+                                        hoverEnabled: true
                                         onClicked: {
                                             PowerProfiles.profile = modelData.prof;
                                             powerSetProc.profile = modelData.ctl;
@@ -930,6 +754,7 @@ Scope {
                             cText: root.cText
                             width: parent.width
                             title: "󰂛 Do Not Disturb"
+                            kbActive: root.swCurrent === 1
                             sub: NotificationService.dnd ? "On \u00B7 notifications paused" : "Off"
                             on: NotificationService.dnd
                             onClicked: {
@@ -949,22 +774,32 @@ Scope {
                             Repeater {
                                 model: root.idleModes
                                 delegate: Rectangle {
+                                    readonly property bool isSel: root.idleCurrent === modelData
                                     width: (parent.width - 24) / 5
                                     height: 34
-                                    color: root.idleCurrent === modelData ? root.cAccent : root.cRow
+                                    color: isSel ? root.cAccent : root.cRow
                                     border.width: 1
-                                    border.color: root.idleCurrent === modelData ? root.cAccent : root.cBorder
+                                    border.color: isSel ? root.cAccent : (idleHover.hovered ? root.cAccentHover : root.cBorder)
                                     radius: root.cRadius
+                                    Behavior on color {
+                                        ColorAnimation {
+                                            duration: 120
+                                        }
+                                    }
                                     Text {
                                         anchors.centerIn: parent
                                         text: root.idleShort[modelData] ?? modelData
                                         font.family: root.cFont
                                         font.pixelSize: 11
                                         font.bold: true
-                                        color: root.idleCurrent === modelData ? root.cBg : root.cText
+                                        color: isSel ? Theme.onAccent : (idleHover.hovered ? root.cAccentHover : root.cText)
+                                    }
+                                    HoverHandler {
+                                        id: idleHover
                                     }
                                     MouseArea {
                                         anchors.fill: parent
+                                        hoverEnabled: true
                                         onClicked: root.setIdle(modelData)
                                     }
                                 }
@@ -984,22 +819,45 @@ Scope {
                             width: parent.width
                             height: 12
                         }
-                        SunsetBtn {
-                            cAccent: root.cAccent
-                            cAccentHover: root.cAccentHover
-                            cBorderStrong: root.cBorderStrong
-                            cFont: root.cFont
-                            cRadius: root.cRadius
-                            cRow: root.cRow
-                            cText: root.cText
-                            cols: 1
-                            label: "Close"
-                            onClicked: root.close()
+                        Row {
+                            width: parent.width
+                            spacing: 6
+                            SunsetBtn {
+                                cAccent: root.cAccent
+                                cAccentHover: root.cAccentHover
+                                cBorderStrong: root.cBorderStrong
+                                cFont: root.cFont
+                                cRadius: root.cRadius
+                                cRow: root.cRow
+                                cText: root.cText
+                                cols: 2
+                                hot: true
+                                label: "GNOME Settings…"
+                                // NOTE: gnome-control-center 50+ exits unless
+                                // XDG_CURRENT_DESKTOP contains GNOME (scoped
+                                // override — session stays niri).
+                                onClicked: {
+                                    Quickshell.execDetached(["env", "XDG_CURRENT_DESKTOP=GNOME", "gnome-control-center"]);
+                                    root.close();
+                                }
+                            }
+                            SunsetBtn {
+                                cAccent: root.cAccent
+                                cAccentHover: root.cAccentHover
+                                cBorderStrong: root.cBorderStrong
+                                cFont: root.cFont
+                                cRadius: root.cRadius
+                                cRow: root.cRow
+                                cText: root.cText
+                                cols: 2
+                                label: "Close"
+                                onClicked: root.close()
+                            }
                         }
                         Text {
                             width: parent.width
                             horizontalAlignment: Text.AlignHCenter
-                            text: "tap a network or device to connect \u00B7 \u2191/\u2193 volume \u00B7 M mute \u00B7 Esc closes"
+                            text: "\u2191/\u2193 vol \u00B7 \u2190/\u2192 bright \u00B7 Tab switch \u00B7 Enter toggle \u00B7 M mute \u00B7 Esc"
                             font.family: root.cFont
                             font.pixelSize: 10
                             color: root.cMuted
@@ -1012,23 +870,24 @@ Scope {
 
         onVisibleChanged: {
             if (visible)
-                keys.forceActiveFocus();
+                focusTimer.restart();
         }
     }
 
     function btSummary(): string {
         let names = [];
-        for (let i = 0; i < btModel.count; ++i) {
-            if (btModel.get(i).connected)
-                names.push(btModel.get(i).name);
+        const devs = BluetoothService.devices;
+        for (let i = 0; i < devs.length; ++i) {
+            if (devs[i].connected)
+                names.push(BluetoothService.displayName(devs[i]));
         }
         return names.length > 0 ? names.join(", ") : "On \u00B7 not connected";
     }
 
     component SectionLabel: Text {
         // injected props (inline component scope is isolated)
-        property color cAccent: "#E85D2F"
-        property string cFont: "JetBrainsMono Nerd Font"
+        property color cAccent: root.cAccent
+        property string cFont: root.cFont
         width: parent ? parent.width : 100
         font.family: cFont
         font.pixelSize: 11
@@ -1040,10 +899,10 @@ Scope {
 
     component VolSlider: Slider {
         // injected props (inline component scope is isolated)
-        property color cAccent: "#E85D2F"
-        property color cAccentHover: "#FF8B4A"
-        property color cBg: "#000000"
-        property color cBorder: "#1a1210"
+        property color cAccent: root.cAccent
+        property color cAccentHover: root.cAccentHover
+        property color cBg: root.cBg
+        property color cBorder: root.cBorder
         id: sl
         property real minimum: 0
         signal movedTo(real v)
@@ -1081,13 +940,13 @@ Scope {
 
     component SunsetBtn: Rectangle {
         // injected props (inline component scope is isolated)
-        property color cAccent: "#E85D2F"
-        property color cAccentHover: "#FF8B4A"
-        property color cBorderStrong: "#3D2B24"
-        property string cFont: "JetBrainsMono Nerd Font"
+        property color cAccent: root.cAccent
+        property color cAccentHover: root.cAccentHover
+        property color cBorderStrong: root.cBorderStrong
+        property string cFont: root.cFont
         property int cRadius: 0
-        property color cRow: "#141010"
-        property color cText: "#F7C7A1"
+        property color cRow: root.cRow
+        property color cText: root.cText
         id: sBtn
         property string label: ""
         property bool hot: false
@@ -1100,6 +959,19 @@ Scope {
         border.width: 1
         border.color: hot ? cAccent : cBorderStrong
         radius: cRadius
+        transformOrigin: Item.Center
+        scale: sMouse.pressed ? 0.98 : 1.0
+        Behavior on scale {
+            NumberAnimation {
+                duration: 100
+                easing.type: Easing.OutQuad
+            }
+        }
+        Behavior on color {
+            ColorAnimation {
+                duration: 120
+            }
+        }
         Text {
             anchors.centerIn: parent
             text: sBtn.label
@@ -1112,6 +984,7 @@ Scope {
             id: sHover
         }
         MouseArea {
+            id: sMouse
             anchors.fill: parent
             hoverEnabled: true
             onClicked: sBtn.clicked()
@@ -1120,25 +993,40 @@ Scope {
 
     component SwitchRow: Rectangle {
         // injected props (inline component scope is isolated)
-        property color cAccent: "#E85D2F"
-        property color cBorder: "#1a1210"
-        property color cBorderStrong: "#3D2B24"
-        property color cDim: "#555555"
-        property string cFont: "JetBrainsMono Nerd Font"
-        property color cMuted: "#7C8A6A"
+        property color cAccent: root.cAccent
+        property color cBorder: root.cBorder
+        property color cBorderStrong: root.cBorderStrong
+        property color cDim: root.cDim
+        property string cFont: root.cFont
+        property color cMuted: root.cMuted
         property int cRadius: 0
-        property color cRow: "#141010"
-        property color cText: "#F7C7A1"
+        property color cRow: root.cRow
+        property color cText: root.cText
         id: sw
         property string title: ""
         property string sub: ""
         property bool on: false
+        // Keyboard selection (Tab cycle): accent outline like hover.
+        property bool kbActive: false
         signal clicked
         height: 42
         color: cRow
         border.width: 1
-        border.color: cBorder
+        border.color: (kbActive || rowHover.hovered) ? cAccent : cBorder
         radius: cRadius
+        transformOrigin: Item.Center
+        scale: swMouse.pressed ? 0.98 : 1.0
+        Behavior on scale {
+            NumberAnimation {
+                duration: 100
+                easing.type: Easing.OutQuad
+            }
+        }
+        Behavior on color {
+            ColorAnimation {
+                duration: 120
+            }
+        }
         Row {
             anchors.fill: parent
             anchors.leftMargin: 10
@@ -1188,12 +1076,17 @@ Scope {
                     radius: 9
                     color: sw.on ? cAccent : cDim
                 }
-                // Only the pill itself is clickable (matches old toggle UX).
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: sw.clicked()
-                }
             }
+        }
+        HoverHandler {
+            id: rowHover
+        }
+        // Whole row toggles (single click anywhere selects/activates).
+        MouseArea {
+            id: swMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            onClicked: sw.clicked()
         }
     }
 

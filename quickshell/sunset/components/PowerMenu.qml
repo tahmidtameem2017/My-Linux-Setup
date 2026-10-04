@@ -59,9 +59,20 @@ Scope {
 
     // Armed (awaiting confirm) row index; -1 = none.
     property int armed: -1
+    // Keyboard/mouse selection: 0..actions.length-1 = actions,
+    // actions.length = Close row.
+    property int current: 0
+    // Mouse must not vote until the user actually moves it (Launcher
+    // hoverArmed parity): on open current stays 0 even if the cursor
+    // rests over another row. Armed on first mouse move/press or any
+    // keyboard navigation; click arms too.
+    property bool hoverArmed: false
 
     function open(): void {
+        current = 0;
+        hoverArmed = false;
         isOpen = true;
+        focusTimer.restart();
     }
     function close(): void {
         armed = -1;
@@ -146,6 +157,47 @@ Scope {
         onTriggered: root.armed = -1
     }
 
+    // Re-assert keyboard focus on open (Launcher/WallpaperMenu parity:
+    // onVisibleChanged restarts this; visible mapping lags isOpen).
+    Timer {
+        id: focusTimer
+        interval: 60
+        running: false
+        repeat: false
+        onTriggered: keys.forceActiveFocus()
+    }
+
+    function moveSelection(delta: int): void {
+        hoverArmed = true;
+        const n = root.actions.length + 1; // actions + Close
+        let idx = current + delta;
+        if (idx < 0)
+            idx = 0;
+        if (idx >= n)
+            idx = n - 1;
+        current = idx;
+    }
+
+    function goFirst(): void {
+        hoverArmed = true;
+        current = 0;
+    }
+
+    function goLast(): void {
+        hoverArmed = true;
+        current = root.actions.length;
+    }
+
+    function activateCurrent(): void {
+        if (current < 0 || current > root.actions.length)
+            return;
+        if (current === root.actions.length) {
+            close();
+            return;
+        }
+        press(current);
+    }
+
     PanelWindow {
         id: win
         visible: root.isOpen
@@ -178,12 +230,79 @@ Scope {
             border.width: 1
             border.color: root.cBorderStrong
             radius: root.cRadius
+            // Micro-animation: subtle entrance (opacity 150ms OutCubic +
+            // scale 0.96->1 180ms OutBack overshoot 1.2 + y -6->0).
+            // Close stays instant (visible flips with isOpen, <200ms).
+            // Destructive 2-click confirm (press/armed/disarmTimer) untouched.
+            transformOrigin: Item.Center
+            scale: root.isOpen ? 1.0 : 0.96
+            opacity: root.isOpen ? 1 : 0
+            transform: Translate {
+                y: root.isOpen ? 0 : -6
+                Behavior on y {
+                    NumberAnimation {
+                        duration: 150
+                        easing.type: Easing.OutCubic
+                    }
+                }
+            }
+            Behavior on scale {
+                NumberAnimation {
+                    duration: 180
+                    easing.type: Easing.OutBack
+                    easing.overshoot: 1.2
+                }
+            }
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 150
+                    easing.type: Easing.OutCubic
+                }
+            }
 
             FocusScope {
                 id: keys
                 anchors.fill: parent
                 focus: true
                 Keys.onEscapePressed: root.close()
+                // Full keyboard nav (WallpaperMenu list parity): Up/Down +
+                // Left/Right (single column, so Left=Up, Right=Down) + j/k,
+                // Home/End first/last, PageUp/PageDown ±3, Enter/Space
+                // activates (lock at once, rest arm-then-confirm via press).
+                Keys.onPressed: event => {
+                    if (event.key === Qt.Key_Up || event.key === Qt.Key_Left || event.key === Qt.Key_K) {
+                        event.accepted = true;
+                        root.moveSelection(-1);
+                    } else if (event.key === Qt.Key_Down || event.key === Qt.Key_Right || event.key === Qt.Key_J) {
+                        event.accepted = true;
+                        root.moveSelection(1);
+                    } else if (event.key === Qt.Key_Home) {
+                        event.accepted = true;
+                        root.goFirst();
+                    } else if (event.key === Qt.Key_End) {
+                        event.accepted = true;
+                        root.goLast();
+                    } else if (event.key === Qt.Key_PageUp) {
+                        event.accepted = true;
+                        root.moveSelection(-3);
+                    } else if (event.key === Qt.Key_PageDown) {
+                        event.accepted = true;
+                        root.moveSelection(3);
+                    } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                        event.accepted = true;
+                        root.activateCurrent();
+                    }
+                }
+                // Tab cycles the rows (Tab next, Shift+Tab prev); kept out
+                // of onPressed so Qt focus navigation never steals it.
+                Keys.onTabPressed: event => {
+                    event.accepted = true;
+                    root.moveSelection(1);
+                }
+                Keys.onBacktabPressed: event => {
+                    event.accepted = true;
+                    root.moveSelection(-1);
+                }
 
                 Column {
                     id: col
@@ -211,12 +330,28 @@ Scope {
                         model: root.actions
                         delegate: Rectangle {
                             readonly property bool isArmed: root.armed === index
+                            readonly property bool isCurrent: root.current === index
                             width: col.width
                             height: 50
                             color: root.cRow
                             border.width: 1
-                            border.color: isArmed ? root.cDanger : (pHover.hovered ? root.cAccent : root.cBorder)
+                            border.color: isArmed ? root.cDanger : ((pHover.hovered || isCurrent) ? root.cAccent : root.cBorder)
                             radius: root.cRadius
+                            // Hover -> accentHover text (bindings below), press
+                            // scale 0.98. Armed/danger confirm logic untouched.
+                            transformOrigin: Item.Center
+                            scale: pMouse.pressed ? 0.98 : 1.0
+                            Behavior on scale {
+                                NumberAnimation {
+                                    duration: 100
+                                    easing.type: Easing.OutQuad
+                                }
+                            }
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 120
+                                }
+                            }
                             // Armed tint overlay (danger wash, Theme token only).
                             Rectangle {
                                 anchors.fill: parent
@@ -246,16 +381,23 @@ Scope {
                                     font.family: root.cFontFamily
                                     font.pixelSize: 14
                                     font.bold: true
-                                    color: isArmed ? root.cDanger : (pHover.hovered ? root.cAccentHover : root.cText)
+                                    color: isArmed ? root.cDanger : ((pHover.hovered || isCurrent) ? root.cAccentHover : root.cText)
                                 }
                             }
                             HoverHandler {
                                 id: pHover
                             }
                             MouseArea {
+                                id: pMouse
                                 anchors.fill: parent
                                 hoverEnabled: true
-                                onClicked: root.press(index)
+                                onEntered: if (root.hoverArmed) root.current = index
+                                onPositionChanged: root.hoverArmed = true
+                                onPressed: root.hoverArmed = true
+                                onClicked: {
+                                    root.current = index;
+                                    root.press(index);
+                                }
                             }
                         }
                     }
@@ -269,29 +411,49 @@ Scope {
                         height: 32
                         color: root.cRow
                         border.width: 1
-                        border.color: root.cBorderStrong
+                        border.color: (cHover.hovered || root.current === root.actions.length) ? root.cAccent : root.cBorderStrong
                         radius: root.cRadius
+                        transformOrigin: Item.Center
+                        scale: cMouse.pressed ? 0.98 : 1.0
+                        Behavior on scale {
+                            NumberAnimation {
+                                duration: 100
+                                easing.type: Easing.OutQuad
+                            }
+                        }
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: 120
+                            }
+                        }
                         Text {
                             anchors.centerIn: parent
                             text: "Close"
                             font.family: root.cFontFamily
                             font.pixelSize: 12
                             font.bold: true
-                            color: cHover.hovered ? root.cAccentHover : root.cText
+                            color: (cHover.hovered || root.current === root.actions.length) ? root.cAccentHover : root.cText
                         }
                         HoverHandler {
                             id: cHover
                         }
                         MouseArea {
+                            id: cMouse
                             anchors.fill: parent
                             hoverEnabled: true
-                            onClicked: root.close()
+                            onEntered: if (root.hoverArmed) root.current = root.actions.length
+                            onPositionChanged: root.hoverArmed = true
+                            onPressed: root.hoverArmed = true
+                            onClicked: {
+                                root.current = root.actions.length;
+                                root.close();
+                            }
                         }
                     }
                     Text {
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
-                        text: "lock runs at once \u00B7 the rest need a second click \u00B7 Esc closes"
+                        text: "\u2191/\u2193 + Enter select \u00B7 Tab cycle \u00B7 lock at once, rest \u00D72 \u00B7 Esc closes"
                         font.family: root.cFontFamily
                         font.pixelSize: 10
                         color: root.cMuted
@@ -304,7 +466,7 @@ Scope {
 
         onVisibleChanged: {
             if (visible)
-                keys.forceActiveFocus();
+                focusTimer.restart();
         }
     }
 

@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tmux. — Cheat Sheet</title>
+<!--
+  help/tmux.html — tmux cheat sheet, standalone reference.
+  Mirror of tmux/cheatsheet.sh + tmux/tmux.conf (same actions, same keys).
+  Rules for this page, from user feedback: every shortcut shows the FULL
+  chord with the prefix (never a bare key), labels stay under ~5 words,
+  essentials up top as big visual cards. When adding a bind in
+  tmux/tmux.conf, add a row here AND a card if it is beginner-core.
+  Self-contained: inline CSS + JS, no external deps.
+  Theme: Sunset Orange AMOLED (taste.md tokens). Sharp rectangles.
+  Search with /, clear with Esc.
+-->
+<style>
+  :root {
+    --bg: #000000;
+    --panel: #0a0a0a;
+    --row: #141010;
+    --border: #1a1210;
+    --border-strong: #3D2B24;
+    --accent: #E85D2F;
+    --accent-hover: #FF8B4A;
+    --text: #F7C7A1;
+    --muted: #7C8A6A;
+    --dim: #555555;
+    --danger: #c30505;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 14px;
+    line-height: 1.55;
+    min-height: 100vh;
+  }
+  ::selection { background: var(--accent); color: #000; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px 120px; }
+
+  /* ---------- hero ---------- */
+  header.hero { padding: 64px 0 24px; border-bottom: 1px solid var(--border); }
+  .hero h1 { font-size: 36px; font-weight: 700; letter-spacing: -1px; }
+  .hero h1 .dot { color: var(--accent); }
+  .hero .sub { margin-top: 12px; font-size: 12px; letter-spacing: 3px; color: var(--muted); }
+  .hero .intro { margin-top: 16px; max-width: 74ch; color: var(--muted); font-size: 13px; }
+  .hero .intro b { color: var(--text); font-weight: 400; }
+  .hero .intro code { color: var(--accent); }
+  code, .pill { font-family: inherit; }
+
+  /* bar preview: how the tmux status line looks */
+  .barprev {
+    margin-top: 20px; padding: 10px 14px; max-width: 74ch;
+    background: var(--bg); border: 1px solid var(--border);
+    font-size: 13px; white-space: nowrap; overflow-x: auto;
+  }
+  .barprev .s { color: var(--muted); }
+  .barprev .w { color: var(--dim); }
+  .barprev .a { color: var(--accent); }
+  .barprev .sep { color: var(--border); }
+
+  /* ---------- sticky toolbar: search + count ---------- */
+  .toolbar {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(0, 0, 0, 0.92);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 0;
+    display: flex; gap: 12px; align-items: center;
+  }
+  .searchbox { position: relative; flex: 1; max-width: 560px; }
+  .searchbox input {
+    width: 100%; background: var(--row); color: var(--text);
+    border: 1px solid var(--border-strong);
+    padding: 9px 12px 9px 34px; font-family: inherit; font-size: 13px;
+    outline: none; border-radius: 0;
+  }
+  .searchbox input:focus { border-color: var(--accent); }
+  .searchbox .mag {
+    position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+    color: var(--dim); font-size: 13px; pointer-events: none;
+  }
+  .searchbox .kbd-hint {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--dim); font-size: 11px;
+    border: 1px solid var(--border); padding: 1px 6px;
+  }
+  .count { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .count b { color: var(--accent); font-weight: 700; }
+
+  /* ---------- layout: sidebar + main ---------- */
+  .layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 40px; margin-top: 36px; }
+  .layout > * { min-width: 0; }
+  main { min-width: 0; }
+  nav.side { position: sticky; top: 70px; align-self: start; max-height: calc(100vh - 90px); overflow: auto; }
+  nav.side .grp { margin-bottom: 18px; }
+  nav.side .grp-name { font-size: 10px; letter-spacing: 2px; color: var(--dim); margin-bottom: 6px; }
+  nav.side a {
+    display: flex; gap: 8px; align-items: baseline;
+    color: var(--muted); text-decoration: none; font-size: 12px;
+    padding: 3px 0; border-left: 2px solid transparent; padding-left: 8px;
+  }
+  nav.side a .n { color: var(--dim); font-size: 10px; min-width: 18px; }
+  nav.side a:hover { color: var(--accent-hover); }
+  nav.side a.active { color: var(--text); border-left-color: var(--accent); }
+  nav.side a.active .n { color: var(--accent); }
+  nav.side a.hidden { display: none; }
+
+  /* ---------- groups & sections ---------- */
+  .group-label {
+    font-size: 11px; letter-spacing: 3px; color: var(--dim);
+    border-bottom: 1px solid var(--border);
+    padding: 34px 0 10px; margin-bottom: 4px;
+  }
+  .group-label:first-child { padding-top: 0; }
+  section.topic { margin-bottom: 30px; }
+  section.topic.hidden, .group-block.hidden { display: none; }
+  .topic-head { display: flex; align-items: baseline; gap: 12px; padding: 18px 0 4px; }
+  .topic-head .num { color: var(--accent); font-size: 12px; letter-spacing: 1px; }
+  .topic-head h2 { font-size: 13px; letter-spacing: 3px; font-weight: 700; color: var(--accent); }
+  .topic-head h2 a { color: inherit; text-decoration: none; }
+  .topic-head h2 a:hover { color: var(--accent-hover); }
+  .blurb { color: var(--muted); font-size: 12.5px; margin: 2px 0 8px; max-width: 78ch; }
+
+  /* ---------- essentials: big visual cards ---------- */
+  .cards {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+    gap: 10px; margin: 6px 0 4px;
+  }
+  .card {
+    display: flex; flex-direction: column; gap: 10px; align-items: flex-start;
+    justify-content: flex-start;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 14px 14px 12px;
+  }
+  /* .row rules come later in this file with equal specificity, so the
+     card overrides below repeat the .row class to win. */
+  .row.card { flex-direction: column; align-items: flex-start; justify-content: flex-start; border: 1px solid var(--border); padding: 14px 14px 12px; }
+  .row.card .keys { justify-content: flex-start; }
+  .row.card .desc { flex: none; }
+  .card.hidden { display: none; }
+  .card:hover { border-color: var(--border-strong); }
+  .card .keys { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .card .desc { color: var(--text); font-size: 13px; }
+  .card .desc .dim { color: var(--muted); font-size: 12px; }
+
+  /* ---------- rows: description left, full chord right ---------- */
+  .rows { border-top: 1px solid var(--border); }
+  .row {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px 18px;
+    padding: 9px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .row.hidden { display: none; }
+  .row .desc { color: var(--text); font-size: 13px; min-width: 0; flex: 1 1 240px; }
+  .row .desc .dim { color: var(--muted); }
+  .row .desc .danger { color: var(--danger); }
+  .row .keys { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 1; min-width: 0; max-width: 100%; }
+  .row > * { min-width: 0; }
+  .pill {
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--accent); font-size: 12px; padding: 3px 9px;
+    max-width: 100%; overflow-wrap: anywhere; word-break: break-word;
+  }
+  .pill.pre { color: var(--muted); }
+  .pill.big { font-size: 17px; padding: 5px 13px; }
+  .pill.plain { color: var(--muted); }
+  .pill.cmd { color: var(--accent); white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+  .plus { color: var(--dim); font-size: 12px; }
+  .note {
+    border-left: 2px solid var(--accent); padding: 8px 12px; margin: 10px 0;
+    color: var(--muted); font-size: 12.5px; background: var(--panel); max-width: 82ch;
+  }
+  .note b { color: var(--text); font-weight: 700; }
+  .note code { color: var(--accent); }
+  .empty-msg { display: none; color: var(--muted); padding: 40px 0; font-size: 13px; }
+  .empty-msg.visible { display: block; }
+
+  footer { margin-top: 60px; border-top: 1px solid var(--border); padding-top: 18px; color: var(--dim); font-size: 11.5px; }
+  footer code { color: var(--muted); }
+  footer a { color: var(--accent); }
+
+  mark { background: var(--accent); color: #000; padding: 0 1px; }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.side {
+      position: sticky; top: 61px; z-index: 10; background: var(--bg);
+      max-height: none; display: flex; gap: 4px; overflow-x: auto; padding: 4px 0 8px;
+    }
+    nav.side .grp { margin-bottom: 0; display: flex; gap: 4px; align-items: center; }
+    nav.side .grp-name { display: none; }
+    nav.side a { border: 1px solid var(--border); padding: 4px 9px; white-space: nowrap; }
+    nav.side a.active { border-color: var(--accent); }
+    .row { align-items: flex-start; }
+    .row .keys { justify-content: flex-start; }
+    .wrap { padding: 0 16px 90px; }
+    header.hero { padding: 44px 0 22px; }
+  }
+  @media print {
+    .toolbar, nav.side { display: none; }
+    .layout { display: block; }
+    body { font-size: 11px; }
+  }
+</style>
+<!-- Dynamic palette: written by scripts/sync-external-theme.py from the palette
+     quickshell has active (services/Theme.qml). Loaded AFTER the inline <style>
+     so its :root wins on equal specificity; the inline block above is the
+     sunset fallback for when this file has not been generated yet. Reload the
+     page after switching theme. -->
+<link rel="stylesheet" href="theme.css">
+
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>tmux<span class="dot">.</span></h1>
+    <div class="sub">TERMINAL MULTIPLEXER — CHEAT SHEET</div>
+    <p class="intro">
+      Two-step keys: hold <b>Ctrl</b>, tap <b>B</b>, let go — then tap the key.
+      <b>Ctrl A</b> works too. Click tabs to switch, wheel to scroll.
+    </p>
+    <div class="barprev" aria-label="status bar preview"><span class="s">󰍉 rice</span><span class="w"> 1:bash</span><span class="sep"> · </span><span class="a">2:command-code</span><span class="sep"> · </span><span class="w">3:nvim</span><span class="s"> +</span></div>
+  </header>
+
+  <div class="toolbar">
+    <div class="searchbox">
+      <span class="mag">/</span>
+      <input id="search" type="text" placeholder="Type to find…  (e.g. split, close, paste)" autocomplete="off" spellcheck="false">
+      <span class="kbd-hint">/</span>
+    </div>
+    <div class="count"><b id="shown">0</b> / <span id="total">0</span> rows</div>
+  </div>
+
+  <div class="layout">
+    <nav class="side" id="sidenav" aria-label="Sections">
+      <div class="grp" data-grp="Start">
+        <div class="grp-name">START</div>
+        <a href="#start"><span class="n">00</span>Start here</a>
+      </div>
+      <div class="grp" data-grp="Tabs">
+        <div class="grp-name">BAR &amp; TABS</div>
+        <a href="#bar"><span class="n">01</span>Bar &amp; clicks</a>
+        <a href="#windows"><span class="n">02</span>Windows</a>
+      </div>
+      <div class="grp" data-grp="Panes">
+        <div class="grp-name">PANES</div>
+        <a href="#panes"><span class="n">03</span>Split &amp; move</a>
+        <a href="#copy"><span class="n">04</span>Copy &amp; paste</a>
+      </div>
+      <div class="grp" data-grp="Sessions">
+        <div class="grp-name">SESSIONS</div>
+        <a href="#sessions"><span class="n">05</span>Sessions</a>
+        <a href="#unstuck"><span class="n">06</span>Unstuck</a>
+      </div>
+      <div class="grp" data-grp="Setup">
+        <div class="grp-name">SETUP</div>
+        <a href="#install"><span class="n">07</span>Install &amp; repair</a>
+      </div>
+    </nav>
+
+    <main id="main">
+      <p class="empty-msg" id="empty">No match. Try fewer words.</p>
+
+      <!-- ================= START HERE ================= -->
+      <div class="group-block" data-group="Start">
+      <div class="group-label">START HERE</div>
+
+      <section class="topic" id="start">
+        <div class="topic-head"><span class="num">00</span><h2><a href="#start">THE 12 YOU NEED</a></h2></div>
+        <p class="blurb">Learn these first. The rest of the page is the full list.</p>
+        <div class="cards">
+          <div class="row card"><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill big">?</span></span><span class="desc">Help sheet</span></div>
+          <div class="row card"><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill big">c</span></span><span class="desc">New tab</span></div>
+          <div class="row card"><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill big">x</span></span><span class="desc">Close pane <span class="dim">· asks first</span></span></div>
+          <div class="row card"><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill big">|</span></span><span class="desc">Split left | right</span></div>
+          <div class="row card"><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill big">-</span></span><span class="desc">Split up | down</span></div>
+          <div class="row card"><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill big">←↑↓→</span></span><span class="desc">Move between panes</span></div>
+          <div class="row card"><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill big">1–9</span></span><span class="desc">Go to tab</span></div>
+          <div class="row card"><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill big">s</span></span><span class="desc">Find a tab</span></div>
+          <div class="row card"><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill big">z</span></span><span class="desc">Zoom pane · again to undo</span></div>
+          <div class="row card"><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill big">P</span></span><span class="desc">Paste</span></div>
+          <div class="row card"><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill big">d</span></span><span class="desc">Leave running · rejoin later</span></div>
+          <div class="row card"><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill big">[</span></span><span class="desc">Copy mode · then <b>v</b> selects, <b>y</b> copies</span></div>
+        </div>
+      </section>
+      </div>
+
+      <!-- ================= BAR & TABS ================= -->
+      <div class="group-block" data-group="Tabs">
+      <div class="group-label">BAR &amp; TABS</div>
+
+      <section class="topic" id="bar">
+        <div class="topic-head"><span class="num">01</span><h2><a href="#bar">BAR &amp; CLICKS</a></h2></div>
+        <p class="blurb">One quiet row on top. Active tab is orange.</p>
+        <div class="rows">
+          <div class="row"><span class="desc">Open this help in the terminal</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">?</span></span></div>
+          <div class="row"><span class="desc">List every key tmux knows</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">F1</span></span></div>
+          <div class="row"><span class="desc">Reload after editing the config</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">r</span></span></div>
+          <div class="row"><span class="desc">Send a real Ctrl B to the program</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">Ctrl B</span></span></div>
+          <div class="row"><span class="desc">Click tab to switch · click search for finder · click + for new tab · right-click for menus</span><span class="keys"><span class="pill plain">mouse</span></span></div>
+        </div>
+      </section>
+
+      <section class="topic" id="windows">
+        <div class="topic-head"><span class="num">02</span><h2><a href="#windows">WINDOWS</a></h2></div>
+        <p class="blurb">Tabs. Numbers start at 1 and get reused.</p>
+        <div class="rows">
+          <div class="row"><span class="desc">Next tab</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">n</span></span></div>
+          <div class="row"><span class="desc">Previous tab</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">p</span></span></div>
+          <div class="row"><span class="desc">Go to tab 1…9</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">1–9</span></span></div>
+          <div class="row"><span class="desc">Back to last tab</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">l</span></span></div>
+          <div class="row"><span class="desc">New tab <span class="dim">· same folder</span></span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">c</span></span></div>
+          <div class="row"><span class="desc">Rename tab</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">,</span></span></div>
+          <div class="row"><span class="desc">Pick from a list</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">w</span></span></div>
+          <div class="row"><span class="desc">Close tab <span class="danger">· asks first</span></span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">_</span></span></div>
+        </div>
+      </section>
+      </div>
+
+      <!-- ================= PANES ================= -->
+      <div class="group-block" data-group="Panes">
+      <div class="group-label">PANES</div>
+
+      <section class="topic" id="panes">
+        <div class="topic-head"><span class="num">03</span><h2><a href="#panes">SPLIT &amp; MOVE</a></h2></div>
+        <p class="blurb">Splits open in the same folder. Click a pane to focus it.</p>
+        <div class="rows">
+          <div class="row"><span class="desc">Split left | right</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">|</span></span></div>
+          <div class="row"><span class="desc">Split up | down</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">-</span></span></div>
+          <div class="row"><span class="desc">Move between panes</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">←↑↓→</span></span></div>
+          <div class="row"><span class="desc">Jump to last pane</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">;</span></span></div>
+          <div class="row"><span class="desc">Zoom · again to undo</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">z</span></span></div>
+          <div class="row"><span class="desc">Swap two panes</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">X</span></span></div>
+          <div class="row"><span class="desc">Next layout</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">Space</span></span></div>
+          <div class="row"><span class="desc">Resize <span class="dim">· hold prefix, repeat</span></span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">Ctrl+←↑↓→</span></span></div>
+          <div class="row"><span class="desc">Close pane <span class="danger">· asks first</span></span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">x</span></span></div>
+        </div>
+      </section>
+
+      <section class="topic" id="copy">
+        <div class="topic-head"><span class="num">04</span><h2><a href="#copy">COPY &amp; PASTE</a></h2></div>
+        <p class="blurb">No prefix inside copy mode — just the keys.</p>
+        <div class="rows">
+          <div class="row"><span class="desc">Copy mode</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">[</span></span></div>
+          <div class="row"><span class="desc">Select text</span><span class="keys"><span class="pill">v</span></span></div>
+          <div class="row"><span class="desc">Copy to clipboard</span><span class="keys"><span class="pill">y</span></span></div>
+          <div class="row"><span class="desc">Paste</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">P</span></span></div>
+          <div class="row"><span class="desc">Scroll <span class="dim">· wheel opens copy mode by itself</span></span><span class="keys"><span class="pill plain">mouse wheel</span></span></div>
+          <div class="row"><span class="desc">Page up / down</span><span class="keys"><span class="pill">Alt V / Ctrl V</span></span></div>
+          <div class="row"><span class="desc">Leave copy mode</span><span class="keys"><span class="pill">q / Esc</span></span></div>
+        </div>
+      </section>
+      </div>
+
+      <!-- ================= SESSIONS ================= -->
+      <div class="group-block" data-group="Sessions">
+      <div class="group-label">SESSIONS</div>
+
+      <section class="topic" id="sessions">
+        <div class="topic-head"><span class="num">05</span><h2><a href="#sessions">SESSIONS</a></h2></div>
+        <p class="blurb">Work survives closing the terminal. Rejoin with <b>tmux attach</b>.</p>
+        <div class="rows">
+          <div class="row"><span class="desc">Find anything</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">s</span></span></div>
+          <div class="row"><span class="desc">New session <span class="dim">· asks a name</span></span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">C</span></span></div>
+          <div class="row"><span class="desc">Rename session</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">\</span></span></div>
+          <div class="row"><span class="desc">Leave running, rejoin later</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">d</span></span></div>
+          <div class="row"><span class="desc">Kill everything <span class="danger">· asks first</span></span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">&amp;</span></span></div>
+        </div>
+      </section>
+
+      <section class="topic" id="unstuck">
+        <div class="topic-head"><span class="num">06</span><h2><a href="#unstuck">UNSTUCK</a></h2></div>
+        <p class="blurb">When in doubt:</p>
+        <div class="rows">
+          <div class="row"><span class="desc">Open this help</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">?</span></span></div>
+          <div class="row"><span class="desc">Stop a frozen program</span><span class="keys"><span class="pill pre">Ctrl B</span><span class="plus">→</span><span class="pill">Ctrl C</span></span></div>
+          <div class="row"><span class="desc">Config lives here</span><span class="keys"><span class="pill plain">~/niri-setup/tmux/tmux.conf</span></span></div>
+        </div>
+      </section>
+      </div>
+
+      <!-- ================= SETUP ================= -->
+      <div class="group-block" data-group="Setup">
+      <div class="group-label">SETUP</div>
+
+      <section class="topic" id="install">
+        <div class="topic-head"><span class="num">07</span><h2><a href="#install">INSTALL &amp; REPAIR</a></h2></div>
+        <p class="blurb">Reloading never kills sessions.</p>
+        <div class="rows">
+          <div class="row"><span class="desc">Apply changes live</span><span class="keys"><span class="pill cmd">tmux source-file ~/.config/tmux/tmux.conf</span></span></div>
+          <div class="row"><span class="desc">Test a config safely</span><span class="keys"><span class="pill cmd">tmux -L check -f ~/.config/tmux/tmux.conf new-session -d</span></span></div>
+          <div class="row"><span class="desc">Needs tmux 3.7</span><span class="keys"><span class="pill cmd">tmux -V</span></span></div>
+        </div>
+      </section>
+      </div>
+
+      <footer>
+        tmux. cheat sheet — mirrors <code>tmux/cheatsheet.sh</code> (Ctrl B → ?) + <code>tmux/tmux.conf</code>.
+        See also the <a href="index.html">sunset. guide</a> (<code>Mod+Alt+H</code>).
+        Open with <code>xdg-open help/tmux.html</code> or <code>brave --app=file://$HOME/niri-setup/help/tmux.html</code>.
+      </footer>
+    </main>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var input = document.getElementById("search");
+  var shownEl = document.getElementById("shown");
+  var totalEl = document.getElementById("total");
+  var emptyMsg = document.getElementById("empty");
+  var rows = Array.prototype.slice.call(document.querySelectorAll(".row"));
+  var topics = Array.prototype.slice.call(document.querySelectorAll("section.topic"));
+  var groups = Array.prototype.slice.call(document.querySelectorAll(".group-block"));
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll("nav.side a"));
+
+  var index = rows.map(function (r) { return (r.textContent || "").toLowerCase(); });
+  totalEl.textContent = rows.length;
+
+  function norm(q) { return (q || "").trim().toLowerCase().replace(/\s+/g, " "); }
+
+  function applyFilter() {
+    var terms = norm(input.value).split(" ").filter(Boolean);
+    var shown = 0;
+    rows.forEach(function (r, i) {
+      var ok = terms.every(function (t) { return index[i].indexOf(t) !== -1; });
+      r.classList.toggle("hidden", !ok);
+      if (ok) shown++;
+    });
+    topics.forEach(function (t) {
+      var hasRows = t.querySelectorAll(".row:not(.hidden)").length > 0;
+      var headOk = terms.length > 0 && terms.every(function (x) {
+        return ((t.querySelector(".topic-head") || {}).textContent || "").toLowerCase().indexOf(x) !== -1;
+      });
+      var vis = hasRows || headOk;
+      t.classList.toggle("hidden", !vis);
+      navLinks.forEach(function (a) {
+        if (a.getAttribute("href") === "#" + t.id) a.classList.toggle("hidden", !vis);
+      });
+    });
+    groups.forEach(function (g) {
+      var vis = g.querySelectorAll("section.topic:not(.hidden)").length > 0;
+      g.classList.toggle("hidden", !vis);
+    });
+    shownEl.textContent = shown;
+    emptyMsg.classList.toggle("visible", shown === 0);
+  }
+
+  var deb = null;
+  input.addEventListener("input", function () {
+    if (deb) clearTimeout(deb);
+    deb = setTimeout(applyFilter, 80);
+  });
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { input.value = ""; applyFilter(); input.blur(); }
+    if (e.key === "Enter") {
+      var first = document.querySelector("section.topic:not(.hidden) .row:not(.hidden)");
+      if (first) first.scrollIntoView({ block: "center" });
+    }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "/" && document.activeElement !== input &&
+        !/INPUT|TEXTAREA/.test((document.activeElement || {}).tagName || "")) {
+      e.preventDefault(); input.focus();
+    }
+  });
+
+  var linkById = {};
+  navLinks.forEach(function (a) { linkById[a.getAttribute("href").slice(1)] = a; });
+  if ("IntersectionObserver" in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        navLinks.forEach(function (a) { a.classList.remove("active"); });
+        var a = linkById[en.target.id];
+        if (a) a.classList.add("active");
+      });
+    }, { rootMargin: "-30% 0px -60% 0px" });
+    topics.forEach(function (t) { obs.observe(t); });
+  }
+
+  applyFilter();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,471 @@
+<!doctype html>
+<!--
+  Custom palette editor.
+
+  Opened by scripts/custom-theme.sh, which also starts
+  scripts/custom-theme-server.py. The server exists only because this page has
+  to write ~/.local/share/niri-setup/theme-custom.json and a file:// page cannot.
+
+  DESIGN NOTE, do not "fix" this by theming the chrome: this page deliberately
+  does NOT load help/theme.css. Every surface here is a fixed neutral dark, so
+  the only thing changing colour while you drag a slider is the preview. If the
+  editor followed the active palette you would be judging a colour against a
+  background that moves underneath you.
+
+  The 11 tokens and the contrast floors are the same contract as
+  scripts/colorlib.py and services/Theme.qml. Keep all three in step;
+  scripts/test_wallust_palette.py parses the QML and fails if they drift.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Custom Theme — niri-setup</title>
+<style>
+  /* Fixed chrome. Deliberately not palette-derived — see the note above. */
+  :root {
+    --c-bg: #16181b;
+    --c-panel: #1e2126;
+    --c-panel-2: #262a30;
+    --c-line: #333941;
+    --c-text: #e6e8ea;
+    --c-muted: #a8aeb6;
+    --c-dim: #7d848d;
+    --c-accent: #6ea8fe;
+    --c-danger: #e06c75;
+    --c-ok: #7ec98a;
+    --radius: 10px;
+    --mono: "JetBrainsMono NF", "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--c-bg); color: var(--c-text);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  body { padding: 22px 26px 90px; }
+  h1 { font-size: 19px; margin: 0 0 2px; font-weight: 650; letter-spacing: .2px; }
+  h2 { font-size: 13px; margin: 0 0 10px; font-weight: 650;
+       text-transform: uppercase; letter-spacing: .09em; color: var(--c-muted); }
+  a { color: var(--c-accent); }
+  code, .mono { font-family: var(--mono); }
+  .sub { color: var(--c-dim); margin: 0 0 20px; font-size: 12.5px; }
+  .sub code { color: var(--c-muted); }
+
+  .cols { display: grid; grid-template-columns: minmax(430px, 1fr) minmax(360px, 480px);
+          gap: 22px; align-items: start; }
+  @media (max-width: 940px) { .cols { grid-template-columns: 1fr; } }
+
+  .card { background: var(--c-panel); border: 1px solid var(--c-line);
+          border-radius: var(--radius); padding: 15px 16px; }
+
+  /* ---- token rows ---- */
+  .tok { display: grid;
+         grid-template-columns: 34px 92px 1fr auto;
+         gap: 10px; align-items: center;
+         padding: 7px 0; border-bottom: 1px solid var(--c-line); }
+  .tok:last-child { border-bottom: 0; }
+  .tok input[type=color] {
+    width: 34px; height: 30px; padding: 0; border: 1px solid var(--c-line);
+    border-radius: 7px; background: none; cursor: pointer;
+  }
+  .tok input[type=color]::-webkit-color-swatch-wrapper { padding: 2px; }
+  .tok input[type=color]::-webkit-color-swatch { border: 0; border-radius: 5px; }
+  .tok input[type=text] {
+    font-family: var(--mono); font-size: 12.5px; text-transform: uppercase;
+    background: var(--c-panel-2); color: var(--c-text);
+    border: 1px solid var(--c-line); border-radius: 7px; padding: 6px 8px;
+  }
+  .tok input[type=text]:focus { outline: 2px solid var(--c-accent); outline-offset: -1px; }
+  .tok input[type=text].bad { border-color: var(--c-danger); color: var(--c-danger); }
+  .tok .name { font-size: 13px; }
+  .tok .role { color: var(--c-dim); font-size: 11.5px; }
+  .ratios { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end;
+            max-width: 190px; }
+  .chip { font-family: var(--mono); font-size: 10.5px; padding: 2px 6px;
+          border-radius: 5px; border: 1px solid var(--c-line);
+          color: var(--c-dim); white-space: nowrap; }
+  .chip.pass { color: var(--c-ok); border-color: #2f5c39; }
+  .chip.fail { color: var(--c-danger); border-color: #6b3238; background: #2a1a1c; }
+
+  /* ---- preview ---- */
+  .preview { position: sticky; top: 18px; display: grid; gap: 14px; }
+  .stage { border: 1px solid var(--c-line); border-radius: var(--radius);
+           overflow: hidden; }
+  .bar { display: flex; align-items: center; gap: 10px;
+         padding: 9px 12px; background: var(--p-bg);
+         border-bottom: 1px solid var(--p-border); }
+  .ws { display: flex; gap: 4px; }
+  .ws span { font-family: var(--mono); font-size: 11px; padding: 2px 7px;
+             border-radius: 5px; color: var(--p-dim); }
+  .ws .on { background: var(--p-accent); color: var(--p-on-accent); }
+  .clock { margin-left: auto; font-weight: 650; font-size: 12.5px; color: var(--p-text); }
+  .pill { font-size: 11.5px; color: var(--p-muted); padding: 3px 12px;
+          background: var(--p-row); border-radius: 999px; }
+
+  .menu { padding: 7px; background: var(--p-bg); }
+  .row { display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+         border-radius: 7px; }
+  .row .ic { width: 15px; text-align: center; color: var(--p-dim); font-size: 13px; }
+  .row .tt { font-size: 13px; color: var(--p-text); }
+  .row .sb { font-size: 11px; color: var(--p-dim); }
+  .row.sel { background: var(--p-accent); }
+  .row.sel .tt { color: var(--p-on-accent); font-weight: 600; }
+  .row.sel .sb { color: var(--p-on-accent-muted); }
+  .row.sel .ic { color: var(--p-on-accent); }
+  .row:not(.sel):hover { background: var(--p-row); }
+
+  .card-demo { margin: 12px; padding: 13px 14px; background: var(--p-panel);
+               border: 1px solid var(--p-border); border-radius: 9px; }
+  .card-demo h3 { margin: 0 0 3px; font-size: 13.5px; color: var(--p-text); }
+  .card-demo p { margin: 0 0 11px; font-size: 12px; color: var(--p-muted); }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  button.b { font: inherit; font-size: 12.5px; padding: 6px 13px; cursor: pointer;
+             border-radius: 7px; border: 1px solid var(--p-border-strong);
+             background: var(--p-row); color: var(--p-text); }
+  button.b.prim { background: var(--p-accent); color: var(--p-on-accent);
+                  border-color: var(--p-accent-hover); font-weight: 600; }
+  button.b.dgr { background: transparent; color: var(--p-danger);
+                 border-color: var(--p-danger); }
+  .warn { margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--p-border);
+          font-size: 12px; color: var(--p-danger); }
+  .okline { margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--p-border);
+            font-size: 12px; color: var(--p-dim); }
+
+  /* ---- toolbar ---- */
+  .bar-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+                 margin-bottom: 14px; }
+  select, button.g { font: inherit; font-size: 12.5px; padding: 6px 11px;
+                     border-radius: 7px; border: 1px solid var(--c-line);
+                     background: var(--c-panel-2); color: var(--c-text);
+                     cursor: pointer; }
+  button.g:hover, select:hover { border-color: #46505a; }
+  button.g.go { background: var(--c-accent); border-color: var(--c-accent);
+                color: #10131a; font-weight: 650; }
+  .spacer { flex: 1; }
+
+  .foot { position: fixed; left: 0; right: 0; bottom: 0; display: flex;
+          gap: 10px; align-items: center; padding: 12px 26px;
+          background: rgba(22,24,27,.94); border-top: 1px solid var(--c-line);
+          backdrop-filter: blur(8px); }
+  .foot .msg { font-size: 12.5px; color: var(--c-muted); }
+  .foot .msg.bad { color: var(--c-danger); }
+  .foot .msg.good { color: var(--c-ok); }
+  .dirty { color: var(--c-dim); font-size: 12px; }
+  .dirty.on { color: #e8b96a; }
+</style>
+</head>
+<body>
+
+<h1>Custom Theme</h1>
+<p class="sub">
+  Edit the 11 palette tokens. <b>Apply</b> writes
+  <code>~/.local/share/niri-setup/theme-custom.json</code> and switches the shell to it —
+  bar, launcher, menus, terminal, status bar, focus ring, guide and icons all follow live.
+</p>
+
+<div class="bar-actions">
+  <label class="mono" style="font-size:12px;color:var(--c-muted)">start from</label>
+  <select id="from"></select>
+  <button class="g" id="btnReload">Revert to saved</button>
+  <button class="g" id="btnDefaults">Defaults</button>
+  <div class="spacer"></div>
+  <span class="dirty" id="dirty"></span>
+</div>
+
+<div class="cols">
+  <section class="card">
+    <h2>Tokens</h2>
+    <div id="tokens"></div>
+  </section>
+
+  <section class="preview">
+    <div class="card">
+      <h2>Preview</h2>
+      <div class="stage">
+        <div class="bar">
+          <div class="ws"><span>1</span><span class="on">2</span><span>3</span></div>
+          <span class="pill">21&deg;</span>
+          <span class="clock">12:13</span>
+        </div>
+        <div class="menu">
+          <div class="row sel">
+            <span class="ic">&#9670;</span>
+            <span><span class="tt">Settings</span><br><span class="sb">opens the app</span></span>
+          </div>
+          <div class="row">
+            <span class="ic">&#9638;</span>
+            <span><span class="tt">Wallpaper</span><br><span class="sb">opens wallpaper-menu</span></span>
+          </div>
+          <div class="row">
+            <span class="ic">&#9834;</span>
+            <span><span class="tt">Now Playing</span><br><span class="sb">opens now-playing</span></span>
+          </div>
+        </div>
+        <div class="card-demo">
+          <h3>Card title</h3>
+          <p>Body text on a panel surface, with muted secondary copy underneath.</p>
+          <div class="btns">
+            <button class="b prim">Primary</button>
+            <button class="b">Secondary</button>
+            <button class="b dgr">Danger</button>
+          </div>
+          <div class="okline">Placeholder / disabled copy uses <code>dim</code>.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>How this is applied</h2>
+      <p class="sub" style="margin:0">
+        Apply writes the file <b>in place</b>, never via a temp-file rename: quickshell
+        watches this path by inode, so a rename would replace the watch and the theme
+        would silently stop updating. The server then asks the shell to switch, and the
+        shell itself runs the external exporter (tmux, Alacritty, niri, guide CSS,
+        icons) &mdash; it reads the palette the shell has published, so doing it from
+        here would only race it.
+      </p>
+    </div>
+  </section>
+</div>
+
+<div class="foot">
+  <button class="g go" id="btnApply">Apply</button>
+  <button class="g" id="btnApplyOnly">Save without switching</button>
+  <span class="msg" id="msg"></span>
+</div>
+
+<script>
+"use strict";
+
+// The token contract. Same 11 keys as services/Theme.qml and scripts/colorlib.py.
+const KEYS = ["bg", "panel", "row", "border", "borderStrong", "accent",
+              "accentHover", "text", "muted", "dim", "danger"];
+
+const ROLES = {
+  bg:           "bar, popup and page background",
+  panel:        "cards and popups sitting on bg",
+  row:          "buttons, list rows, hover wash",
+  border:       "faint separators, slider tracks",
+  borderStrong: "card and button borders",
+  accent:       "primary actions, selected row fill",
+  accentHover:  "accent text on hover, highlights",
+  text:         "body text",
+  muted:        "secondary text",
+  dim:          "disabled and placeholder text",
+  danger:       "destructive actions"
+};
+
+// The legibility floors, transcribed from colorlib.FLOORS.
+// [token, minimum contrast, the token it is drawn on]
+const FLOORS = [
+  ["text", 7.0, "bg"],
+  ["accent", 4.5, "bg"],
+  ["accentHover", 7.0, "bg"],
+  ["danger", 4.5, "bg"],
+  ["muted", 4.5, "bg"], ["muted", 3.0, "panel"],
+  ["dim", 3.5, "bg"], ["dim", 3.0, "panel"],
+  ["panel", 1.30, "bg"],
+  ["row", 1.60, "bg"], ["row", 1.12, "panel"],
+  ["border", 1.25, "bg"],
+  ["borderStrong", 2.50, "panel"]
+];
+
+const DEFAULTS = {
+  bg: "#000000", panel: "#0A0A0A", row: "#141010", border: "#1A1210",
+  borderStrong: "#3D2B24", accent: "#E85D2F", accentHover: "#FF8B4A",
+  text: "#F7C7A1", muted: "#7C8A6A", dim: "#555555", danger: "#DC3030"
+};
+
+// ---- colour maths (same definitions as scripts/colorlib.py) ----
+const hex2rgb = (h) => {
+  const s = h.replace("#", "");
+  return [0, 2, 4].map((i) => parseInt(s.slice(i, i + 2), 16));
+};
+const rgb2hex = (c) => "#" + c.map((v) => {
+  const n = Math.max(0, Math.min(255, Math.round(v)));
+  return n.toString(16).padStart(2, "0");
+}).join("");
+const lum = (h) => {
+  const f = (v) => { const s = v / 255; return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
+  const [r, g, b] = hex2rgb(h);
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+};
+const contrast = (a, b) => {
+  const la = lum(a), lb = lum(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+};
+// Mirrors Theme.onAccent / Theme.onAccentMuted: MEASURE which of bg or text is
+// readable on the accent fill, never assume.
+const onAccent = (p) => Math.max(contrast(p.bg, p.accent), contrast(p.text, p.accent)) >= 4.5
+  ? (contrast(p.bg, p.accent) >= contrast(p.text, p.accent) ? p.bg : p.text)
+  : (contrast(p.text, p.accent) >= contrast(p.bg, p.accent) ? p.text : p.bg);
+
+// ---- state ----
+const token = new URLSearchParams(location.search).get("t") || "";
+let saved = null;          // last known persisted palette
+let draft = Object.assign({}, DEFAULTS);
+let dirty = false;
+
+const $ = (id) => document.getElementById(id);
+
+// ---- build the token rows ----
+const inputs = {};
+for (const key of KEYS) {
+  const row = document.createElement("div");
+  row.className = "tok";
+  row.innerHTML =
+    '<input type="color" aria-label="' + key + '">' +
+    '<input type="text" spellcheck="false" aria-label="' + key + ' hex">' +
+    '<span><span class="name mono">' + key + '</span><br>' +
+    '<span class="role">' + ROLES[key] + '</span></span>' +
+    '<span class="ratios"></span>';
+  const [picker, text] = row.querySelectorAll("input");
+  inputs[key] = { picker, text, ratios: row.querySelector(".ratios"), row };
+
+  picker.addEventListener("input", () => set(key, picker.value));
+  text.addEventListener("input", () => {
+    const v = text.value.trim();
+    if (/^#?[0-9a-fA-F]{6}$/.test(v)) { set(key, v.startsWith("#") ? v : "#" + v); return; }
+    text.classList.add("bad");           // typed junk: keep it visible, do not apply
+  });
+  text.addEventListener("blur", () => { text.classList.remove("bad"); text.value = draft[key]; });
+  $("tokens").appendChild(row);
+}
+
+function set(key, value) {
+  draft[key] = value.toUpperCase();
+  inputs[key].picker.value = draft[key];
+  if (!inputs[key].text.matches(":focus")) inputs[key].text.value = draft[key];
+  dirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  render();
+}
+
+function render() {
+  const p = draft;
+  const root = document.documentElement.style;
+  const put = (css, key) => root.setProperty(css, p[key]);
+  put("--p-bg", "bg"); put("--p-panel", "panel"); put("--p-row", "row");
+  put("--p-border", "border"); put("--p-border-strong", "borderStrong");
+  put("--p-accent", "accent"); put("--p-accent-hover", "accentHover");
+  put("--p-text", "text"); put("--p-muted", "muted"); put("--p-dim", "dim");
+  put("--p-danger", "danger");
+  root.setProperty("--p-on-accent", onAccent(p));
+  // Secondary line inside the selected row: readable, but not competing with the title.
+  root.setProperty("--p-on-accent-muted",
+    contrast(p.dim, p.accent) >= 3 ? p.dim : onAccent(p));
+
+  for (const [key, minimum, against] of FLOORS) {
+    const got = contrast(p[key], p[against]);
+    inputs[key].ratios.querySelector(`[data-vs="${against}"]`)?.remove();
+    const chip = document.createElement("span");
+    chip.className = "chip " + (got >= minimum - 0.005 ? "pass" : "fail");
+    chip.dataset.vs = against;
+    chip.textContent = `on ${against} ${got.toFixed(2)}/${minimum.toFixed(1)}`;
+    inputs[key].ratios.appendChild(chip);
+  }
+  $("dirty").textContent = dirty ? "unsaved changes" : "";
+  $("dirty").classList.toggle("on", dirty);
+}
+
+// ---- server ----
+async function api(path, body) {
+  const options = body === undefined ? {} : {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Theme-Token": token },
+    body: JSON.stringify(body)
+  };
+  const response = await fetch(path, options);
+  const data = await response.json().catch(() => ({ error: "bad response" }));
+  if (!response.ok) throw new Error(data.error || ("HTTP " + response.status));
+  return data;
+}
+
+function say(text, kind) {
+  const el = $("msg");
+  el.textContent = text;
+  el.className = "msg" + (kind ? " " + kind : "");
+}
+
+async function load() {
+  try {
+    const data = await api("/api/theme");
+    saved = data.custom;
+    draft = Object.assign({}, saved);
+    dirty = false;
+    for (const key of KEYS) set(key, draft[key]);
+    say(data.exists ? "Loaded " + data.path : "No saved palette yet — this is the default.");
+  } catch (error) {
+    say("Cannot reach the editor server: " + error.message, "bad");
+  }
+}
+
+async function loadPalettes() {
+  const select = $("from");
+  select.innerHTML = "";
+  const add = (label, palette) => {
+    if (!palette) return;
+    const option = document.createElement("option");
+    option.value = label;
+    option.textContent = label;
+    option.dataset.palette = JSON.stringify(palette);
+    select.appendChild(option);
+  };
+  try {
+    const data = await api("/api/palettes");
+    for (const [name, palette] of Object.entries(data.variants)) add(name, palette);
+    add("currently active", data.active);
+  } catch (error) { /* the list is a convenience; editing still works */ }
+  add("defaults", DEFAULTS);
+  select.addEventListener("change", () => {
+    const palette = JSON.parse(select.selectedOptions[0].dataset.palette);
+    const next = {};
+    for (const key of KEYS) next[key] = (palette[key] || DEFAULTS[key]).toUpperCase();
+    for (const key of KEYS) set(key, next[key]);
+    say("Started from " + select.value + ".");
+  });
+}
+
+async function apply(switchTo) {
+  const payload = {};
+  payload.palette = {};
+  for (const key of KEYS) payload.palette[key] = draft[key];
+  payload.apply = true;
+  say("Applying…");
+  try {
+    const result = await api("/api/theme", payload);
+    saved = result.palette;
+    dirty = false;
+    render();
+    let text = "Applied. ";
+    if (switchTo) {
+      text += result.shellRunning
+        ? "The shell is following Custom now, and everything downstream follows it."
+        : "Saved, but no quickshell is running to pick it up — start the shell, or run scripts/sync-external-theme.py.";
+    } else {
+      text += "Saved without switching; pick Custom in the theme menu to use it.";
+    }
+    say(text, "good");
+  } catch (error) {
+    say("Not applied: " + error.message, "bad");
+  }
+}
+
+$("btnApply").addEventListener("click", () => apply(true));
+$("btnApplyOnly").addEventListener("click", () => apply(false));
+$("btnReload").addEventListener("click", () => {
+  for (const key of KEYS) set(key, saved[key]);
+  say("Reverted to the saved palette.");
+});
+$("btnDefaults").addEventListener("click", () => {
+  for (const key of KEYS) set(key, DEFAULTS[key]);
+  say("Reset to the built-in defaults (not saved yet).");
+});
+document.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") { event.preventDefault(); apply(true); }
+});
+
+load();
+loadPalettes();
+</script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+[font]
+size = 12
+
+[font.normal]
+family = "JetBrainsMono Nerd Font"
+style = "Regular"
+
+[window]
+opacity = 0.7
+
+[window.padding]
+x = 15
+y = 15
+
+[colors.primary]
+foreground = '{{FG}}'
+background = '{{BG}}'
+
+[colors.cursor]
+text = '{{CURSOR_TEXT}}'
+cursor = '{{CURSOR}}'
+
+[colors.normal]
+black = "{{N_BLACK}}"
+red = "{{N_RED}}"
+green = "{{N_GREEN}}"
+yellow = "{{N_YELLOW}}"
+blue = "{{N_BLUE}}"
+magenta = "{{N_MAGENTA}}"
+cyan = "{{N_CYAN}}"
+white = "{{N_WHITE}}"
+
+[colors.bright]
+black = "{{B_BLACK}}"
+red = "{{B_RED}}"
+green = "{{B_GREEN}}"
+yellow = "{{B_YELLOW}}"
+blue = "{{B_BLUE}}"
+magenta = "{{B_MAGENTA}}"
+cyan = "{{B_CYAN}}"
+white = "{{B_WHITE}}"

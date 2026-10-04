@@ -16,10 +16,11 @@ Singleton {
     readonly property string setupHome: Quickshell.env("NIRI_SETUP_HOME") ?? (Quickshell.env("HOME") + "/niri-setup")
     readonly property string setScript: setupHome + "/scripts/wallpaper.sh"
     readonly property string autoScript: setupHome + "/scripts/auto-wallpaper.sh"
+    readonly property string manageScript: setupHome + "/scripts/manage-wallpaper.sh"
     readonly property string stateFile: setupHome + "/.state/current_wallpaper"
 
     property string currentPath: ""
-    property bool busy: setProc.running
+    property bool busy: setProc.running || delProc.running || renProc.running
     property string lastError: ""
     property string daemonStatus: ""
 
@@ -39,6 +40,26 @@ Singleton {
     function random() {
         // auto-wallpaper --next pops the shuffled queue (random-ish).
         next();
+    }
+
+    // Delete (trash) a library file. Empty path => current wallpaper.
+    // Deleting the current one auto-sets a successor via the script.
+    function deleteWallpaper(path) {
+        if (delProc.running || renProc.running || setProc.running)
+            return;
+        lastError = "";
+        delProc.targetPath = String(path ?? "");
+        delProc.running = true;
+    }
+
+    // Rename a library file. Prints the new abs path on stdout (last line).
+    function renameWallpaper(path, newName) {
+        if (delProc.running || renProc.running || setProc.running)
+            return;
+        lastError = "";
+        renProc.targetPath = String(path);
+        renProc.targetName = String(newName);
+        renProc.running = true;
     }
 
     function refreshCurrent() {
@@ -89,6 +110,59 @@ Singleton {
             onStreamFinished: {
                 if (text.trim() !== "")
                     root.lastError = text.trim().split("\n").pop();
+            }
+        }
+    }
+
+    // manage-wallpaper.sh delete: stdout last line is "[OK] ...".
+    Process {
+        id: delProc
+        property string targetPath: ""
+        command: [root.manageScript, "delete", targetPath]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                console.info("sunset/WallpaperService delete: " + text.trim().split("\n").pop());
+            }
+        }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                if (text.trim() !== "")
+                    root.lastError = text.trim().split("\n").pop();
+            }
+        }
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                root.refreshCurrent();
+            } else if (root.lastError === "") {
+                root.lastError = "manage-wallpaper.sh delete exited " + exitCode;
+            }
+        }
+    }
+
+    // manage-wallpaper.sh rename: stdout last line is the new abs path.
+    Process {
+        id: renProc
+        property string targetPath: ""
+        property string targetName: ""
+        command: [root.manageScript, "rename", targetPath, targetName]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                console.info("sunset/WallpaperService rename: " + text.trim().split("\n").pop());
+            }
+        }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                if (text.trim() !== "")
+                    root.lastError = text.trim().split("\n").pop();
+            }
+        }
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                root.refreshCurrent();
+            } else if (root.lastError === "") {
+                root.lastError = "manage-wallpaper.sh rename exited " + exitCode;
             }
         }
     }

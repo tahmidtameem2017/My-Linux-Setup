@@ -5,6 +5,7 @@
 include "input.kdl"
 include "outputs.kdl"
 include "layout.kdl"
+include "animations.kdl"
 include "spawn-at-startup.kdl"
 include "wallpapers.kdl"
 include "recent-windows.kdl"

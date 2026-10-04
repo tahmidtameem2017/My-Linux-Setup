@@ -4,8 +4,10 @@
 // Find more information on the wiki:
 // https://yalter.github.io/niri/Configuration:-Outputs
 output "eDP-1" {
-    // Run `niri msg outputs` while inside a niri instance to list all outputs and their modes.
-    mode "2880x1800@90"
+    // Native panel mode (VRAM: requesting 2880x1800@90 on a 1080p60 panel
+    // just fails the modeset and falls back — ask for native directly).
+    // Run `niri msg outputs` while inside a niri instance to list modes.
+    mode "1920x1080@60"
     scale 1.5
     transform "normal"
     position x=0 y=0

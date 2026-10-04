@@ -41,19 +41,23 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import qs.services
 
 Scope {
     id: root
 
-    // ---- theme (taste.md Sunset Orange AMOLED + fuzzel wallpaper.ini) ----
-    readonly property color bg: "#f2000000" // fuzzel background #000000f2
-    readonly property color textCol: "#fff7c7a1" // fuzzel text #f7c7a1ff
-    readonly property color accent: "#ffe85d2f" // fuzzel selection #e85d2fff
-    readonly property color muted: "#aa7c8a6a" // fuzzel placeholder #7c8a6aaa
-    readonly property color selText: "#ff000000" // fuzzel selection-text
-    readonly property string fontFamily: "JetBrainsMono Nerd Font"
+    // ---- theme (Theme.qml Sunset Orange AMOLED tokens only, no hex) ----
+    readonly property color bg: Theme.bg
+    readonly property color textCol: Theme.text
+    readonly property color accent: Theme.accent
+    readonly property color muted: Theme.muted
+    readonly property color selText: Theme.onAccent
+    readonly property string fontFamily: Theme.fontFamily
+    readonly property int cardRadius: Theme.radius
+    readonly property int rowRadius: Theme.radius
     readonly property int menuWidth: 520 // fuzzel wallpaper width=32
     readonly property int rowHeight: 34 // fuzzel line-height=34
+    readonly property int pageStep: 4 // half the 8-row list
 
     readonly property string repoHome: "/home/me/niri-setup"
     readonly property string simpleScript: repoHome + "/scripts/change-wallpaper-simple.sh"
@@ -65,6 +69,8 @@ Scope {
 
     property bool isOpen: false
     property string statusText: ""
+    // Vim `gg` parity: first g arms, second g (within 800ms) goes first.
+    property bool gPending: false
 
     // Same 8 rows, same order, same labels as wallpaper-menu.sh.
     property var items: [
@@ -104,6 +110,7 @@ Scope {
 
     function open(): void {
         isOpen = true;
+        gPending = false;
         menuList.currentIndex = 0;
         refreshStatus();
         focusTimer.restart();
@@ -174,7 +181,7 @@ Scope {
     }
 
     function refreshStatus(): void {
-        statusText = "…";
+        root.statusText = "…";
         statusProc.exec({
             "command": [root.autoScript, "--status"]
         });
@@ -183,6 +190,7 @@ Scope {
     function moveSelection(delta: int): void {
         if (items.length === 0)
             return;
+        root.gPending = false;
         let idx = menuList.currentIndex + delta;
         if (idx < 0)
             idx = 0;
@@ -190,6 +198,33 @@ Scope {
             idx = items.length - 1;
         menuList.currentIndex = idx;
         menuList.positionViewAtIndex(idx, ListView.Contain);
+    }
+
+    function goFirst(): void {
+        root.gPending = false;
+        menuList.currentIndex = 0;
+        menuList.positionViewAtIndex(0, ListView.Contain);
+    }
+
+    function goLast(): void {
+        root.gPending = false;
+        menuList.currentIndex = items.length - 1;
+        menuList.positionViewAtIndex(items.length - 1, ListView.Contain);
+    }
+
+    function goIndex(i: int): void {
+        root.gPending = false;
+        if (i < 0 || i >= items.length)
+            return;
+        menuList.currentIndex = i;
+        menuList.positionViewAtIndex(i, ListView.Contain);
+    }
+
+    Timer {
+        id: gTimer
+        interval: 800
+        repeat: false
+        onTriggered: root.gPending = false
     }
 
     Timer {
@@ -237,11 +272,39 @@ Scope {
             anchors.centerIn: parent
             width: Math.min(root.menuWidth, parent.width - 48)
             // Content-driven: header + 8 rows + status. All terms intrinsic.
-            height: headerText.height + menuList.height + statusText.height + 56
-            radius: 12 // fuzzel [border] radius (intentional taste.md exception)
+            height: headerText.height + menuList.height + (root.statusText !== "" ? statusText.implicitHeight : 0) + 56
+            radius: root.cardRadius // Theme.radius (sharp sunset cards)
             color: root.bg
             border.width: 2
             border.color: root.accent
+            // Micro-animation: subtle entrance (opacity 150ms OutCubic +
+            // scale 0.96->1 180ms OutBack overshoot 1.2 + y -6->0).
+            // Close stays instant (visible flips with isOpen, <200ms).
+            transformOrigin: Item.Center
+            scale: root.isOpen ? 1.0 : 0.96
+            opacity: root.isOpen ? 1 : 0
+            transform: Translate {
+                y: root.isOpen ? 0 : -6
+                Behavior on y {
+                    NumberAnimation {
+                        duration: 150
+                        easing.type: Easing.OutCubic
+                    }
+                }
+            }
+            Behavior on scale {
+                NumberAnimation {
+                    duration: 180
+                    easing.type: Easing.OutBack
+                    easing.overshoot: 1.2
+                }
+            }
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 150
+                    easing.type: Easing.OutCubic
+                }
+            }
 
             Column {
                 anchors.fill: parent
@@ -264,21 +327,63 @@ Scope {
                     width: parent.width
                     height: root.items.length * root.rowHeight
                     clip: true
+                    // All 8 rows fit; keep non-scrollable but add an
+                    // explicit WheelHandler below so wheel moves selection.
                     interactive: false
                     model: root.items
+                    // Full keyboard nav: Up/Down + j/k, Home/End first/last,
+                    // PageUp/PageDown ±pageStep, 1..8 jump, gg first / G
+                    // last (vim parity), Enter activates, Esc closes.
                     Keys.onPressed: (event) => {
+                        const shift = (event.modifiers & Qt.ShiftModifier) !== 0;
                         if (event.key === Qt.Key_Escape) {
                             event.accepted = true;
+                            root.gPending = false;
                             root.close();
-                        } else if (event.key === Qt.Key_Up) {
+                        } else if (event.key === Qt.Key_Up || event.key === Qt.Key_K) {
                             event.accepted = true;
                             root.moveSelection(-1);
-                        } else if (event.key === Qt.Key_Down) {
+                        } else if (event.key === Qt.Key_Down || event.key === Qt.Key_J) {
                             event.accepted = true;
                             root.moveSelection(1);
-                        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                        } else if (event.key === Qt.Key_Home) {
                             event.accepted = true;
+                            root.goFirst();
+                        } else if (event.key === Qt.Key_End) {
+                            event.accepted = true;
+                            root.goLast();
+                        } else if (event.key === Qt.Key_PageUp) {
+                            event.accepted = true;
+                            root.moveSelection(-root.pageStep);
+                        } else if (event.key === Qt.Key_PageDown) {
+                            event.accepted = true;
+                            root.moveSelection(root.pageStep);
+                        } else if (event.key === Qt.Key_G) {
+                            event.accepted = true;
+                            if (shift) {
+                                root.goLast();
+                            } else if (root.gPending) {
+                                root.goFirst();
+                            } else {
+                                root.gPending = true;
+                                gTimer.restart();
+                            }
+                        } else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_8) {
+                            event.accepted = true;
+                            root.goIndex(event.key - Qt.Key_1);
+                        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                            event.accepted = true;
+                            root.gPending = false;
                             root.activateCurrent();
+                        }
+                    }
+                    WheelHandler {
+                        // Wheel moves selection (list fits, no scroll).
+                        onWheel: (event) => {
+                            if (event.angleDelta.y < 0)
+                                root.moveSelection(1);
+                            else if (event.angleDelta.y > 0)
+                                root.moveSelection(-1);
                         }
                     }
 
@@ -287,8 +392,21 @@ Scope {
                         property var itemData: modelData
                         width: menuList.width
                         height: root.rowHeight
-                        radius: 6
+                        radius: root.rowRadius
                         color: menuList.currentIndex === index ? root.accent : "transparent"
+                        transformOrigin: Item.Center
+                        scale: wmenuMouse.pressed ? 0.98 : 1.0
+                        Behavior on scale {
+                            NumberAnimation {
+                                duration: 100
+                                easing.type: Easing.OutQuad
+                            }
+                        }
+                        Behavior on color {
+                            ColorAnimation {
+                                duration: 120
+                            }
+                        }
 
                         Text {
                             anchors.fill: parent
@@ -303,6 +421,7 @@ Scope {
                         }
 
                         MouseArea {
+                            id: wmenuMouse
                             anchors.fill: parent
                             acceptedButtons: Qt.LeftButton
                             hoverEnabled: true
@@ -319,12 +438,10 @@ Scope {
                     id: statusText
                     width: parent.width
                     visible: root.statusText !== ""
-                    height: visible ? implicitHeight : 0
                     text: root.statusText
                     font.family: root.fontFamily
                     font.pointSize: 10
                     color: root.muted
-                    elide: Text.ElideRight
                     maximumLineCount: 3
                     wrapMode: Text.Wrap
                 }

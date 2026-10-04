@@ -1,0 +1,24 @@
+{
+  "name": "study",
+  "workspaces": [
+    {
+      "name": "read",
+      "apps": [
+        "brave --new-window"
+      ]
+    },
+    {
+      "name": "code",
+      "apps": [
+        "code",
+        "alacritty --config-file /home/me/niri-setup/alacritty/default.toml"
+      ]
+    },
+    {
+      "name": "notes",
+      "apps": [
+        "obsidian"
+      ]
+    }
+  ]
+}

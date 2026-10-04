@@ -1,4 +1,8 @@
-# Frosted Midnight
+# Frosted Midnight (LEGACY — rollback session only)
+
+> Superseded by the **Sunset Orange AMOLED** theme (`taste.md`, implemented in
+> `quickshell/sunset/services/Theme.qml`). This palette is kept for the legacy
+> waybar rollback session.
 
 This is a color palette that I discovered with pywal. Hope you enjoy it same as I do!
 

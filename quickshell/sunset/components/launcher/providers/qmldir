@@ -1,0 +1,14 @@
+module LauncherProviders
+CalcProvider 1.0 CalcProvider.qml
+WindowsProvider 1.0 WindowsProvider.qml
+ClipboardProvider 1.0 ClipboardProvider.qml
+WebProvider 1.0 WebProvider.qml
+FilesProvider 1.0 FilesProvider.qml
+RunnerProvider 1.0 RunnerProvider.qml
+SymbolsProvider 1.0 SymbolsProvider.qml
+TodoProvider 1.0 TodoProvider.qml
+BookmarksProvider 1.0 BookmarksProvider.qml
+ModesProvider 1.0 ModesProvider.qml
+MediaActions 1.0 MediaActions.qml
+OpenApps 1.0 OpenApps.qml
+SessionsProvider 1.0 SessionsProvider.qml

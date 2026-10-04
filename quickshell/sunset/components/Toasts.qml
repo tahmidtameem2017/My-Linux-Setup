@@ -13,10 +13,12 @@
 //   urgency_critical: bg #000000e6 fg #F7C7A1 frame #c30505e6 timeout 0 (sticky)
 //
 // Quickshell mapping:
-//   bg #000000e6 -> Qt "#e6000000" (Qt uses #AARRGGBB, dunst uses #RRGGBBAA)
-//   low/normal frame -> "#E85D2F" (unified per migration spec;
-//     dunst low was #3D2B24, now unified to accent)
-//   critical frame -> "#c30505", sticky (no auto-expire)
+//   bg #000000e6 -> Theme.bg at 0.9 alpha. NOT the literal "#e6000000": dunst's
+//     #000000e6 is "the background colour at 90%", and pinning black froze every
+//     toast to sunset under a wallpaper/curated palette.
+//   low/normal frame -> Theme.accent (dunst low was #3D2B24, now unified to accent)
+//   critical frame -> Theme.danger, sticky (no auto-expire)
+//   fg #F7C7A1 -> Theme.text, hint #7C8A6A -> Theme.muted
 //   Do NOT run dunst alongside quickshell (both claim org.freedesktop.Notifications).
 //
 // niri layer-rule doc (do NOT edit rules.kdl here — for the shell owner to add):
@@ -36,6 +38,7 @@ import Quickshell.Services.Notifications
 import Quickshell.Io
 import Quickshell.Widgets
 import QtQuick
+import qs.services
 
 Scope {
     id: root
@@ -49,6 +52,18 @@ Scope {
     readonly property int historyLimit: 20
     // Dunst `notification_limit 5`: max toasts on screen at once.
     readonly property int visibleLimit: 5
+
+    // Vertical space the toast stack occupies at the top-right (0 when idle).
+    // Other top-right surfaces (NowPlayingPopup) read this to slide below the
+    // stack instead of stacking on top of a toast — the toast window itself
+    // cannot tell them apart, so the offset is published from here instead.
+    readonly property real occupiedHeight: {
+        if (silent || server.trackedNotifications.values.length === 0)
+            return 0;
+        // 8px bottom margin + the 5px inter-toast gap, so a toast never
+        // touches the card below it.
+        return win.height + 13;
+    }
 
     function pushHistory(n: Notification): void {
         const entry = {
@@ -120,6 +135,44 @@ Scope {
             clip: true
             interactive: false
             model: server.trackedNotifications
+            // Micro-animation: slide-in from top-right (x +40->0, 200ms
+            // OutCubic) via add; auto-dismiss fade (opacity 1->0, 250ms)
+            // via remove + delegate Behavior. Max 5 on-screen, history 20,
+            // single NotificationServer owner — all untouched.
+            add: Transition {
+                ParallelAnimation {
+                    NumberAnimation {
+                        property: "x"
+                        from: 40
+                        to: 0
+                        duration: 200
+                        easing.type: Easing.OutCubic
+                    }
+                    NumberAnimation {
+                        property: "opacity"
+                        from: 0
+                        to: 1
+                        duration: 200
+                        easing.type: Easing.OutCubic
+                    }
+                }
+            }
+            displaced: Transition {
+                NumberAnimation {
+                    properties: "y"
+                    duration: 200
+                    easing.type: Easing.OutCubic
+                }
+            }
+            remove: Transition {
+                NumberAnimation {
+                    property: "opacity"
+                    from: 1
+                    to: 0
+                    duration: 250
+                    easing.type: Easing.OutCubic
+                }
+            }
             delegate: Rectangle {
                 id: toast
                 required property Notification modelData
@@ -128,10 +181,18 @@ Scope {
                 // Dynamic height (dunst height 0..300), sharp corners (taste.md).
                 height: Math.min(bodyCol.implicitHeight + 16, 300)
                 radius: 0
-                color: "#e6000000" // dunst #000000e6
+                color: Theme.withAlpha(Theme.bg, 0.9) // dunst #000000e6 = bg at 90%
                 border.width: 2 // dunst frame_width
-                border.color: toast.modelData.urgency === NotificationUrgency.Critical ? "#c30505" : "#E85D2F"
+                border.color: toast.isCritical ? Theme.danger : Theme.accent
                 clip: true
+                // Remove Transition handles the fade (250ms); no delegate
+                // Behavior (double fade = 2x frames on weak iGPU).
+                opacity: 1
+                Behavior on color {
+                    ColorAnimation {
+                        duration: 120
+                    }
+                }
 
                 readonly property bool isCritical: toast.modelData.urgency === NotificationUrgency.Critical
                 // dunst timeouts: 10s low/normal, 0 (sticky) critical.
@@ -180,7 +241,7 @@ Scope {
                             font.family: "JetBrainsMono Nerd Font"
                             font.pointSize: 11
                             font.bold: true
-                            color: "#F7C7A1"
+                            color: Theme.text
                             elide: Text.ElideMiddle
                             maximumLineCount: 2
                             wrapMode: Text.Wrap
@@ -191,7 +252,7 @@ Scope {
                             text: toast.modelData.body
                             font.family: "JetBrainsMono Nerd Font"
                             font.pointSize: 11
-                            color: "#F7C7A1"
+                            color: Theme.text
                             opacity: 0.9
                             elide: Text.ElideMiddle
                             maximumLineCount: 6
@@ -204,7 +265,7 @@ Scope {
                             text: "[A] " + toast.modelData.actions.length + " action(s) — middle-click to run"
                             font.family: "JetBrainsMono Nerd Font"
                             font.pointSize: 9
-                            color: "#7C8A6A"
+                            color: Theme.muted
                             elide: Text.ElideRight
                             width: parent.width
                         }

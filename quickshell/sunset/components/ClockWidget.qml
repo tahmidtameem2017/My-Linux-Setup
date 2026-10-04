@@ -1,8 +1,9 @@
 // ClockWidget.qml — HH:MM clock (waybar clock format {:%H:%M}).
 // Click toggles the NATIVE calendar popup via IPC:
 //   qs -c sunset ipc call calendar toggle   (no calendar.sh / Brave HTML)
-// waybar parity: peach text (root.cText), orange hover (root.cAccentHover),
-// section-box look (root.cPanel + root.cBorder, sharp, no blur).
+// waybar parity: peach text (root.cText), orange hover (root.cAccentHover).
+// Flat idle (transparent, no border); hover is a faint row wash. Sharp,
+// no blur, no scale (perf: re-raster cost on weak iGPUs).
 
 import QtQuick
 import QtQuick.Layouts
@@ -27,10 +28,17 @@ Rectangle {
     implicitWidth: clockLabel.implicitWidth + 24
     implicitHeight: 24
     radius: 0
-    color: root.cPanel
-    border.width: 1
-    border.color: clockArea.containsMouse ? root.cBorderStrong : root.cBorder
+    // Flat idle (transparent, no border); hover is a faint row wash only.
+    color: clockArea.containsMouse ? root.cRow : "transparent"
+    border.width: 0
     Layout.alignment: Qt.AlignVCenter
+
+    Behavior on color {
+        ColorAnimation {
+            duration: Theme.animHover
+            easing.type: Easing.OutCubic
+        }
+    }
 
     SystemClock {
         id: sysClock
@@ -45,6 +53,13 @@ Rectangle {
         font.pointSize: 11
         font.bold: true
         color: clockArea.containsMouse ? root.cAccentHover : root.cText
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.animHover
+                easing.type: Easing.OutCubic
+            }
+        }
     }
 
     MouseArea {

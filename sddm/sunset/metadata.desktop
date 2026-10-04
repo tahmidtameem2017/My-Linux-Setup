@@ -1,0 +1,15 @@
+[SddmGreeterTheme]
+Name=sunset
+Description=Sunset Orange AMOLED — black/orange sharp theme for niri-setup (JetBrainsMono, #000000/#E85D2F)
+Author=niri-setup
+Copyright=(c) 2026 niri-setup
+License=MIT
+Type=sddm-theme
+Version=1.0
+Website=https://github.com/acaibowlz/niri-setup
+Screenshot=screenshot.png
+MainScript=Main.qml
+ConfigFile=theme.conf
+TranslationsDirectory=translations
+Theme-Id=sunset
+Theme-API=2.0

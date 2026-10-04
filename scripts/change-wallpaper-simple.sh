@@ -1,29 +1,71 @@
-#!/bin/bash
-# Simple wallpaper changer for waybar
+#!/usr/bin/env bash
+# change-wallpaper-simple.sh [next|prev|random|<path>]
+#
+# Picks a wallpaper from the library and hands it to scripts/wallpaper.sh.
+#
+# This used to apply the change itself: `cp` into wallpapers/, a *second* magick
+# decode just to sample the canvas colour, then `pkill swaybg; swaybg &`. That
+# was three problems wearing a trenchcoat:
+#
+#   * it never ran scripts/wallust-theme.sh, so "Auto: follow wallpaper" did
+#     nothing when you switched wallpaper from the menu — the palette you see
+#     was still the one extracted from the *previous* wallpaper;
+#   * it skipped the downscale, so a 4K wallpaper was copied in full, and the
+#     extra decode made a change cost roughly twice what wallpaper.sh costs;
+#   * it killed and respawned swaybg behind wallpaper.sh's back, so the
+#     fingerprint/state files wallpaper.sh owns stopped describing reality and
+#     the next legitimate change could not tell what was already applied.
+#
+# So this file now only does the one thing it is actually good at — walking the
+# sorted library to find next/previous/random — and delegates the applying.
+# wallpaper.sh owns: downscale, one magick pass that writes the workspace image
+# AND samples the canvas colour, the fingerprint no-op check, swaybg lifecycle,
+# the niri KDL rewrite, and the wallust re-theme.
 
-wallpaper_dir="$HOME/Pictures/Wallpapers"
-workspace_dir="/home/me/niri-setup/wallpapers"
-state_file="/home/me/niri-setup/.state/current_wallpaper"
+set -uo pipefail
 
-# Get list of wallpapers
-if [ ! -d "$wallpaper_dir" ]; then
-    exit 1
+NIKI_HOME="${NIRI_SETUP_HOME:-$HOME/niri-setup}"
+WALLPAPER_DIR="${WALL_DIR:-$HOME/Pictures/Wallpapers}"
+WALLPAPER_SH="$NIKI_HOME/scripts/wallpaper.sh"
+STATE_FILE="$NIKI_HOME/.state/current_wallpaper"
+
+verb="${1:-next}"
+
+# An explicit path is a legitimate call: pass it straight through.
+if [[ "$verb" == /* || "$verb" == *.jpg || "$verb" == *.jpeg || "$verb" == *.png \
+   || "$verb" == *.webp || "$verb" == *.avif ]]; then
+    exec "$WALLPAPER_SH" "$verb"
 fi
 
-mapfile -t wallpapers < <(find "$wallpaper_dir" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" -o -iname "*.avif" \) | sort)
+case "$verb" in
+    next|prev|previous|random) ;;
+    *) verb="next" ;;
+esac
+
+[[ -d "$WALLPAPER_DIR" ]] || {
+    echo "[ERROR] No wallpaper directory: $WALLPAPER_DIR" >&2
+    exit 1
+}
+[[ -x "$WALLPAPER_SH" ]] || {
+    echo "[ERROR] Missing $WALLPAPER_SH" >&2
+    exit 1
+}
+
+mapfile -t wallpapers < <(find "$WALLPAPER_DIR" -maxdepth 1 -type f \( \
+    -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o \
+    -iname "*.webp" -o -iname "*.avif" \) | sort)
 count=${#wallpapers[@]}
-
-if [ $count -eq 0 ]; then
+if [[ $count -eq 0 ]]; then
+    echo "[ERROR] No wallpapers in $WALLPAPER_DIR" >&2
     exit 1
 fi
 
-# Find current wallpaper index from state file
 current_index=-1
-if [ -f "$state_file" ]; then
-    current=$(cat "$state_file")
-    if [ -n "$current" ]; then
+if [[ -f "$STATE_FILE" ]]; then
+    current=$(cat "$STATE_FILE" 2>/dev/null || true)
+    if [[ -n "$current" ]]; then
         for i in "${!wallpapers[@]}"; do
-            if [ "${wallpapers[$i]}" = "$current" ]; then
+            if [[ "${wallpapers[$i]}" = "$current" ]]; then
                 current_index=$i
                 break
             fi
@@ -31,41 +73,11 @@ if [ -f "$state_file" ]; then
     fi
 fi
 
-case "$1" in
-    next)
-        new_index=$(( (current_index + 1) % count ))
-        ;;
-    prev)
-        new_index=$(( (current_index - 1 + count) % count ))
-        ;;
-    random)
-        new_index=$(( RANDOM % count ))
-        ;;
-    *)
-        new_index=$(( (current_index + 1) % count ))
-        ;;
+case "$verb" in
+    next)   new_index=$(( (current_index + 1) % count )) ;;
+    prev|previous) new_index=$(( (current_index - 1 + count) % count )) ;;
+    random) new_index=$(( RANDOM % count )) ;;
 esac
 
-new_wallpaper="${wallpapers[$new_index]}"
-
-if [ -f "$new_wallpaper" ]; then
-    ext="${new_wallpaper##*.}"
-    target="$workspace_dir/workspace.$ext"
-    
-    # Persist current wallpaper before changing
-    mkdir -p "$(dirname "$state_file")"
-    echo "$new_wallpaper" > "$state_file"
-    
-    # Copy to workspace location
-    cp "$new_wallpaper" "$target"
-    
-    # Get canvas color from wallpaper
-    canvas_color=$(magick "$target" -crop x1+0+0 -resize 1x1 txt:- 2>/dev/null | grep -oE '#[0-9A-Fa-f]{6}' | head -1)
-    canvas_color="${canvas_color:-#0b0b0c}"
-    
-    # Kill existing swaybg and start new one in background
-    pkill swaybg
-    sleep 0.2
-    swaybg -i "$target" -m fill -c "$canvas_color" &
-    disown
-fi
+# ShellCheck: the index is from RANDOM or a modulo over a non-empty array.
+exec "$WALLPAPER_SH" "${wallpapers[$new_index]}"

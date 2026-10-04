@@ -1,0 +1,23 @@
+{
+  "name": "entertainment",
+  "workspaces": [
+    {
+      "name": "watch",
+      "apps": [
+        "brave --new-window https://www.youtube.com"
+      ]
+    },
+    {
+      "name": "files",
+      "apps": [
+        "nautilus"
+      ]
+    },
+    {
+      "name": "terminal",
+      "apps": [
+        "alacritty --config-file /home/me/niri-setup/alacritty/default.toml"
+      ]
+    }
+  ]
+}

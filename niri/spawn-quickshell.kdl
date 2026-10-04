@@ -3,12 +3,15 @@
 // All paths are absolute; NO $NIRICONF placeholder here (already resolved).
 // Switch live session via: scripts/switch-shell.sh [waybar|quickshell|status]
 // Roll back via: scripts/rollback-to-waybar.sh
+// QS_ICON_THEME=Colloid pins the Qt icon theme for quickshell (fuzzel parity:
+// fuzzel.ini icon-theme=Colloid). Without it Qt falls back to hicolor+pixmaps
+// and Launcher app icons miss Colloid art (verified via Quickshell.iconPath).
 spawn-sh-at-startup "udiskie"
 spawn-sh-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
 spawn-sh-at-startup "wl-paste --watch cliphist store"
 spawn-sh-at-startup "wl-paste --type image --watch /home/me/niri-setup/scripts/clip-path-watcher.py save"
-spawn-sh-at-startup "systemctl --user import-environment WAYLAND_DISPLAY DISPLAY"
-spawn-sh-at-startup "quickshell -c sunset"
+spawn-sh-at-startup "systemctl --user import-environment WAYLAND_DISPLAY DISPLAY LD_PRELOAD"
+spawn-sh-at-startup "QS_ICON_THEME=Colloid quickshell -c sunset"
 spawn-sh-at-startup "sleep 1; /home/me/niri-setup/scripts/swayidle.sh"
 spawn-sh-at-startup "sleep 2; sudo /home/me/niri-setup/scripts/cpu-permanent.sh"
 spawn-sh-at-startup "sleep 3; /home/me/niri-setup/scripts/auto-wallpaper.sh"

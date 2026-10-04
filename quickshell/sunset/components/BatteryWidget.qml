@@ -6,7 +6,8 @@
 //     alacritty --config-file /home/me/niri-setup/alacritty/float.toml -e btop
 // Text parity: "NN%" discharging, "+NN%" charging (format-charging).
 // Colors: root.cText, warning (<=30%) root.cAccentHover, critical (<=20%)
-// root.cAccent — the waybar warning/critical thresholds. Sharp, no blur.
+// root.cAccent — the waybar warning/critical thresholds. Sharp, no blur,
+// flat idle (transparent, no border); hover is a faint row wash. No scale.
 
 import QtQuick
 import QtQuick.Layouts
@@ -30,12 +31,19 @@ Rectangle {
     readonly property color cRow: Theme.row
     readonly property color cText: Theme.text
     radius: 0
-    color: root.cPanel
-    border.width: 1
-    border.color: batArea.containsMouse ? root.cBorderStrong : root.cBorder
+    // Flat idle (transparent, no border); hover is a faint row wash only.
+    color: batArea.containsMouse ? root.cRow : "transparent"
+    border.width: 0
     implicitWidth: batRow.implicitWidth + 24
     implicitHeight: 24
     Layout.alignment: Qt.AlignVCenter
+
+    Behavior on color {
+        ColorAnimation {
+            duration: Theme.animHover
+            easing.type: Easing.OutCubic
+        }
+    }
 
     visible: root.present
 
@@ -76,8 +84,18 @@ Rectangle {
             width: 14
             height: 14
             fillMode: Image.PreserveAspectFit
-            source: root.charging ? "file:///home/me/niri-setup/waybar/icons/battery-charging.svg" : "file:///home/me/niri-setup/waybar/icons/battery.svg"
+            // Themed set (Theme.iconDir): the bolt already carries "charging" as
+            // a shape, so both states take the same neutral weight. Reading
+            // waybar/icons/ here meant a frozen sunset-hued icon next to themed
+            // neighbours.
+            source: "file://" + Theme.iconDir + (root.charging ? "battery-charging.svg" : "battery.svg")
             opacity: batArea.containsMouse ? 0.65 : 1.0
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.animFast
+                }
+            }
         }
 
         Text {
@@ -86,6 +104,13 @@ Rectangle {
             font.family: "JetBrainsMono Nerd Font"
             font.pointSize: 10
             color: root.pct <= 20 ? root.cAccent : (root.pct <= 30 || batArea.containsMouse ? root.cAccentHover : root.cText)
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: Theme.animHover
+                    easing.type: Easing.OutCubic
+                }
+            }
         }
     }
 

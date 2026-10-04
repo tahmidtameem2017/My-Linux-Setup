@@ -48,19 +48,24 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import qs.services
 
 Scope {
     id: root
 
-    // ---- theme (taste.md Sunset Orange AMOLED + fuzzel clipboard.ini) ----
-    readonly property color bg: "#f2000000" // fuzzel background #000000f2
-    readonly property color textCol: "#fff7c7a1" // fuzzel text #f7c7a1ff
-    readonly property color accent: "#ffe85d2f" // fuzzel selection #e85d2fff
-    readonly property color accentHover: "#ffff8b4a" // fuzzel match #ff8b4aff
-    readonly property color muted: "#aa7c8a6a" // fuzzel placeholder #7c8a6aaa
-    readonly property color selText: "#ff000000" // fuzzel selection-text
+    // ---- theme (taste.md tokens; alphas are the fuzzel clipboard.ini parity) ----
+    // Same treatment as Launcher.qml: the fuzzel hexes are alphas, the colours
+    // are Theme tokens, so a palette switch repaints this popup too.
+    readonly property color bg: Theme.withAlpha(Theme.bg, 0.95) // fuzzel background alpha f2
+    readonly property color textCol: Theme.text // fuzzel text #f7c7a1ff
+    readonly property color accent: Theme.accent // fuzzel selection #e85d2fff
+    readonly property color accentHover: Theme.accentHover // fuzzel match #ff8b4aff
+    readonly property color muted: Theme.withAlpha(Theme.muted, 0.67) // fuzzel placeholder alpha aa
+    readonly property color selText: Theme.onAccent // fuzzel selection-text, measured not assumed
+    readonly property color rowCol: Theme.row
+    readonly property color borderStrong: Theme.borderStrong
     readonly property string fontFamily: "JetBrainsMono Nerd Font"
-    readonly property int menuWidth: 860 // fuzzel clipboard width=60 (wider)
+    readonly property int menuWidth: 980
     readonly property int maxRows: 12 // fuzzel lines=12
     readonly property int rowHeight: 32 // fuzzel line-height=32
 
@@ -72,6 +77,10 @@ Scope {
 
     property bool isOpen: false
     property string query: ""
+    // Mouse must not vote until the user actually moves it (Launcher
+    // hoverArmed parity): on open the highlight stays on row 0 even if
+    // the cursor rests lower over the list.
+    property bool hoverArmed: false
     // All entries: { cid, preview, kind: "img"|"txt" } (newest first).
     property var entries: []
     // Filtered view over entries.
@@ -80,6 +89,7 @@ Scope {
     function open(): void {
         query = "";
         clipInput.text = "";
+        hoverArmed = false;
         isOpen = true;
         refresh();
         focusTimer.restart();
@@ -181,6 +191,26 @@ Scope {
             view = out;
         }
         clipList.currentIndex = view.length > 0 ? 0 : -1;
+        root.updatePreview();
+    }
+
+    // ---- preview pane state ----
+    property string previewText: ""
+    property string previewImage: "" // "file://...?g=N" or ""
+    property int previewGen: 0
+    property bool previewSawMarker: false
+    property bool previewIsImg: false
+
+    function updatePreview(): void {
+        previewText = "";
+        previewImage = "";
+        previewSawMarker = false;
+        previewIsImg = false;
+        if (clipList.currentIndex < 0 || clipList.currentIndex >= view.length)
+            return;
+        const row = view[clipList.currentIndex];
+        previewGen++;
+        previewProc.exec([root.repoHome + "/scripts/clipboard-preview.sh", row.cid, row.kind]);
     }
 
     function validCid(cid: string): bool {
@@ -237,6 +267,7 @@ Scope {
     }
 
     function moveSelection(delta: int): void {
+        hoverArmed = true;
         if (view.length === 0)
             return;
         let idx = clipList.currentIndex + delta;
@@ -246,6 +277,23 @@ Scope {
             idx = view.length - 1;
         clipList.currentIndex = idx;
         clipList.positionViewAtIndex(idx, ListView.Contain);
+    }
+
+    function goFirst(): void {
+        hoverArmed = true;
+        if (view.length === 0)
+            return;
+        clipList.currentIndex = 0;
+        clipList.positionViewAtIndex(0, ListView.Contain);
+    }
+
+    function goLast(): void {
+        hoverArmed = true;
+        if (view.length === 0)
+            return;
+        const i = view.length - 1;
+        clipList.currentIndex = i;
+        clipList.positionViewAtIndex(i, ListView.Contain);
     }
 
     Timer {
@@ -278,6 +326,23 @@ Scope {
         }
     }
 
+    Process {
+        id: previewProc
+        stdout: SplitParser {
+            onRead: (data) => {
+                if (!root.previewSawMarker) {
+                    root.previewSawMarker = true;
+                    if (data.indexOf("IMG ") === 0) {
+                        root.previewIsImg = true;
+                        root.previewImage = "file://" + data.slice(4) + "?g=" + root.previewGen;
+                    }
+                } else if (!root.previewIsImg) {
+                    root.previewText += (root.previewText === "" ? "" : "\n") + data;
+                }
+            }
+        }
+    }
+
     PanelWindow {
         id: win
         visible: root.isOpen
@@ -303,13 +368,50 @@ Scope {
             id: card
             anchors.centerIn: parent
             width: Math.min(root.menuWidth, parent.width - 48)
-            // Content-driven: input + list + empty-state + buttons.
+            // Content-driven: input + pane row + empty-state + buttons.
             // All terms are intrinsic (no parent-height cycle).
-            height: inputRow.height + clipList.height + emptyLabel.height + buttonRow.height + 56
+            height: inputRow.height + paneRow.height + emptyLabel.height + buttonRow.height + 56
             radius: 12 // fuzzel [border] radius (intentional taste.md exception)
             color: root.bg
             border.width: 2
             border.color: root.accent
+            // Micro-animation: subtle entrance (opacity 150ms OutCubic +
+            // scale 0.96->1 180ms OutBack overshoot 1.2 + y -6->0).
+            // Close stays instant (visible flips with isOpen, <200ms).
+            transformOrigin: Item.Center
+            scale: root.isOpen ? 1.0 : 0.96
+            opacity: root.isOpen ? 1 : 0
+            transform: Translate {
+                y: root.isOpen ? 0 : -6
+                Behavior on y {
+                    NumberAnimation {
+                        duration: 150
+                        easing.type: Easing.OutCubic
+                    }
+                }
+            }
+            Behavior on scale {
+                NumberAnimation {
+                    duration: 180
+                    easing.type: Easing.OutBack
+                    easing.overshoot: 1.2
+                }
+            }
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 150
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            // Swallow clicks on the card background so the window-level
+            // MouseArea below doesn't close the popup; also re-focus the
+            // search input so arrow keys keep navigating after such a click.
+            MouseArea {
+                anchors.fill: parent
+                onPressed: clipInput.forceActiveFocus()
+                onClicked: clipInput.forceActiveFocus()
+            }
 
             Column {
                 anchors.fill: parent
@@ -361,13 +463,14 @@ Scope {
                                 root.refilter();
                             }
                             Keys.onPressed: (event) => {
+                                const ctrl = (event.modifiers & Qt.ControlModifier) !== 0;
                                 if (event.key === Qt.Key_Escape) {
                                     event.accepted = true;
                                     root.close();
-                                } else if (event.key === Qt.Key_Up) {
+                                } else if (event.key === Qt.Key_Up || (ctrl && (event.key === Qt.Key_K || event.key === Qt.Key_P))) {
                                     event.accepted = true;
                                     root.moveSelection(-1);
-                                } else if (event.key === Qt.Key_Down) {
+                                } else if (event.key === Qt.Key_Down || (ctrl && (event.key === Qt.Key_J || event.key === Qt.Key_N))) {
                                     event.accepted = true;
                                     root.moveSelection(1);
                                 } else if (event.key === Qt.Key_PageUp) {
@@ -376,6 +479,12 @@ Scope {
                                 } else if (event.key === Qt.Key_PageDown) {
                                     event.accepted = true;
                                     root.moveSelection(10);
+                                } else if (event.key === Qt.Key_Home) {
+                                    event.accepted = true;
+                                    root.goFirst();
+                                } else if (event.key === Qt.Key_End) {
+                                    event.accepted = true;
+                                    root.goLast();
                                 } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                                     event.accepted = true;
                                     root.restoreCurrent();
@@ -383,6 +492,16 @@ Scope {
                                     event.accepted = true;
                                     root.deleteCurrent();
                                 }
+                            }
+                            // Tab cycles input <-> list (focus trap); plain
+                            // j/k still type (Ctrl+J/K navigate, above).
+                            Keys.onTabPressed: (event) => {
+                                event.accepted = true;
+                                clipList.forceActiveFocus();
+                            }
+                            Keys.onBacktabPressed: (event) => {
+                                event.accepted = true;
+                                clipList.forceActiveFocus();
                             }
                         }
                     }
@@ -397,77 +516,182 @@ Scope {
                     }
                 }
 
-                ListView {
-                    id: clipList
+                Row {
+                    id: paneRow
                     width: parent.width
+                    spacing: 8
                     height: root.view.length > 0 ? Math.min(root.view.length, root.maxRows) * root.rowHeight : 0
-                    clip: true
-                    model: root.view
-                    keyNavigationWraps: true
-                    Keys.onPressed: (event) => {
-                        if (event.key === Qt.Key_Escape) {
+
+                    ListView {
+                        id: clipList
+                        width: parent.width * 0.58 - 4
+                        height: parent.height
+                        clip: true
+                        model: root.view
+                        keyNavigationWraps: true
+                        onCurrentIndexChanged: root.updatePreview()
+                        Keys.onPressed: (event) => {
+                            const ctrl = (event.modifiers & Qt.ControlModifier) !== 0;
+                            if (event.key === Qt.Key_Escape) {
+                                event.accepted = true;
+                                root.close();
+                            } else if (event.key === Qt.Key_Up || event.key === Qt.Key_K || (ctrl && event.key === Qt.Key_P)) {
+                                event.accepted = true;
+                                root.moveSelection(-1);
+                            } else if (event.key === Qt.Key_Down || event.key === Qt.Key_J || (ctrl && event.key === Qt.Key_N)) {
+                                event.accepted = true;
+                                root.moveSelection(1);
+                            } else if (event.key === Qt.Key_PageUp) {
+                                event.accepted = true;
+                                root.moveSelection(-10);
+                            } else if (event.key === Qt.Key_PageDown) {
+                                event.accepted = true;
+                                root.moveSelection(10);
+                            } else if (event.key === Qt.Key_Home) {
+                                event.accepted = true;
+                                root.goFirst();
+                            } else if (event.key === Qt.Key_End) {
+                                event.accepted = true;
+                                root.goLast();
+                            } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                                event.accepted = true;
+                                root.restoreCurrent();
+                            } else if (event.key === Qt.Key_Delete) {
+                                event.accepted = true;
+                                root.deleteCurrent();
+                            }
+                        }
+                        Keys.onTabPressed: (event) => {
                             event.accepted = true;
-                            root.close();
-                        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                            clipInput.forceActiveFocus();
+                        }
+                        Keys.onBacktabPressed: (event) => {
                             event.accepted = true;
-                            root.restoreCurrent();
-                        } else if (event.key === Qt.Key_Delete) {
-                            event.accepted = true;
-                            root.deleteCurrent();
+                            clipInput.forceActiveFocus();
+                        }
+
+                        delegate: Rectangle {
+                            id: row
+                            property var rowData: modelData
+                            width: clipList.width
+                            height: root.rowHeight
+                            radius: 6
+                            color: clipList.currentIndex === index ? root.accent : "transparent"
+                            transformOrigin: Item.Center
+                            scale: clipMouse.pressed ? 0.98 : 1.0
+                            Behavior on scale {
+                                NumberAnimation {
+                                    duration: 100
+                                    easing.type: Easing.OutQuad
+                                }
+                            }
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 120
+                                }
+                            }
+
+                            Row {
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                spacing: 8
+
+                                Text {
+                                    // Image entries (binary sidecars from
+                                    // clip-path-watcher.py) get an accent badge.
+                                    visible: row.rowData && row.rowData.kind === "img"
+                                    text: "[IMG]"
+                                    font.family: root.fontFamily
+                                    font.pointSize: 10
+                                    font.bold: true
+                                    color: clipList.currentIndex === index ? root.selText : root.accentHover
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                Text {
+                                    width: parent.width - (row.rowData && row.rowData.kind === "img" ? 52 : 0)
+                                    text: row.rowData ? row.rowData.preview : ""
+                                    font.family: root.fontFamily
+                                    font.pointSize: 11
+                                    color: clipList.currentIndex === index ? root.selText : root.textCol
+                                    elide: Text.ElideRight
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+
+                            MouseArea {
+                                id: clipMouse
+                                anchors.fill: parent
+                                // middle-click deletes the entry (middle-clear).
+                                acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+                                hoverEnabled: true
+                                onEntered: if (root.hoverArmed) clipList.currentIndex = index
+                                onPositionChanged: root.hoverArmed = true
+                                onPressed: root.hoverArmed = true
+                            onClicked: (mouse) => {
+                                root.hoverArmed = true;
+                                    clipList.currentIndex = index;
+                                    if (mouse.button === Qt.MiddleButton)
+                                        root.deleteEntry(row.rowData);
+                                    else
+                                        clipInput.forceActiveFocus();
+                                }
+                                onDoubleClicked: root.restoreCurrent()
+                            }
                         }
                     }
 
-                    delegate: Rectangle {
-                        id: row
-                        property var rowData: modelData
-                        width: clipList.width
-                        height: root.rowHeight
+                    Rectangle {
+                        id: previewPane
+                        width: parent.width * 0.42 - 4
+                        height: parent.height
                         radius: 6
-                        color: clipList.currentIndex === index ? root.accent : "transparent"
+                        color: root.rowCol
+                        border.width: 1
+                        border.color: root.borderStrong
 
-                        Row {
+                        Text {
+                            anchors.centerIn: parent
+                            visible: root.previewImage === "" && root.previewText === ""
+                            text: "Preview"
+                            font.family: root.fontFamily
+                            font.pointSize: 11
+                            color: root.muted
+                        }
+
+                        Flickable {
                             anchors.fill: parent
-                            anchors.leftMargin: 8
-                            anchors.rightMargin: 8
-                            spacing: 8
+                            anchors.margins: 8
+                            visible: root.previewImage === "" && root.previewText !== ""
+                            clip: true
+                            contentHeight: previewTextItem.height
 
                             Text {
-                                // Image entries (binary sidecars from
-                                // clip-path-watcher.py) get an accent badge.
-                                visible: row.rowData && row.rowData.kind === "img"
-                                text: "[IMG]"
+                                id: previewTextItem
+                                width: parent.width
+                                text: root.previewText
                                 font.family: root.fontFamily
                                 font.pointSize: 10
-                                font.bold: true
-                                color: clipList.currentIndex === index ? root.selText : root.accentHover
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-
-                            Text {
-                                width: parent.width - (row.rowData && row.rowData.kind === "img" ? 52 : 0)
-                                text: row.rowData ? row.rowData.preview : ""
-                                font.family: root.fontFamily
-                                font.pointSize: 11
-                                color: clipList.currentIndex === index ? root.selText : root.textCol
-                                elide: Text.ElideRight
-                                anchors.verticalCenter: parent.verticalCenter
+                                color: root.textCol
+                                wrapMode: Text.Wrap
                             }
                         }
 
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: 8
+                            visible: root.previewImage !== ""
+                            source: root.previewImage
+                            fillMode: Image.PreserveAspectFit
+                            asynchronous: true
+                            cache: false
+                        }
+
+                        // Clicking the preview pastes/restores the entry.
                         MouseArea {
                             anchors.fill: parent
-                            // middle-click deletes the entry (middle-clear).
-                            acceptedButtons: Qt.LeftButton | Qt.MiddleButton
-                            hoverEnabled: true
-                            onEntered: clipList.currentIndex = index
-                            onClicked: (mouse) => {
-                                clipList.currentIndex = index;
-                                if (mouse.button === Qt.MiddleButton)
-                                    root.deleteEntry(row.rowData);
-                                else
-                                    clipInput.forceActiveFocus();
-                            }
-                            onDoubleClicked: root.restoreCurrent()
+                            onClicked: root.restoreCurrent()
                         }
                     }
                 }
@@ -510,9 +734,22 @@ Scope {
                             width: (buttonRow.width - 16) / 3
                             height: 30
                             radius: 6
-                            color: btnArea.containsMouse ? root.accent : "#141010" // taste --row
+                            color: btnArea.containsMouse ? root.accent : root.rowCol // taste --row
                             border.width: 1
-                            border.color: "#3D2B24" // taste --border-strong
+                            border.color: root.borderStrong // taste --border-strong
+                            transformOrigin: Item.Center
+                            scale: btnArea.pressed ? 0.98 : 1.0
+                            Behavior on scale {
+                                NumberAnimation {
+                                    duration: 100
+                                    easing.type: Easing.OutQuad
+                                }
+                            }
+                            Behavior on color {
+                                ColorAnimation {
+                                    duration: 120
+                                }
+                            }
 
                             Text {
                                 anchors.centerIn: parent

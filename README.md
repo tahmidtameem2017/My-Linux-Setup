@@ -1,13 +1,13 @@
 - **Window Manager •** [niri](https://github.com/YaLTeR/niri)
 - **Launcher •** [Fuzzel](https://codeberg.org/dnkl/fuzzel)
-- **Panel •** [Waybar](https://github.com/Alexays/Waybar)
+- **Panel •** [Quickshell](https://quickshell.org/) (`quickshell -c sunset`, native QML bar + popups + toasts — Waybar kept as rollback gold only)
 - **Panel Font •** [Ubuntu Mono Nerd Font](https://archlinux.org/packages/extra/any/ttf-ubuntu-mono-nerd/) + [Noto Sans Mono CJK TC](https://archlinux.org/packages/extra/any/noto-fonts-cjk/)
-- **Notification •** [dunst](https://github.com/dunst-project/dunst)
+- **Notification •** Quickshell Toasts ([dunst](https://github.com/dunst-project/dunst) runs only in the legacy Waybar session)
 - **Clipboard Manager •** [cliphist](https://github.com/sentriz/cliphist)
-- **Wallpaper Engine •** [swaybg](https://github.com/swaywm/swaybg) + [swww](https://github.com/LGFae/swww) (for overview)
+- **Wallpaper Engine •** [swaybg](https://github.com/swaywm/swaybg) — one decode pass, tunable with `scripts/wallpaper-process.sh`
 - **Idle Daemon •** [swayidle](https://github.com/swaywm/swayidle)
 - **Lock Screen •** [swaylock](https://github.com/swaywm/swaylock)
-- **Logout Menu •** [wlogout](https://github.com/ArtsyMacaw/wlogout)
+- **Logout Menu •** Quickshell PowerMenu ([wlogout](https://github.com/ArtsyMacaw/wlogout) kept on disk for rollback only)
 - **Fonts •** [Ubuntu](https://archlinux.org/packages/extra/any/ttf-ubuntu-font-family/) + [Noto Sans/Serif CJK TC](https://archlinux.org/packages/extra/any/noto-fonts-cjk/)
 - **Theme •** [Colloid-gtk-theme](https://github.com/vinceliuice/Colloid-gtk-theme)
 - **Icons •** [Colloid-icon-theme](https://github.com/vinceliuice/Colloid-icon-theme)
@@ -39,8 +39,8 @@
 > [!NOTE]
 > This niri configuration is up to date to: [niri v25.11](https://github.com/YaLTeR/niri/releases/tag/v25.11)
 
-- Empower niri with waybar, fuzzel, dunst, swaylock, and more - A full experience!
-- Idle time and power profile picker available as waybar widgets and fuzzel menus
+- Empower niri with a native quickshell shell, fuzzel, swaylock, and more - A full experience!
+- Idle time and power profile picker available as quickshell widgets and fuzzel menus
 - A wallpaper switching script that creates blurred overview backdrop at the same time
 - A curated color palette smoothly applied across the setup
 - A clean and minimalistic UI you cannot resist to daily drive
@@ -73,7 +73,8 @@ For the dotfiles of the following programs, please refer to [my dotfiles repo](h
 | Keys                                                  | Action                    |
 | :---------------------------------------------------- | :------------------------ |
 | <kbd>Super</kbd> + <kbd>Enter</kbd>                   | Open terminal             |
-| <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>Enter</kbd> | Open launcher             |
+| <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>Enter</kbd> | Open launcher (quickshell: apps + controls) |
+| <kbd>Alt</kbd> + <kbd>Space</kbd>                       | Open launcher (quickshell: apps + controls) |
 | <kbd>Super</kbd> + <kbd>B</kbd>                       | Open firefox              |
 | <kbd>Super</kbd> + <kbd>E</kbd>                       | Open nautilus             |
 | <kbd>Super</kbd> + <kbd>L</kbd>                       | Launch lock screen        |
@@ -143,8 +144,20 @@ For the dotfiles of the following programs, please refer to [my dotfiles repo](h
 
 ## Screenshot
 
+The **screenshot menu** holds every capture tool in one place: region, window,
+screen, scrolling, recording and OCR.
+
 | Keys                                | Action               |
 | :---------------------------------- | :------------------- |
+| <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>5</kbd> | Open the screenshot menu |
+| <kbd>Super</kbd> + <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd> | Open the screenshot menu |
+| <kbd>Super</kbd> + <kbd>Ctrl</kbd> + <kbd>S</kbd> | Screenshot (flameshot) → action bar with OCR |
+| <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd> | Scrolling screenshot |
+| <kbd>Super</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd> | Toggle screen recording |
 | <kbd>Print</kbd>                    | Screenshot (region)  |
 | <kbd>Ctrl</kbd> + <kbd>Print</kbd>  | Screenshot (window)  |
 | <kbd>Shift</kbd> + <kbd>Print</kbd> | Screenshot (monitor) |
+
+It is also a launcher row (`Alt+Space` → `screenshot`) and a **Screenshot** row
+in both the desktop and the bar right-click menus. Inside the menu: `↑`/`↓` or
+`j`/`k` to move, `1`–`8` to jump, `Enter` to run, `Esc` to close.

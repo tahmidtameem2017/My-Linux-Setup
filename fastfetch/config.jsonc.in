@@ -1,0 +1,55 @@
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/master/doc/json_schema.json",
+  "logo": {
+    "type": "auto",
+    "padding": { "top": 1 },
+    "color": {
+      "1": "{{ACCENT}}",
+      "2": "{{ACCENT_HOVER}}",
+      "3": "{{MUTED}}",
+      "4": "{{TEXT}}",
+      "5": "{{ACCENT}}",
+      "6": "{{ACCENT_HOVER}}",
+      "7": "{{TEXT}}",
+      "8": "{{MUTED}}",
+      "9": "{{ACCENT}}"
+    }
+  },
+  "display": {
+    "separator": " 󰑃  ",
+    "color": {
+      "keys": "{{ACCENT}}",
+      "title": "{{TEXT}}",
+      "separator": "{{MUTED}}"
+    }
+  },
+  "modules": [
+    "break",
+    { "type": "os", "key": " DISTRO", "keyColor": "{{ACCENT}}" },
+    { "type": "kernel", "key": "│ ├", "keyColor": "{{ACCENT_HOVER}}" },
+    { "type": "packages", "key": "│ ├󰏖", "keyColor": "{{ACCENT_HOVER}}" },
+    { "type": "shell", "key": "│ └", "keyColor": "{{ACCENT_HOVER}}" },
+    { "type": "wm", "key": " DE/WM", "keyColor": "{{MUTED}}" },
+    { "type": "wmtheme", "key": "│ ├󰉼", "keyColor": "{{MUTED}}" },
+    { "type": "icons", "key": "│ ├󰀻", "keyColor": "{{MUTED}}" },
+    { "type": "cursor", "key": "│ ├", "keyColor": "{{MUTED}}" },
+    { "type": "terminalfont", "key": "│ ├", "keyColor": "{{MUTED}}" },
+    { "type": "terminal", "key": "│ └", "keyColor": "{{MUTED}}" },
+    { "type": "host", "key": "󰌢 SYSTEM", "keyColor": "{{ACCENT}}" },
+    { "type": "cpu", "key": "│ ├󰻠", "keyColor": "{{ACCENT_HOVER}}" },
+    { "type": "gpu", "key": "│ ├󰻑", "format": "{2}", "keyColor": "{{ACCENT_HOVER}}" },
+    { "type": "display", "key": "│ ├󰍹", "keyColor": "{{ACCENT_HOVER}}", "compactType": "original-with-refresh-rate" },
+    { "type": "memory", "key": "│ ├󰾆", "keyColor": "{{ACCENT_HOVER}}" },
+    { "type": "swap", "key": "│ ├󰓡", "keyColor": "{{ACCENT_HOVER}}" },
+    { "type": "uptime", "key": "│ ├󰅐", "keyColor": "{{ACCENT_HOVER}}" },
+    { "type": "display", "key": "│ └󰍹", "keyColor": "{{ACCENT_HOVER}}" },
+    { "type": "sound", "key": " AUDIO", "format": "{2}", "keyColor": "{{ACCENT}}" },
+    { "type": "player", "key": "│ ├󰥠", "keyColor": "{{ACCENT_HOVER}}" },
+    { "type": "media", "key": "│ └󰝚", "keyColor": "{{ACCENT_HOVER}}" },
+    {
+      "type": "custom",
+      "format": "\u001b[90m  \u001b[31m  \u001b[32m  \u001b[33m  \u001b[34m  \u001b[35m  \u001b[36m  \u001b[37m  \u001b[38m  \u001b[39m  \u001b[39m    \u001b[38m  \u001b[37m  \u001b[36m  \u001b[35m  \u001b[34m  \u001b[33m  \u001b[32m  \u001b[31m  \u001b[90m "
+    },
+    "break"
+  ]
+}

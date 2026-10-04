@@ -9,3 +9,14 @@ tex_paste.err
 .commandcode/
 .mimocode/
 waybar.bak/
+
+# Generated theme artefacts. These are rebuilt by
+# scripts/sync-external-theme.py whenever the palette changes (services/Theme.qml)
+# and by setup.sh on a fresh install. Edit the *.in templates instead:
+#   alacritty/default.toml.in, alacritty/float.toml.in
+# tmux/theme.conf, help/theme.css
+alacritty/default.toml
+alacritty/float.toml
+tmux/theme.conf
+help/theme.css
+quickshell/sunset/assets/icons/theme/

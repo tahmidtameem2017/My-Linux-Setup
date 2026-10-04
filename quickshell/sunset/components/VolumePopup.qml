@@ -22,8 +22,13 @@
 // Shell contract (landed sunset pattern, cf. ClipboardPopup/Launcher):
 //   - exclusiveKeyboardFocus == WlrLayershell.keyboardFocus Exclusive.
 //   - Esc/M/arrows; outside-click closes; Bar re-click toggles via IPC.
-//   - Card width 400 (old 400x440 window); height is content-driven,
-//     sink list scrolls past ~2 rows (old page scrolled extra sinks).
+//   - DOCKED TOP-RIGHT under the bar (2026-10-03) with the Bluetooth and
+//     Wi-Fi cards, not centered: the card belongs to the corner whose bar
+//     widget opened it, and the top-right cluster is where the eye already
+//     goes for hardware state. `toastOffset` (shell.qml wires
+//     `toasts.occupiedHeight`) keeps it clear of a toast stack.
+//   - Card width 340 (the 400 of the old Brave window is gone with the dock);
+//     height is content-driven, sink list scrolls past ~2 rows.
 //   - niri layer-rule doc (shell owner adds, do NOT edit rules.kdl here):
 //       layer-rule { match namespace="sunset-volume" }
 //     Verify: `niri msg layers`
@@ -55,12 +60,26 @@ Scope {
     readonly property color cText: Theme.text
 
     property bool isOpen: false
+    // Offset from the toast stack (shell.qml wires `toasts.occupiedHeight`).
+    property real toastOffset: 0
+    // Bar height, from Bar.qml (shell.qml wires `bar.implicitHeight`). The
+    // card is anchored to the SCREEN top, so without this it slides under the
+    // bar and loses its own header whenever no toast is up.
+    property int topInset: 0
     // Task term "exclusiveKeyboardFocus" == the Exclusive layer-shell
     // keyboard focus set on the PanelWindow below.
     readonly property bool exclusiveKeyboardFocus: true
+    // Keyboard selection over the sink list (-1 = none).
+    property int sinkCurrent: -1
+    // Mouse must not vote until the user actually moves it (Launcher
+    // hoverArmed parity): hover only takes selection once armed.
+    property bool hoverArmed: false
 
     function open(): void {
+        hoverArmed = false;
         isOpen = true;
+        sinkCurrent = (sinkList && sinkList.length > 0) ? 0 : -1;
+        focusTimer.restart();
     }
     function close(): void {
         isOpen = false;
@@ -87,12 +106,110 @@ Scope {
     }
     property var sinkList: filterSinks()
 
+    // Audio sources (mics). Mirrors the sink filter; devices are
+    // media.class "Audio/Source" (+ capture streams for parity with how
+    // output streams like mpv show up as sinks).
+    function filterSources(): var {
+        const cnt = Pipewire.nodes.count;
+        const vals = Pipewire.nodes.values;
+        const out = [];
+        for (let i = 0; i < vals.length; ++i) {
+            const n = vals[i];
+            if (!n || !n.audio || !n.properties)
+                continue;
+            const mc = n.properties["media.class"];
+            if (mc === "Audio/Source" || mc === "Stream/Input/Audio")
+                out.push(n);
+        }
+        return out;
+    }
+    property var sourceList: filterSources()
+
+    function sourceIcon(node): string {
+        if (!node || !node.audio)
+            return "󰍭";
+        return node.audio.muted ? "󰍭" : "󰍬";
+    }
+
     function volIcon(volume: int, muted: bool): string {
         if (muted || volume === 0)
             return "󰝟";
         if (volume < 50)
             return "󰕿";
         return "󰕾";
+    }
+
+    // Re-assert keyboard focus on open (Launcher/WallpaperMenu parity).
+    Timer {
+        id: focusTimer
+        interval: 60
+        running: false
+        repeat: false
+        onTriggered: keys.forceActiveFocus()
+    }
+
+    // Point keyboard selection at the default sink (else first row).
+    function refreshSinkCurrent(): void {
+        const list = root.sinkList;
+        if (!list || list.length === 0) {
+            sinkCurrent = -1;
+            return;
+        }
+        let idx = 0;
+        const d = Pipewire.defaultAudioSink;
+        if (d) {
+            for (let i = 0; i < list.length; ++i) {
+                if (list[i] === d) {
+                    idx = i;
+                    break;
+                }
+            }
+        }
+        sinkCurrent = idx;
+    }
+
+    function moveSink(delta: int): void {
+        hoverArmed = true;
+        const n = root.sinkList ? root.sinkList.length : 0;
+        if (n === 0) {
+            sinkCurrent = -1;
+            return;
+        }
+        let idx = sinkCurrent + delta;
+        if (idx < 0)
+            idx = 0;
+        if (idx >= n)
+            idx = n - 1;
+        sinkCurrent = idx;
+    }
+
+    function goSinkFirst(): void {
+        hoverArmed = true;
+        sinkCurrent = (root.sinkList && root.sinkList.length > 0) ? 0 : -1;
+    }
+
+    function goSinkLast(): void {
+        hoverArmed = true;
+        sinkCurrent = (root.sinkList && root.sinkList.length > 0) ? root.sinkList.length - 1 : -1;
+    }
+
+    function selectSinkCurrent(): void {
+        if (sinkCurrent < 0 || !root.sinkList || sinkCurrent >= root.sinkList.length)
+            return;
+        const node = root.sinkList[sinkCurrent];
+        if (node)
+            Pipewire.preferredDefaultAudioSink = node;
+    }
+
+    onSinkListChanged: {
+        // Clamp keyboard selection when devices appear/disappear.
+        const n = sinkList ? sinkList.length : 0;
+        if (n === 0)
+            sinkCurrent = -1;
+        else if (sinkCurrent < 0)
+            sinkCurrent = 0;
+        else if (sinkCurrent >= n)
+            sinkCurrent = n - 1;
     }
 
     PanelWindow {
@@ -117,9 +234,16 @@ Scope {
 
         Rectangle {
             id: card
-            anchors.centerIn: parent
-            // Old Brave window was 400 wide; height is content-driven.
-            implicitWidth: Math.min(400, parent.width - 32)
+            // Pinned top-right under the bar; slides below toasts.
+            anchors {
+                top: parent.top
+                right: parent.right
+                topMargin: root.topInset + root.toastOffset
+                rightMargin: 0
+            }
+            // Same width as the Bluetooth/Wi-Fi cards; height is
+            // content-driven.
+            implicitWidth: Math.min(340, parent.width - 24)
             implicitHeight: Math.min(col.implicitHeight + 32, parent.height - 48)
             width: implicitWidth
             height: implicitHeight
@@ -127,6 +251,34 @@ Scope {
             border.width: 1
             border.color: root.cBorderStrong
             radius: root.cRadius
+            // Micro-animation: subtle entrance (opacity 150ms OutCubic +
+            // scale 0.96->1 180ms OutBack overshoot 1.2 + y -6->0).
+            // Close stays instant (visible flips with isOpen, <200ms).
+            transformOrigin: Item.TopRight
+            scale: root.isOpen ? 1.0 : 0.96
+            opacity: root.isOpen ? 1 : 0
+            transform: Translate {
+                y: root.isOpen ? 0 : -6
+                Behavior on y {
+                    NumberAnimation {
+                        duration: 150
+                        easing.type: Easing.OutCubic
+                    }
+                }
+            }
+            Behavior on scale {
+                NumberAnimation {
+                    duration: 180
+                    easing.type: Easing.OutBack
+                    easing.overshoot: 1.2
+                }
+            }
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 150
+                    easing.type: Easing.OutCubic
+                }
+            }
 
             FocusScope {
                 id: keys
@@ -134,17 +286,45 @@ Scope {
                 focus: true
 
                 Keys.onEscapePressed: root.close()
+                // Full keyboard nav: Up/Down/Left/Right + j/k adjust ±5,
+                // PageUp/PageDown ±10, Home/End 0/100, M/Space mute,
+                // Tab cycles sinks, Enter selects the highlighted sink.
                 Keys.onPressed: event => {
-                    if (event.key === Qt.Key_M) {
+                    if (event.key === Qt.Key_M || event.key === Qt.Key_Space) {
                         AudioService.toggleMute();
                         event.accepted = true;
-                    } else if (event.key === Qt.Key_Up) {
-                        AudioService.increase(5);
+                    } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Right || event.key === Qt.Key_K) {
+                        AudioService.increase(2);
                         event.accepted = true;
-                    } else if (event.key === Qt.Key_Down) {
-                        AudioService.decrease(5);
+                    } else if (event.key === Qt.Key_Down || event.key === Qt.Key_Left || event.key === Qt.Key_J) {
+                        AudioService.decrease(2);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_PageUp) {
+                        AudioService.increase(10);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_PageDown) {
+                        AudioService.decrease(10);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_Home) {
+                        AudioService.setVolumePercent(0);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_End) {
+                        AudioService.setVolumePercent(100);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                        root.selectSinkCurrent();
                         event.accepted = true;
                     }
+                }
+                // Tab cycles the sink list (kept out of onPressed so Qt
+                // focus navigation never steals it).
+                Keys.onTabPressed: event => {
+                    event.accepted = true;
+                    root.moveSink(1);
+                }
+                Keys.onBacktabPressed: event => {
+                    event.accepted = true;
+                    root.moveSink(-1);
                 }
 
                 Column {
@@ -315,20 +495,40 @@ Scope {
                                 delegate: Rectangle {
                                     property var node: modelData
                                     readonly property bool isDefault: node === Pipewire.defaultAudioSink
+                                    readonly property bool isCurrent: index === root.sinkCurrent
                                     width: sinkCol.width
                                     height: 62
                                     color: root.cRow
                                     border.width: 1
-                                    border.color: isDefault ? root.cAccent : root.cBorder
+                                    border.color: isDefault ? root.cAccent : (isCurrent ? root.cAccentHover : root.cBorder)
                                     radius: root.cRadius
+                                    transformOrigin: Item.Center
+                                    scale: sinkMouse.pressed ? 0.98 : 1.0
+                                    Behavior on scale {
+                                        NumberAnimation {
+                                            duration: 100
+                                            easing.type: Easing.OutQuad
+                                        }
+                                    }
+                                    Behavior on color {
+                                        ColorAnimation {
+                                            duration: 120
+                                        }
+                                    }
 
                                     PwObjectTracker {
                                         objects: node ? [node] : []
                                     }
 
                                     MouseArea {
+                                        id: sinkMouse
                                         anchors.fill: parent
+                                        hoverEnabled: true
+                                        onEntered: if (root.hoverArmed) root.sinkCurrent = index
+                                        onPositionChanged: root.hoverArmed = true
+                                        onPressed: root.hoverArmed = true
                                         onClicked: {
+                                            root.sinkCurrent = index;
                                             if (node)
                                                 Pipewire.preferredDefaultAudioSink = node;
                                         }
@@ -390,6 +590,159 @@ Scope {
                                         }
                                     }
                                 }
+                    }
+                }
+            }
+
+                    // ---- inputs ----
+                    Text {
+                        width: parent.width
+                        text: "INPUTS"
+                        font.family: root.cFont
+                        font.pixelSize: 11
+                        font.bold: true
+                        color: root.cAccent
+                        topPadding: 14
+                        bottomPadding: 6
+                    }
+                    Flickable {
+                        id: sourceFlick
+                        width: parent.width
+                        height: Math.min(sourceCol.implicitHeight, 148)
+                        readonly property real gutter: 12
+                        contentWidth: width - gutter
+                        contentHeight: sourceCol.implicitHeight
+                        clip: true
+                        ScrollBar.vertical: ScrollBar {
+                            policy: sourceCol.implicitHeight > 148 ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
+                            contentItem: Rectangle {
+                                implicitWidth: 8
+                                color: root.cBorderStrong
+                                radius: root.cRadius
+                            }
+                        }
+                        Column {
+                            id: sourceCol
+                            width: sourceFlick.width - sourceFlick.gutter
+                            spacing: 6
+                            Repeater {
+                                model: root.sourceList
+                                delegate: Rectangle {
+                                    property var node: modelData
+                                    readonly property bool isDefault: node === Pipewire.defaultAudioSource
+                                    width: sourceCol.width
+                                    height: 62
+                                    color: root.cRow
+                                    border.width: 1
+                                    border.color: isDefault ? root.cAccent : root.cBorder
+                                    radius: root.cRadius
+                                    transformOrigin: Item.Center
+                                    scale: srcMouse.pressed ? 0.98 : 1.0
+                                    Behavior on scale {
+                                        NumberAnimation {
+                                            duration: 100
+                                            easing.type: Easing.OutQuad
+                                        }
+                                    }
+                                    Behavior on color {
+                                        ColorAnimation {
+                                            duration: 120
+                                        }
+                                    }
+
+                                    PwObjectTracker {
+                                        objects: node ? [node] : []
+                                    }
+
+                                    MouseArea {
+                                        id: srcMouse
+                                        anchors.fill: parent
+                                        onClicked: {
+                                            if (node)
+                                                Pipewire.preferredDefaultAudioSource = node;
+                                        }
+                                    }
+                                    Row {
+                                        anchors.fill: parent
+                                        anchors.margins: 10
+                                        anchors.topMargin: 6
+                                        anchors.bottomMargin: 6
+                                        spacing: 8
+                                        Rectangle {
+                                            width: 8
+                                            height: 8
+                                            radius: 4
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            color: isDefault ? root.cAccent : root.cDim
+                                        }
+                                        Column {
+                                            width: parent.width - 16 - 44 - 16 - 24
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            spacing: 4
+                                            Text {
+                                                width: parent.width
+                                                elide: Text.ElideRight
+                                                text: (isDefault ? "\u2713 " : "") + (node ? (node.description || node.name) : "")
+                                                    + (node && node.audio && node.audio.muted ? "  ·  off" : "")
+                                                font.family: root.cFont
+                                                font.pixelSize: 12
+                                                color: (node && node.audio && node.audio.muted) ? root.cMuted : root.cText
+                                            }
+                                            VolSlider {
+                                                cAccent: root.cAccent
+                                                cAccentHover: root.cAccentHover
+                                                cBg: root.cBg
+                                                cBorder: root.cBorder
+                                                id: srcSlider
+                                                width: parent.width
+                                                compact: true
+                                                Binding {
+                                                    target: srcSlider
+                                                    property: "value"
+                                                    value: (node && node.audio) ? Math.round(Math.min(1, node.audio.volume) * 100) : 0
+                                                    when: !srcSlider.pressed
+                                                }
+                                                onMovedTo: v => {
+                                                    if (node && node.audio)
+                                                        node.audio.volume = Math.max(0, Math.min(1, v / 100));
+                                                }
+                                            }
+                                        }
+                                        // Tap the mic icon to mute/unmute this input.
+                                        Rectangle {
+                                            width: 24
+                                            height: 24
+                                            radius: 12
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            color: (node && node.audio && node.audio.muted) ? root.cAccent : "transparent"
+                                            border.width: 1
+                                            border.color: root.cBorderStrong
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: root.sourceIcon(node)
+                                                font.family: root.cFont
+                                                font.pixelSize: 12
+                                                color: (node && node.audio && node.audio.muted) ? root.cBg : root.cText
+                                            }
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                onClicked: {
+                                                    if (node && node.audio)
+                                                        node.audio.muted = !node.audio.muted;
+                                                }
+                                            }
+                                        }
+                                        Text {
+                                            width: 44
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            horizontalAlignment: Text.AlignRight
+                                            text: (node && node.audio) ? Math.round(Math.min(1, node.audio.volume) * 100) + "%" : "--"
+                                            font.family: root.cFont
+                                            font.pixelSize: 11
+                                            color: (node && node.audio && node.audio.muted) ? root.cDim : root.cMuted
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -416,7 +769,7 @@ Scope {
                     Text {
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
-                        text: "drag slider \u00B7 \u2191/\u2193 \u00B15 \u00B7 M mute \u00B7 Esc close"
+                        text: "\u2191\u2193\u2190\u2192 \u00B15 \u00B7 PgUp/Dn \u00B110 \u00B7 Tab sink \u00B7 Enter select \u00B7 M mute \u00B7 Esc close"
                         font.family: root.cFont
                         font.pixelSize: 10
                         color: root.cMuted
@@ -428,17 +781,17 @@ Scope {
 
         onVisibleChanged: {
             if (visible)
-                keys.forceActiveFocus();
+                focusTimer.restart();
         }
     }
 
     // Volume slider (Sunset track + accent fill + round thumb).
     component VolSlider: Slider {
         // injected props (inline component scope is isolated)
-        property color cAccent: "#E85D2F"
-        property color cAccentHover: "#FF8B4A"
-        property color cBg: "#000000"
-        property color cBorder: "#1a1210"
+        property color cAccent: root.cAccent
+        property color cAccentHover: root.cAccentHover
+        property color cBg: root.cBg
+        property color cBorder: root.cBorder
         id: sl
         property bool compact: false
         signal movedTo(real v)
@@ -476,13 +829,13 @@ Scope {
 
     component SunsetBtn: Rectangle {
         // injected props (inline component scope is isolated)
-        property color cAccent: "#E85D2F"
-        property color cAccentHover: "#FF8B4A"
-        property color cBorderStrong: "#3D2B24"
-        property string cFont: "JetBrainsMono Nerd Font"
+        property color cAccent: root.cAccent
+        property color cAccentHover: root.cAccentHover
+        property color cBorderStrong: root.cBorderStrong
+        property string cFont: root.cFont
         property int cRadius: 0
-        property color cRow: "#141010"
-        property color cText: "#F7C7A1"
+        property color cRow: root.cRow
+        property color cText: root.cText
         id: sBtn
         property string label: ""
         // Accent outline (e.g. muted-on) without filling.
@@ -496,6 +849,19 @@ Scope {
         border.width: 1
         border.color: hot ? cAccent : cBorderStrong
         radius: cRadius
+        transformOrigin: Item.Center
+        scale: sMouse.pressed ? 0.98 : 1.0
+        Behavior on scale {
+            NumberAnimation {
+                duration: 100
+                easing.type: Easing.OutQuad
+            }
+        }
+        Behavior on color {
+            ColorAnimation {
+                duration: 120
+            }
+        }
         Text {
             anchors.centerIn: parent
             text: sBtn.label
@@ -508,6 +874,7 @@ Scope {
             id: sHover
         }
         MouseArea {
+            id: sMouse
             anchors.fill: parent
             hoverEnabled: true
             onClicked: sBtn.clicked()
