@@ -19,12 +19,12 @@ layout {
     default-column-width { proportion 0.5; }
     focus-ring {
         width 3
-        active-gradient from="#7de8c6" to="#def9f0" angle=45
-        inactive-color "#636565"
+        active-gradient from="#dec271" to="#f0fbf9" angle=45
+        inactive-color "#706c77"
     }
     tab-indicator {
-        active-color "#7de8c6"
-        inactive-color "#636565"
+        active-color "#dec271"
+        inactive-color "#706c77"
     }
     border {
         off
@@ -35,5 +35,5 @@ layout {
         top 0
         bottom 0
     }
-    background-color "#000200"
+    background-color "#181322"
 }
