@@ -69,6 +69,150 @@ theming engine and ~80 helper scripts.
 
 ---
 
+## 💻 Built for Laptops
+
+This is an **opinionated laptop desktop**, inspired by
+[omarchy](https://github.com/omarchy-dev/omarchy). It is tuned for a machine you
+carry around and use with your hands, not a tower you sit in front of.
+
+**Trackpad-first.** niri's compositor handles touchpad input natively through
+libinput — no helper daemon, no extra process. Touchpads are already enabled and
+tuned in `niri/input.kdl`:
+
+```kdl
+touchpad {
+    tap              # tap-to-click
+    natural-scroll   # inverted, like macOS
+    drag-lock        # keep holding a drag when your finger lifts briefly
+}
+```
+
+The mouse gets `natural-scroll` and a gentle `accel-speed 0.3`.
+
+Multi-finger gestures (three-finger workspace switch, pinch-to-zoom) are available
+via the [Gestures wiki](https://github.com/niri-wm/niri/wiki/Gestures) if you want
+them — this setup ships with the defaults, which already cover scroll, click, and
+drag.
+
+**One hand, one keyboard.** The whole shell is built around the keyboard: a
+launcher, 16 popups and every action on a shortcut, so you rarely need to reach for
+the trackpad twice.
+
+**Laptop-aware power.** `swayidle` locks and suspends on idle, with a configurable
+timeout (`scripts/swayidle.sh`). You can change it without touching code:
+
+```bash
+bash scripts/change-idle-time.sh     # 5 / 10 / 20 / 30 minutes, or infinity
+```
+
+> [!WARNING]
+> **This repo is tuned for a laptop with no battery** (a desktop-class machine or a
+> battery-less laptop), which is what it was developed on. Two consequences:
+>
+> - **No battery icon.** `BatteryWidget` reads UPower and **collapses itself
+>   automatically** when no battery is present — no config change needed. On a real
+>   laptop with a battery it simply appears.
+> - **The CPU governor is pinned to performance** (`scripts/cpu-permanent.sh`, 2.4 GHz
+>   minimum, bypasses battery throttling). That is correct for a mains-powered
+>   battery-less machine, but **on a laptop with a real battery it will drain it
+>   fast**. If you have a battery, **skip Phase 4 (privileged extras) in the install
+>   prompt** — or just don't let the agent install those two CPU rules.
+
+---
+
+## 🆓 Make It Yours
+
+**This setup is free to change, and you are encouraged to.** There is no "correct"
+configuration — it's the one I happened to land on after a lot of fiddling. Fork it,
+break it, rewrite it.
+
+**Nothing here is precious.** Every file is plain text in git: KDL for niri, QML for
+the shell, shell/Python for the scripts. Change what you don't like and keep going.
+
+### The five-minute customisation
+
+Most things need no editing at all — they're knobs:
+
+```bash
+# look at every wallpaper knob
+bash scripts/wallpaper-process.sh get
+
+# change some (validated as a set — one bad value changes nothing)
+bash scripts/wallpaper-process.sh setmany INTERVAL 30 DOWNSCALE 1920x1080
+
+# switch theme instantly, then make it stick
+qs -c sunset ipc call themes set nord
+
+# change your idle timeout
+bash scripts/change-idle-time.sh
+```
+
+### Where to edit what
+
+| To change… | Edit | Then |
+| :-- | :-- | :-- |
+| **Keybindings** | `niri/binds.kdl`, `niri/binds-quickshell.kdl` | `cp niri/*.kdl ~/.config/niri/ && niri validate && niri msg action load-config-file` |
+| **Colours / theme** | `quickshell/sunset/services/Theme.qml` — or use the editor (<kbd>Mod</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd>) | restart shell: <kbd>Mod</kbd>+<kbd>Shift</kbd>+<kbd>Q</kbd> |
+| **The bar layout** | `quickshell/sunset/components/Bar.qml` | restart shell |
+| **A popup's look** | the matching `quickshell/sunset/components/XPopup.qml` | restart shell |
+| **Wallpaper behaviour** | `scripts/wallpaper-process.sh` (`get`/`setmany`/`reset`) | takes effect immediately |
+| **Window rules** (opacity, floating, sizing) | `niri/rules.kdl` | `niri msg action load-config-file` |
+| **Screenshots folder** | `niri/misc.kdl` (`screenshot-path`) | `niri msg action load-config-file` |
+| **Touchpad behaviour** | `niri/input.kdl` | `niri msg action load-config-file` |
+| **Terminal look** | `alacritty/*.toml.in` — **not** the generated `.toml` | `python3 scripts/sync-external-theme.py` |
+| **tmux behaviour** | `tmux/tmux.conf` (colours are generated separately) | `tmux source-file ~/.config/tmux/tmux.conf` |
+
+> [!IMPORTANT]
+> **Never hardcode a hex colour in a QML component.** Every colour comes from
+> `Theme` (`services/Theme.qml`) so it follows the palette. A literal hex is the one
+> mistake that silently breaks theming — and a test enforces it.
+
+> [!TIP]
+> **After editing `niri/*.kdl` you must copy them to `~/.config/niri/`** — see the
+> install step above. Symlink per-file instead if you want the repo to stay live.
+
+### Ideas you could add
+
+The bar, launcher and popups are all QML with existing patterns to copy:
+
+- A **new popup** — copy an existing `components/XPopup.qml`, register it in
+  `shell.qml` (both a `LazyLoader` and an `IpcHandler`), then bind a key to
+  `qs -c sunset ipc call <target> toggle`.
+- **A new launcher row** — `components/launcher/providers/`.
+- **A new theme palette** — add an entry to `Theme.qml`; contrast floors are enforced
+  automatically.
+
+`AGENTS.md` documents the architecture in detail — read it before a big change.
+
+---
+
+## 🙌 Contributing
+
+**Contributions are very welcome.** If you've made changes you think improve this,
+please send them.
+
+**Good contributions are:**
+- A new palette, wallpaper source, launcher provider or popup
+- Bug fixes, especially on non-Arch distros or unusual hardware
+- Better defaults for other people's machines (touchpads, HiDPI, battery)
+- Documentation you had to write for yourself because it wasn't here
+- Cleanups — this is opinionated, so "I did it differently" is worth saying out loud
+
+**Please open an issue or a PR on
+[My-Linux-Setup](https://github.com/tahmidtameem2017/My-Linux-Setup).** If your change
+touches the theme, run the tests first:
+
+```bash
+python3 -m unittest discover -s scripts -p 'test_*.py'    # 168 tests, ~14s
+niri validate
+```
+
+**A note on scope:** this is a personal setup, not a distribution. Changes that make
+it more broadly useful (new hardware, other distros, accessibility) are the most
+welcome; changes that only suit one machine are fine too — just say who they're for.
+
+---
+
 ## 🖥️ Compatibility
 
 The desktop is **Wayland-only** and needs a modern GPU stack. It runs on **Arch Linux,
@@ -480,25 +624,37 @@ FIX 4 — enable the Quickshell keybinds.
       echo 'include "binds-quickshell.kdl"' >> ~/.config/niri/config.kdl
     niri validate
 
-PHASE 4 — PRIVILEGED EXTRAS (ask before each sudo; all are OPTIONAL)
-Offer these one at a time, explain the benefit, and let me decline:
+PHASE 4 — HARDWARE PROFILE + PRIVILEGED EXTRAS (ask before each sudo)
+FIRST, detect my hardware profile — this changes what you install:
+  ls /sys/class/power_supply/ 2>/dev/null | grep -i bat   # a battery?
+  upower -e 2>/dev/null | grep -i bat
+If a battery IS present, this is a laptop: SKIP step (b) below entirely (it pins
+the CPU to performance and would flatten the battery), and tell me I skipped it and
+why. Also mention that BatteryWidget in the bar appears automatically once a battery
+is detected, and needs no config change.
+Offer the rest one at a time, explaining the benefit, and let me decline:
   a) Login theme:  sudo ~/niri-setup/sddm/install.sh   (Sunset SDDM theme;
      preview first with: sddm-greeter --test-mode --theme ~/niri-setup/sddm/sunset)
-  b) CPU governor: the repo ships scripts/sudoers-cpu and scripts/50-cpu-freq.rules
-     but BOTH HARDCODE the username "me" and the path /home/me/niri-setup. Do NOT
-     install them as-is. Instead generate correct copies for MY username and path:
+  b) CPU governor — BATTERY-LESS MACHINES ONLY. The repo ships scripts/sudoers-cpu
+     and scripts/50-cpu-freq.rules but BOTH HARDCODE the username "me" and the path
+     /home/me/niri-setup. Do NOT install them as-is. Generate correct copies instead:
        sed "s/^me ALL/$(whoami) ALL/; s|/home/me/niri-setup|$HOME/niri-setup|g" \
          ~/niri-setup/scripts/sudoers-cpu > /tmp/cpu-freq
        (then: sudo install -m 440 /tmp/cpu-freq /etc/sudoers.d/cpu-freq
              sudo visudo -c  # must parse cleanly)
      Same substitution for scripts/50-cpu-freq.rules into
-     /etc/polkit-1/rules.d/50-cpu-freq.rules. ALWAYS run `sudo visudo -c`
-     afterwards — a malformed sudoers file can lock me out. If it does not parse,
-     remove the file immediately.
-     Warn me: cpu-permanent.sh pins every core to performance/2.4GHz, which drains
-     battery and generates heat. Only offer it on a desktop, never a laptop.
-     Note it is also Intel-cpufreq specific; on AMD or a machine without
-     /sys/.../cpufreq it silently does nothing.
+     /etc/polkit-1/rules.d/50-cpu-freq.rules. ALWAYS run `sudo visudo -c` afterwards —
+     a malformed sudoers file can lock me out. If it does not parse, remove it
+     immediately.
+     Explain: cpu-permanent.sh pins every core to performance/2.4GHz and bypasses
+     battery throttling. Correct for a mains-powered machine with no battery (which
+     is what this setup was built on); WRONG for a laptop with a real battery.
+     Also note it is Intel-cpufreq specific — on AMD, or any machine without
+     /sys/devices/system/cpu/cpu*/cpufreq, it silently does nothing.
+
+  c) Touchpad: confirm niri/input.kdl already enables tap, natural-scroll and
+     drag-lock. If I have a trackpad and want more, point me at the Gestures wiki
+     rather than guessing at gesture names.
 
 PHASE 5 — VERIFY (run each; report PASS/FAIL)
   niri validate                                  # expect "config is valid"
@@ -649,7 +805,7 @@ FIX 4 — enable the Quickshell keybinds.
       echo 'include "binds-quickshell.kdl"' >> ~/.config/niri/config.kdl
     niri validate
 
-PHASE 4 — FEDORA PATH FIX + PRIVILEGED EXTRAS
+PHASE 4 — HARDWARE PROFILE, POLKIT PATH FIX + PRIVILEGED EXTRAS
 FIX 5 — the polkit agent. spawn-at-startup.kdl hardcodes the Arch-only path
   /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1, and setup.sh rewrites
   only $NIRICONF, so password dialogs (mounting disks, suspend) never appear.
@@ -658,7 +814,13 @@ FIX 5 — the polkit agent. spawn-at-startup.kdl hardcodes the Arch-only path
         ls /usr/libexec/polkit-gnome-authentication-agent-1 2>/dev/null)
     sed -i "s|/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1|$P|" \
       ~/.config/niri/spawn-at-startup.kdl
-Then offer these OPTIONAL extras one at a time, letting me decline:
+FIRST, detect my hardware profile — this changes what you install:
+  ls /sys/class/power_supply/ 2>/dev/null | grep -i bat
+If a battery IS present, this is a laptop: SKIP the CPU-governor extra (b) entirely
+(it pins the CPU to performance and would flatten the battery), and tell me you
+skipped it and why. BatteryWidget then appears in the bar automatically — no config
+change is needed.
+Offer the remaining OPTIONAL extras one at a time, letting me decline:
   a) Login theme: sudo ~/niri-setup/sddm/install.sh
      (preview: sddm-greeter --test-mode --theme ~/niri-setup/sddm/sunset)
   b) CPU governor: the shipped scripts/sudoers-cpu and scripts/50-cpu-freq.rules
@@ -669,8 +831,10 @@ Then offer these OPTIONAL extras one at a time, letting me decline:
        sudo install -m 440 /tmp/cpu-freq /etc/sudoers.d/cpu-freq
        sudo visudo -c        # MUST parse; if not, sudo rm the file at once
      Same substitution into /etc/polkit-1/rules.d/50-cpu-freq.rules.
-     Warn me this pins every core to performance/2.4GHz (heat, battery drain) and is
-     Intel-cpufreq specific — never offer it on a laptop.
+     Warn me this pins every core to performance/2.4GHz and bypasses battery
+     throttling. Correct for a mains-powered machine with NO battery (what this setup
+     was built on); wrong for a laptop. Also Intel-cpufreq specific — on AMD, or any
+     machine without /sys/devices/system/cpu/cpu*/cpufreq, it silently does nothing.
 
 PHASE 5 — VERIFY (run each; report PASS/FAIL)
   niri validate                                   # expect "config is valid"
@@ -834,7 +998,7 @@ FIX 4 — enable the Quickshell keybinds.
       echo 'include "binds-quickshell.kdl"' >> ~/.config/niri/config.kdl
     niri validate
 
-PHASE 4 — DEBIAN PATH FIX + PRIVILEGED EXTRAS
+PHASE 4 — HARDWARE PROFILE, POLKIT PATH FIX + PRIVILEGED EXTRAS
 FIX 5 — the polkit agent. spawn-at-startup.kdl hardcodes the Arch-only path
   /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1; on Debian it is usually
   under /usr/libexec. Find it and rewrite that line:
@@ -842,7 +1006,13 @@ FIX 5 — the polkit agent. spawn-at-startup.kdl hardcodes the Arch-only path
         ls /usr/libexec/polkit-gnome-authentication-agent-1 2>/dev/null)
     sed -i "s|/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1|$P|" \
       ~/.config/niri/spawn-at-startup.kdl
-Then offer these OPTIONAL extras one at a time, letting me decline:
+FIRST, detect my hardware profile — this changes what you install:
+  ls /sys/class/power_supply/ 2>/dev/null | grep -i bat
+If a battery IS present, this is a laptop: SKIP the CPU-governor extra (b) entirely
+(it pins the CPU to performance and would flatten the battery), and tell me you
+skipped it and why. BatteryWidget then appears in the bar automatically — no config
+change is needed.
+Offer the remaining OPTIONAL extras one at a time, letting me decline:
   a) Login theme: sudo ~/niri-setup/sddm/install.sh
      (preview: sddm-greeter --test-mode --theme ~/niri-setup/sddm/sunset)
   b) CPU governor: the shipped scripts/sudoers-cpu and scripts/50-cpu-freq.rules
@@ -853,8 +1023,10 @@ Then offer these OPTIONAL extras one at a time, letting me decline:
        sudo install -m 440 /tmp/cpu-freq /etc/sudoers.d/cpu-freq
        sudo visudo -c        # MUST parse; if not, sudo rm the file immediately
      Same substitution into /etc/polkit-1/rules.d/50-cpu-freq.rules.
-     Warn me this pins every core to performance/2.4GHz (heat, battery drain), is
-     Intel-cpufreq specific, and should never be used on a laptop.
+     Warn me this pins every core to performance/2.4GHz and bypasses battery
+     throttling. Correct for a mains-powered machine with NO battery (what this setup
+     was built on); wrong for a laptop. Also Intel-cpufreq specific — on AMD, or any
+     machine without /sys/devices/system/cpu/cpu*/cpufreq, it silently does nothing.
 
 PHASE 5 — VERIFY (run each; report PASS/FAIL)
   niri validate                                   # expect "config is valid"
