@@ -100,7 +100,9 @@
 //     e.g. "@ github.com -bookmark"), "/" files
 //     (with !type/@scope bangs — see FilesProvider.qml header),
 //     ">" runner (Shift+Enter runs in terminal via alacritty -e;
-//     Ctrl+Enter reveals a file row in the default file manager),
+//     Ctrl+Enter reveals a file row in the default file manager;
+//     Ctrl+C copies a file row to the clipboard — contents for
+//     text/image types, path string otherwise),
 //     "." symbols, "!" todo, "%" bookmarks, ";" modes.
 //   Bare queries (no prefix char):
 //     empty -> 13 controls FIRST, then up to 5 recent Bookmarks (most
@@ -307,6 +309,7 @@ Scope {
         { "kind": "control", "name": "Power", "keywords": "power lock suspend logout reboot shutdown quit", "icon": "power.svg", "ipcTarget": "power", "ipcVerb": "toggle" },
         { "kind": "control", "name": "Volume", "keywords": "volume mixer audio sound sink mute", "icon": "volume.svg", "ipcTarget": "volume", "ipcVerb": "toggle" },
         { "kind": "control", "name": "Now Playing", "keywords": "now playing media music track song mpris player spotify youtube mpv vlc", "icon": "media.svg", "ipcTarget": "now-playing", "ipcVerb": "toggle" },
+        { "kind": "control", "name": "Performance", "keywords": "performance monitor cpu gpu memory ram battery stats usage load perf island", "icon": "perf.svg", "ipcTarget": "perf", "ipcVerb": "toggle" },
         { "kind": "control", "name": "Clipboard", "keywords": "clipboard history copy paste cliphist", "icon": "clipboard.svg", "ipcTarget": "clipboard", "ipcVerb": "toggle" },
         { "kind": "control", "name": "Screenshot", "keywords": "screenshot capture region window screen scroll recording ocr redact annotate shot print camera", "icon": "camera.svg", "ipcTarget": "capture", "ipcVerb": "toggle" },
         { "kind": "control", "name": "Calendar", "keywords": "calendar clock pomodoro timer date", "icon": "logo.svg", "ipcTarget": "calendar", "ipcVerb": "toggle" },
@@ -1121,6 +1124,24 @@ Scope {
         return true;
     }
 
+    // Ctrl+C on file rows: copy the file's contents to the
+    // clipboard for text/image types (path string otherwise),
+    // via FilesProvider.copyFile. Unlike reveal, the menu
+    // STAYS OPEN — copying is not a dismissal, and several
+    // files are often copied in a row. Returns true when a
+    // file row was copied, so callers can accept the key only
+    // then (plain Ctrl+C on other rows keeps its default).
+    function copyCurrent(): bool {
+        const p = root.currentFilePath();
+        if (p === "")
+            return false;
+        const row = rows[appList.currentIndex];
+        try {
+            filesProv.copyFile(row);
+        } catch (e) {}
+        return true;
+    }
+
     // ---- preview plumbing ----------------------------------------------
     // Selected row's absolute path when it is a file row, else "".
     function currentFilePath(): string {
@@ -1771,6 +1792,12 @@ Scope {
                                     // space: multi-word file queries need it.
                                     event.accepted = true;
                                     root.togglePreview();
+                                } else if (ctrl && event.key === Qt.Key_C) {
+                                    // Ctrl+C copies the selected file row
+                                    // (contents for text/images, path
+                                    // otherwise); the menu stays open.
+                                    if (root.copyCurrent())
+                                        event.accepted = true;
                                 } else if (event.key === Qt.Key_Up || (ctrl && (event.key === Qt.Key_K || event.key === Qt.Key_P))) {
                                     event.accepted = true;
                                     root.moveSelection(-1);
@@ -1914,6 +1941,12 @@ Scope {
                         } else if (ctrl && event.key === Qt.Key_Space) {
                             event.accepted = true;
                             root.togglePreview();
+                        } else if (ctrl && event.key === Qt.Key_C) {
+                            // Ctrl+C copies the selected file row
+                            // (contents for text/images, path
+                            // otherwise); the menu stays open.
+                            if (root.copyCurrent())
+                                event.accepted = true;
                         } else if (event.key === Qt.Key_Up || event.key === Qt.Key_K || (ctrl && event.key === Qt.Key_P)) {
                             event.accepted = true;
                             root.moveSelection(-1);

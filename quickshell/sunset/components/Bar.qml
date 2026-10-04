@@ -1,7 +1,7 @@
 // Bar.qml — sunset top bar. Mirrors waybar/config module order.
 //   left:   logo | workspaces | window
-//   center: weather + clock + pomodoro (the group is re-centered on every
-//           width change, so the cluster never looks lopsided)
+//   center: weather + clock + pomodoro, plus the on-demand
+//           perf pill (PerfWidget, off by default)
 //   right:  media | volume | bluetooth | network | settings | battery | power
 //
 // PanelWindow anchored top/left/right, height 34. Sharp rects (radius 0),
@@ -111,6 +111,11 @@ PanelWindow {
             ClockWidget {}
             CaptureWidget {}
             PomodoroWidget {}
+            // On-demand perf pill (CPU|GPU|MEM|BAT), off by
+            // default: collapsed to zero width until turned on
+            // (Mod+Alt+P / launcher row / `perf toggle`), so
+            // the island is just weather + clock by default.
+            PerfWidget {}
         }
 
         RowLayout {

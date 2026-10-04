@@ -4,8 +4,9 @@
 //   include "binds-quickshell.kdl"
 // Fuzzel/walker binaries and configs stay installed/on-disk as fallback, just unbound.
 // Quickshell owns: Mod+Alt+Return (launcher), Mod+Alt+N (DND),
-// Mod+Alt+W (wallpaper menu), Mod+Alt+F (wi-fi), Mod+Alt+Shift+S (screenshot
-// utility), Mod+Shift+Q (restart),
+// Mod+Alt+W (wallpaper menu), Mod+Alt+F (wi-fi), Mod+Alt+Shift+S
+// (screenshot utility), Mod+Alt+P (performance monitor),
+// Mod+Shift+Q (restart),
 // plus Mod+Ctrl+Return + Alt+Space (launcher), Mod+C (clipboard),
 // Mod+I + Mod+P (settings) via binds.kdl.
 // Two shortcuts deliberately leave quickshell (2026-10-02):
@@ -95,6 +96,12 @@ binds {
     // "Screenshot" control row, the ";" Capture mode, and the Screenshot row in
     // both right-click menus.
     Mod+Alt+Shift+S { spawn-sh "qs -c sunset ipc call capture toggle"; }
+    // Performance monitor — the on-demand CPU | GPU | MEM | BAT
+    // pill in the malleable island (center cluster). OFF by
+    // default (the island is just weather + clock); the pill
+    // collapses away when turned off. Click the pill itself for
+    // btop. Also on the launcher "Performance" control row.
+    Mod+Alt+P { spawn-sh "qs -c sunset ipc call perf toggle"; }
     // Restart the quickshell sunset session.
     Mod+Shift+Q { spawn-sh "pkill quickshell; quickshell -c sunset &"; }
 

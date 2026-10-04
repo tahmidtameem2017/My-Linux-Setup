@@ -22,6 +22,49 @@ a full rewrite of the original
 
 ---
 
+## 📝 Changelog
+
+**2026-10-04 — `Ctrl+C` copies any file row.** In the launcher, type `/`
+to search files, highlight a row, press <kbd>Ctrl</kbd>+<kbd>C</kbd>:
+
+| File type | What lands on the clipboard |
+| :-- | :-- |
+| **Text** — `.txt` `.md` `.py` `.c` `.cpp` `.sh` `.json` … | the file's **contents** — paste into a terminal, editor or chat |
+| **Pictures** — `.jpg` `.png` `.jpeg` `.webp` `.gif` … | the **image itself** — paste anywhere a screenshot pastes |
+| **Everything else** — folders, binaries, archives | the **path** |
+
+The menu stays open, so you can copy several files in a row. The other
+file-row keys are unchanged: <kbd>Enter</kbd> opens,
+<kbd>Ctrl</kbd>+<kbd>Enter</kbd> reveals in the file manager, and
+drag-and-drop still works. Backed by `scripts/copy-file.sh`
+(`wl-copy`), covered by `scripts/test_copy_file.py`.
+
+> 🎬 **See it in action** — the demo walks through copying a script, a wallpaper
+> image and a `.c` file straight out of the launcher:
+>
+> [**▶ Play the demo**](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/Screenshots/demo-copy-paste-and-performance.mp4)
+> (also in `Screenshots/demo-copy-paste-and-performance.mp4`)
+
+**2026-10-04 — On-demand performance monitor.** A CPU · GPU · MEM · BAT pill in the
+bar's center island. <kbd>Mod</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd>, the launcher's
+**Performance** row, or `qs -c sunset ipc call perf toggle`:
+
+| Surface | What it does |
+| :-- | :-- |
+| **Keyboard** | <kbd>Mod</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> |
+| **Launcher** | **Performance** row |
+| **IPC** | `qs -c sunset ipc call perf toggle \| turnOn \| turnOff` |
+| **Click the pill** | Opens `btop` in a floating terminal |
+
+It is **hidden by default** — the island is just weather + clock until you ask for
+it, and turning it off collapses it away completely. Missing sensors (a GPU without
+frequency reporting, no battery) hide their own segment instead of showing a `0`.
+CPU is a real delta over 0.5 s rather than an instantaneous reading. Backed by
+`services/PerfService.qml` + `scripts/perf-stats.sh`, covered by
+`scripts/test_perf_stats.py`.
+
+---
+
 ## 📸 Screenshots
 
 **The desktop as it actually runs today** — taken from this build:
@@ -1116,7 +1159,11 @@ Print:
 
 ### ⌨️ Thoughtful everyday details
 - **Offline voice dictation** with `whisrs` (whisper.cpp) — no cloud, no key.
+- **Copy any file with `Ctrl+C`** in the launcher — text and pictures copy their contents, everything else copies the path.
 - **Music**: download from a link, dedup, and play your whole library; MPRIS-aware.
+- **On-demand performance monitor** (`Mod+Alt+P`) — a CPU · GPU · MEM · BAT
+  pill in the bar's center island, hidden by default so the island stays just
+  weather + clock; click the pill for `btop`.
 - **Smart power**: idle daemon, power profiles, brightness OSD, mic-mute indicator.
 - **Dropdown scratchpad terminal** (`Mod+`` ` ``).
 - **Scrollable-tiling** at its finest: consume/expel columns, resize, float, workspaces.
@@ -1148,6 +1195,7 @@ Print:
 | <kbd>Mod</kbd>+<kbd>Alt</kbd>+<kbd>W</kbd> | Wallpaper menu |
 | <kbd>Mod</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd> | Wi-Fi card |
 | <kbd>Mod</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd> | Now Playing |
+| <kbd>Mod</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> | Performance monitor (CPU · GPU · MEM · BAT pill) |
 | <kbd>Mod</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd> | Sessions editor |
 | <kbd>Mod</kbd>+<kbd>Alt</kbd>+<kbd>D</kbd> | Voice dictation (toggle) |
 | <kbd>Mod</kbd>+<kbd>Alt</kbd>+<kbd>Esc</kbd> | Dictation panic key |
@@ -1188,7 +1236,7 @@ Print:
 
 ## 🧪 Development & Validation
 
-This repo ships a **168-test suite** guarding the theming and export logic:
+This repo ships a **179-test suite** guarding the theming and export logic:
 
 ```bash
 python3 -m unittest discover -s scripts -p 'test_*.py'   # run the tests

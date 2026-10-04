@@ -318,6 +318,7 @@
       <div><dt>Column</dt><dd>One window. Windows sit side by side instead of on top of each other.</dd></div>
       <div><dt>Workspace</dt><dd>A separate screenful of windows — tabs for your whole desktop.</dd></div>
       <div><dt>The bar</dt><dd>The thin strip at the top: clock, sound, wifi, battery, power.</dd></div>
+      <div><dt>The island</dt><dd>The middle of the bar: weather and clock, plus anything you switch on — like the performance monitor, <kbd>Mod+Alt+P</kbd>.</dd></div>
       <div><dt>Popup</dt><dd>A small panel over the desktop. <kbd>Esc</kbd> closes it.</dd></div>
       <div><dt>Screenshot menu</dt><dd>The one panel holding every capture tool — region, window, screen, scrolling, recording and text extraction. <kbd>Mod+Shift+5</kbd>.</dd></div>
       <div><dt>Dictation</dt><dd>You talk, the words are typed into whatever you were already typing in. Entirely on this machine — no account, no internet. <kbd>Mod+Alt+D</kbd>.</dd></div>
@@ -605,14 +606,14 @@
           <div class="row"><span class="desc">Only inside one folder</span><span class="keys"><kbd>/</kbd><span class="hint">then</span><span class="pill">@home @documents @downloads</span></span></div>
           <div class="row"><span class="desc">Narrow a search by adding words after the slash</span><span class="keys"><span class="pill">/ .pdf invoice @downloads</span></span></div>
           <div class="row"><span class="desc">Drag a file row into a chat or a document</span><span class="keys"><span class="hint">press and drag</span></span></div>
-          <div class="row"><span class="desc">Copy a search result instead of opening it</span><span class="keys"><span class="hint">right-click the row</span></span></div>
+          <div class="row"><span class="desc">Copy a file row — text and pictures copy their contents, anything else copies the path</span><span class="keys"><kbd>Ctrl</kbd><kbd>C</kbd></span></div>
           <div class="row"><span class="desc">Open the usual sites by name</span><span class="keys"><kbd>@</kbd><span class="hint">then</span><span class="pill">gh yt wiki so r maps</span></span></div>
           <div class="row"><span class="desc">Save a site you use often</span><span class="keys"><kbd>@</kbd><span class="hint">then type</span><span class="pill">-bookmark</span></span></div>
           <div class="row"><span class="desc">Write a note without leaving the keyboard</span><span class="keys"><kbd>!</kbd><span class="hint">add milk</span></span></div>
         </div>
 
         <div class="note">
-          <kbd>Enter</kbd> opens · <kbd>↑</kbd> <kbd>↓</kbd> move · <kbd>Esc</kbd> closes.
+          <kbd>Enter</kbd> opens · <kbd>Ctrl</kbd><kbd>Enter</kbd> reveals a file in its folder · <kbd>Ctrl</kbd><kbd>C</kbd> copies a file row · <kbd>↑</kbd> <kbd>↓</kbd> move · <kbd>Esc</kbd> closes.
           Typing <kbd>/</kbd> in the middle of your words switches to file search without starting over.
         </div>
 
@@ -737,13 +738,15 @@
           <span class="sec-title">Timers &amp; saved setups</span>
           <span class="sec-hint">focus blocks, weather, layouts you reuse</span>
         </span>
-        <span class="sec-meta"><span class="sec-count"><span class="n">6</span></span><span class="chev">&#8250;</span></span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">8</span></span><span class="chev">&#8250;</span></span>
       </summary>
       <div class="sec-body">
         <div class="rows">
           <div class="row"><span class="desc">Calendar, focus timer and stopwatch</span><span class="keys"><span class="hint">click the clock in the bar</span></span></div>
           <div class="row"><span class="desc">Start / pause the timer without the mouse</span><span class="keys"><kbd>Mod+Alt+C</kbd><kbd>Mod+Alt+Shift+C</kbd></span></div>
           <div class="row"><span class="desc">Weather where you are</span><span class="keys"><span class="hint">click the weather, left of the clock</span></span></div>
+          <div class="row"><span class="desc">Live CPU, GPU, memory and battery in the bar — hidden until you ask, gone again with one key</span><span class="keys"><kbd>Mod+Alt+P</kbd><span class="hint">or</span><span class="pill cmd">qs -c sunset ipc call perf toggle</span></span></div>
+          <div class="row"><span class="desc">The full system monitor behind that pill</span><span class="keys"><span class="hint">click the pill</span></span></div>
           <div class="row"><span class="desc">Save “study”, “gaming”, “clean up” layouts and jump between them</span><span class="keys"><kbd>Mod+Shift+O</kbd></span></div>
           <div class="row"><span class="desc">Open a saved setup by name</span><span class="keys"><kbd>;</kbd><span class="hint">then the name</span></span></div>
           <div class="row"><span class="desc">Crack the whip, because you can</span><span class="keys"><kbd>Mod+Alt+L</kbd></span></div>

@@ -396,6 +396,25 @@ ShellRoot {
     }
 
     IpcHandler {
+        target: "perf"
+
+        // The performance pill in the bar's malleable island.
+        // Straight to PerfService, like the calendar pomo
+        // verbs: there is no popup to build, so a keybind
+        // must not pay for one. Default off; turning off
+        // collapses the pill to zero width (invisible).
+        function toggle(): void {
+            PerfService.toggle();
+        }
+        function turnOn(): void {
+            PerfService.turnOn();
+        }
+        function turnOff(): void {
+            PerfService.turnOff();
+        }
+    }
+
+    IpcHandler {
         target: "settings"
 
         function toggle(): void {

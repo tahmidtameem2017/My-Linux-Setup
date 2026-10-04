@@ -56,6 +56,9 @@
 //     activate, so this only acts — it never closes anything.)
 //   function reveal(row: var): void  (Ctrl+Enter path: opens the parent
 //     directory via xdg-open; same close-before-act contract.)
+//   function copyFile(row: var): void  (Ctrl+C path: copies the file's
+//     contents to the clipboard for text/image types via
+//     scripts/copy-file.sh, the path string for anything else.)
 // Drag-and-drop: Launcher.qml makes every row with data.path draggable
 //   (Wayland text/uri-list + text/plain, Copy/Move/Link). This provider
 //   only supplies data.path — no drag code lives here.
@@ -80,6 +83,11 @@ Scope {
     property string lastQuery: ""
     property int runLimit: 10
     property string runLabel: ""
+    // Repo-relative script path (setupHome pattern from
+    // Launcher.qml / ContextMenu.qml): copy-file.sh backs the
+    // Ctrl+C "copy this file" verb.
+    readonly property string setupHome: Quickshell.env("NIRI_SETUP_HOME") ?? ((Quickshell.env("HOME") || "") + "/niri-setup")
+    readonly property string copyFileScript: setupHome + "/scripts/copy-file.sh"
     // Index freshness: key -> epochMs. At most one fd build in flight
     // (buildKey, "" = idle); fzf runs carry a generation + query guard.
     property var indexMs: ({})
@@ -252,7 +260,7 @@ Scope {
         return {
             "kind": "file",
             "name": base,
-            "detail": path + " — Enter to open · Ctrl+Enter to reveal · drag to drop elsewhere" + suffix,
+            "detail": path + " — Enter to open · Ctrl+Enter reveal · Ctrl+C copy · drag to drop elsewhere" + suffix,
             "icon": null,
             "score": 100,
             "section": "Files",
@@ -424,6 +432,20 @@ Scope {
         if (p === "")
             return;
         Quickshell.execDetached(["sh", "-c", 'p="$1"; if [ -d "$p" ]; then xdg-open "$p"; else xdg-open "$(dirname "$p")"; fi', "sunset-reveal", p]);
+    }
+
+    // Ctrl+C on a file row (Launcher.copyCurrent): copy the file's
+    // contents to the clipboard for text and image types, the path
+    // string for directories and unknown types (scripts/copy-file.sh
+    // owns the type table). Detached like reveal/activate: the script
+    // outlives the menu and no result is expected back.
+    function copyFile(row: var): void {
+        if (!row || !row.data || !row.data.path)
+            return;
+        const p = String(row.data.path);
+        if (p === "")
+            return;
+        Quickshell.execDetached(["bash", copyFileScript, p]);
     }
 
     Component.onCompleted: {
