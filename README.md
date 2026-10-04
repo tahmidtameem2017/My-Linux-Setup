@@ -24,10 +24,21 @@ a full rewrite of the original
 
 ## 📸 Screenshots
 
+**The desktop as it actually runs today** — taken from this build:
+
+| Desktop | Volume mixer | Now Playing |
+| :--: | :--: | :--: |
+| ![Desktop](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/desktop.png) | ![Volume mixer](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/volume-mixer.png) | ![Now Playing](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/now-playing.png) |
+
+<details>
+<summary><b>More from the original niri-setup (acaibowlz)</b></summary>
+
 | | | |
 | :--: | :--: | :--: |
 | ![Desktop](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/screenshot1.png) | ![Launcher](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/screenshot2.png) | ![Now Playing](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/screenshot3.png) |
 | ![Wallpapers](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/screenshot4.png) | ![Power Menu](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/screenshot5.png) | ![Capture](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/screenshot6.png) |
+
+</details>
 
 ---
 
