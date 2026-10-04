@@ -11,6 +11,12 @@ and 16 lazy-loaded popups.*
 [![niri](https://img.shields.io/badge/compositor-niri%2026.04-blue)](https://github.com/YaLTeR/niri)
 [![quickshell](https://img.shields.io/badge/shell-quickshell%200.3.1-purple)](https://quickshell.org/)
 [![license](https://img.shields.io/badge/license-GPL--3.0-green)](./LICENSE)
+[![based on](https://img.shields.io/badge/based%20on-acaibowlz%2Fniri--setup-ff69b4)](https://github.com/acaibowlz/niri-setup)
+
+Built by **[tahmidtameem2017](https://github.com/tahmidtameem2017)** —
+a full rewrite of the original
+[`niri-setup`](https://github.com/acaibowlz/niri-setup) by
+[acaibowlz](https://github.com/acaibowlz). See [Credits](#-credits--acknowledgements).
 
 </div>
 
@@ -20,8 +26,8 @@ and 16 lazy-loaded popups.*
 
 | | | |
 | :--: | :--: | :--: |
-| ![Desktop](https://raw.githubusercontent.com/acaibowlz/niri-setup/refs/heads/main/.github/assets/screenshots/screenshot1.png) | ![Launcher](https://raw.githubusercontent.com/acaibowlz/niri-setup/refs/heads/main/.github/assets/screenshots/screenshot2.png) | ![Now Playing](https://raw.githubusercontent.com/acaibowlz/niri-setup/refs/heads/main/.github/assets/screenshots/screenshot3.png) |
-| ![Wallpapers](https://raw.githubusercontent.com/acaibowlz/niri-setup/refs/heads/main/.github/assets/screenshots/screenshot4.png) | ![Power Menu](https://raw.githubusercontent.com/acaibowlz/niri-setup/refs/heads/main/.github/assets/screenshots/screenshot5.png) | ![Capture](https://raw.githubusercontent.com/acaibowlz/niri-setup/refs/heads/main/.github/assets/screenshots/screenshot6.png) |
+| ![Desktop](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/screenshot1.png) | ![Launcher](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/screenshot2.png) | ![Now Playing](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/screenshot3.png) |
+| ![Wallpapers](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/screenshot4.png) | ![Power Menu](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/screenshot5.png) | ![Capture](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/screenshot6.png) |
 
 ---
 
@@ -181,7 +187,7 @@ sudo apt install -y niri swaybg swayidle swaylock swaylock-effects fuzzel cliphi
 > config expects. (You *can* change it, but see [Relocating the repo](#relocating-the-repo).)
 
 ```bash
-git clone https://github.com/acaibowlz/niri-setup.git ~/niri-setup
+git clone https://github.com/tahmidtameem2017/My-Linux-Setup.git ~/niri-setup
 cd ~/niri-setup
 ```
 
@@ -289,7 +295,40 @@ path that exists, and run `niri msg action load-config-file`.
 
 </details>
 
-### Step 4 — Log in
+### Step 4 — Make it yours
+
+This setup ships with **my personal defaults** baked in — they will not match yours.
+Change them:
+
+```bash
+cd ~/niri-setup
+
+# see every knob currently set
+bash scripts/wallpaper-process.sh get
+
+# change them (setmany validates everything before writing)
+bash scripts/wallpaper-process.sh setmany INTERVAL 30 DOWNSCALE 1920x1080
+
+# pick your wallpaper folder, then set one
+bash scripts/wallpaper.sh set ~/Pictures/Wallpapers/<your-file>
+
+# turn on auto-theming so the palette follows every wallpaper change
+bash scripts/wallpaper-process.sh set AUTOSTART true
+```
+
+| Default | Where it's set | Change with |
+| :-- | :-- | :-- |
+| Wallpaper folder `~/Pictures/Wallpapers` | `.state/wallpaper-process.conf` | `scripts/wallpaper-process.sh` |
+| Rotation interval, downscale, format, quality | same file | `wallpaper-process.sh setmany` |
+| Theme palette | `quickshell/sunset/services/Theme.qml` | `Mod+Alt+Shift+T` editor, or `qs -c sunset ipc call themes set <name>` |
+| City / timezone (clock, weather, lock screen) | weather + OS state | `WeatherService` / system timezone |
+| Idle timeout (~10m) | `scripts/change-idle-time.sh` | `change-idle-time.sh` |
+| Power profile (balanced) | `scripts/change-power-profile.sh` | `change-power-profile.sh` |
+| tmux prefix `C-b` | `tmux/tmux.conf` | edit + `tmux source-file` |
+| Browser Brave, files Thunar | `niri/binds.kdl` | edit + re-copy (see the fixes above) |
+| Window opacity / floating rules | `niri/rules.kdl` | edit + re-copy |
+
+### Step 5 — Log in
 
 1. **Log out** of your current desktop.
 2. At the login screen, pick **niri** as your session.
@@ -353,7 +392,7 @@ First things to try:
 ````text
 You are installing AND personalising the "Sunset Niri" desktop environment on Arch
 Linux (or EndeavourOS/Manjaro).
-Repository: https://github.com/acaibowlz/niri-setup
+Repository: https://github.com/tahmidtameem2017/My-Linux-Setup
 
 You have permission to run shell commands, edit files, and manage packages. Work
 AUTONOMOUSLY through every phase below. Verify each step by actually running the
@@ -382,13 +421,30 @@ Also ensure fonts: ttf-jetbrains-mono-nerd ttf-ubuntu-mono-nerd noto-fonts-cjk.
 Verify: niri --version; quickshell --version.
 
 PHASE 2 — CLONE + RUN setup.sh
-  git clone https://github.com/acaibowlz/niri-setup.git ~/niri-setup
+  git clone https://github.com/tahmidtameem2017/My-Linux-Setup.git ~/niri-setup
   cd ~/niri-setup && ./setup.sh
 On Arch plain ./setup.sh is correct — it installs packages via the AUR helper too.
 If prompted "niri config exists, overwrite? (Y/n)" answer Y. A failure from the
 final `niri validate` inside setup.sh is EXPECTED until Phase 3 — continue.
 
-PHASE 3 — CRITICAL FIXES (this repo is not a clean-install script; all four apply)
+PHASE 3 — CRITICAL FIXES (this repo is not a clean-install script; all five apply)
+FIX 0 — REWRITE THE HARDCODED PATHS (do this FIRST, before anything else).
+  This repo was written on a machine whose username was "me", so ~150 paths are
+  hardcoded as /home/me/niri-setup. If YOUR username is not "me", EVERY one of them
+  is wrong and the desktop will be badly broken — scripts not found, wallpaper
+  failing, sudo rules pointing at a nonexistent file.
+  First, find out where I ACTUALLY cloned the repo (do not assume ~/niri-setup —
+  ask me if it is not there). Let REPO be that path. Then:
+    cd "$REPO"
+    echo "current user: $(whoami) | repo: $REPO"
+    grep -rl '/home/me/niri-setup' --exclude-dir=.git . \
+      | xargs -r sed -i "s|/home/me/niri-setup|$REPO|g"
+    sed -i "s|\bme ALL|$(whoami) ALL|g" scripts/sudoers-cpu 2>/dev/null
+    grep -rIo '/home/me/niri-setup' --exclude-dir=.git . | wc -l   # must print 0
+  Confirm the count is 0 before continuing. If you deliberately keep the repo at
+  /home/me/niri-setup then there is nothing to rewrite — say so and skip.
+  NOTE: this makes the repo user-specific. Tell me that re-cloning or moving it
+  means re-running this rewrite.
 FIX 1 — install ALL niri config files.
   setup.sh only symlinks config.kdl, but it `include`s ~10 more .kdl files and niri
   resolves includes relative to the symlink directory. A lone symlink fails with
@@ -446,18 +502,31 @@ PHASE 5 — VERIFY (run each; report PASS/FAIL)
   python3 -m unittest discover -s ~/niri-setup/scripts -p 'test_*.py' 2>&1 | tail -3
 
 PHASE 6 — ONBOARDING (personalise it; ask me for choices)
-  1. Wallpapers: ask where my wallpapers live (default ~/Pictures/Wallpapers), then
-       ~/niri-setup/scripts/wallpaper.sh set <path>
-     Enable auto-theming so the palette follows every wallpaper change:
-       ~/niri-setup/scripts/wallpaper-process.sh set AUTOSTART true
-       ~/niri-setup/scripts/auto-wallpaper.sh --oneshot
-     Explain that this is what re-themes bar/terminal/menus live.
-  2. Theme: list the palettes, let me pick a default, apply with
-       qs -c sunset ipc call themes set <name>
-     Show me the visual editor (Mod+Alt+Shift+T) and explain the 11 tokens
-     (bg, panel, row, border, borderStrong, accent, accentHover, text, muted, dim,
-     danger) — never hardcode a hex in a component.
-  3. Identity + locale: ask my city/timezone for the clock, weather and lock screen.
+  3. Defaults and identity — DO NOT SKIP. This setup ships with the original
+     author's personal defaults baked in. Replace every one of these with mine:
+       a) Wallpaper directory (default: ~/Pictures/Wallpapers) and the rotation
+          knobs — interval, downscale, format, JPEG quality, PNG compression,
+          canvas colour, and whether wallust auto-theming runs:
+            ~/niri-setup/scripts/wallpaper-process.sh get
+            ~/niri-setup/scripts/wallpaper-process.sh setmany INTERVAL 30 DOWNSCALE 1920x1080
+          Explain what each knob does before changing it. setmany validates every
+          pair first and refuses the whole write if any value is invalid.
+       b) Theme palette — list the 15 available and let me pick a permanent default:
+            qs -c sunset ipc call themes set <name>
+          Explain that auto-theming ("auto on") is what makes the palette follow my
+          wallpaper; picking a fixed palette turns auto off by design.
+       c) City / timezone — drives the clock, weather popup and lock screen.
+       d) Idle timeout and power profile (shipped defaults: ~10m idle, balanced):
+            ~/niri-setup/scripts/change-idle-time.sh
+            ~/niri-setup/scripts/change-power-profile.sh
+       e) Terminal font/size and tmux behaviour (default prefix is C-b):
+            ~/niri-setup/tmux/tmux.conf   # behaviour only — colours are generated
+       f) Default apps for keybinds (shipped defaults: Brave browser, Thunar files,
+          GNOME Settings). These are hardcoded in niri/binds.kdl — change them if I
+          want Firefox, Nautilus, or something else, and tell me the app-id to use in
+          niri/rules.kdl.
+     For EVERY value you change, print a before/after table so I can see exactly what
+     differs from the shipped defaults.
   4. Keybindings: ask for the 5 things I do most (open browser, screenshot, music,
      terminal, clipboard), add them to niri/binds.kdl or binds-quickshell.kdl, then
        cp ~/niri-setup/niri/*.kdl ~/.config/niri/
@@ -468,7 +537,6 @@ PHASE 6 — ONBOARDING (personalise it; ask me for choices)
      reverts to the classic Waybar+dunst shell, and
        ~/niri-setup/scripts/rollback-to-waybar.sh
      is the emergency path. Tell me how to re-enter niri from a TTY (`niri-session`).
-
 PHASE 7 — FINAL REPORT
 Print:
   - Verification table (every Phase 5 check with PASS/FAIL)
@@ -493,7 +561,7 @@ Print:
 
 ````text
 You are installing AND personalising the "Sunset Niri" desktop environment on Fedora.
-Repository: https://github.com/acaibowlz/niri-setup
+Repository: https://github.com/tahmidtameem2017/My-Linux-Setup
 
 You have permission to run shell commands, edit files, and manage packages. Work
 AUTONOMOUSLY through every phase below. Verify each step by actually running the
@@ -532,10 +600,27 @@ Fonts: google-jetbrains-mono-nerd-fonts google-ubuntu-mono-nerd-fonts
 Verify: niri --version; quickshell --version.
 
 PHASE 2 — CLONE + RUN setup.sh (WITH THE FLAG)
-  git clone https://github.com/acaibowlz/niri-setup.git ~/niri-setup
+  git clone https://github.com/tahmidtameem2017/My-Linux-Setup.git ~/niri-setup
   cd ~/niri-setup && ./setup.sh --skip-install
 
-PHASE 3 — CRITICAL FIXES (all four apply)
+PHASE 3 — CRITICAL FIXES (all five apply)
+FIX 0 — REWRITE THE HARDCODED PATHS (do this FIRST, before anything else).
+  This repo was written on a machine whose username was "me", so ~150 paths are
+  hardcoded as /home/me/niri-setup. If MY username is not "me", EVERY one of them
+  is wrong and the desktop will be badly broken — scripts not found, wallpaper
+  failing, sudo rules pointing at a nonexistent file.
+  First, find out where I ACTUALLY cloned the repo (do not assume ~/niri-setup —
+  ask me if it is not there). Let REPO be that path. Then:
+    cd "$REPO"
+    echo "current user: $(whoami) | repo: $REPO"
+    grep -rl '/home/me/niri-setup' --exclude-dir=.git . \
+      | xargs -r sed -i "s|/home/me/niri-setup|$REPO|g"
+    sed -i "s|\bme ALL|$(whoami) ALL|g" scripts/sudoers-cpu 2>/dev/null
+    grep -rIo '/home/me/niri-setup' --exclude-dir=.git . | wc -l   # must print 0
+  Confirm the count is 0 before continuing. If you deliberately keep the repo at
+  /home/me/niri-setup then there is nothing to rewrite — say so and skip.
+  NOTE: this makes the repo user-specific. Tell me that re-cloning or moving it
+  means re-running this rewrite.
 FIX 1 — install ALL niri config files.
   setup.sh only symlinks config.kdl, which `include`s ~10 more .kdl files; niri
   resolves includes relative to the symlink directory, so a lone symlink fails.
@@ -589,25 +674,41 @@ PHASE 5 — VERIFY (run each; report PASS/FAIL)
   python3 -m unittest discover -s ~/niri-setup/scripts -p 'test_*.py' 2>&1 | tail -3
 
 PHASE 6 — ONBOARDING (personalise it; ask me for choices)
-  1. Wallpapers: ask where mine live (default ~/Pictures/Wallpapers), then
-       ~/niri-setup/scripts/wallpaper.sh set <path>
-     Enable auto-theming:
-       ~/niri-setup/scripts/wallpaper-process.sh set AUTOSTART true
-       ~/niri-setup/scripts/auto-wallpaper.sh --oneshot
-  2. Theme: list palettes, let me pick a default:
-       qs -c sunset ipc call themes set <name>
-     Show the visual editor (Mod+Alt+Shift+T); explain the 11 tokens and that
-     components must never hardcode a hex.
-  3. Identity + locale: ask my city/timezone for clock, weather and lock screen.
-  4. Keybindings: ask for the 5 things I do most, add them to niri/binds.kdl or
-     binds-quickshell.kdl, then
+  3. Defaults and identity — DO NOT SKIP. This setup ships with the original
+     author's personal defaults baked in. Replace every one of these with mine:
+       a) Wallpaper directory (default: ~/Pictures/Wallpapers) and the rotation
+          knobs — interval, downscale, format, JPEG quality, PNG compression,
+          canvas colour, and whether wallust auto-theming runs:
+            ~/niri-setup/scripts/wallpaper-process.sh get
+            ~/niri-setup/scripts/wallpaper-process.sh setmany INTERVAL 30 DOWNSCALE 1920x1080
+          Explain what each knob does before changing it. setmany validates every
+          pair first and refuses the whole write if any value is invalid.
+       b) Theme palette — list the 15 available and let me pick a permanent default:
+            qs -c sunset ipc call themes set <name>
+          Explain that auto-theming ("auto on") is what makes the palette follow my
+          wallpaper; picking a fixed palette turns auto off by design.
+       c) City / timezone — drives the clock, weather popup and lock screen.
+       d) Idle timeout and power profile (shipped defaults: ~10m idle, balanced):
+            ~/niri-setup/scripts/change-idle-time.sh
+            ~/niri-setup/scripts/change-power-profile.sh
+       e) Terminal font/size and tmux behaviour (default prefix is C-b):
+            ~/niri-setup/tmux/tmux.conf   # behaviour only — colours are generated
+       f) Default apps for keybinds (shipped defaults: Brave browser, Thunar files,
+          GNOME Settings). These are hardcoded in niri/binds.kdl — change them if I
+          want Firefox, Nautilus, or something else, and tell me the app-id to use in
+          niri/rules.kdl.
+     For EVERY value you change, print a before/after table so I can see exactly what
+     differs from the shipped defaults.
+  4. Keybindings: ask for the 5 things I do most (open browser, screenshot, music,
+     terminal, clipboard), add them to niri/binds.kdl or binds-quickshell.kdl, then
        cp ~/niri-setup/niri/*.kdl ~/.config/niri/
        niri validate && niri msg action load-config-file
-  5. Startup apps: show me ~/.config/niri/spawn-at-startup.kdl, let me edit it.
-  6. Rollback: document scripts/switch-shell.sh waybar (reverts to classic
-     Waybar+dunst) and scripts/rollback-to-waybar.sh (emergency). Tell me how to
-     start niri from a TTY (`niri-session`).
-
+  5. Startup apps: show me ~/.config/niri/spawn-at-startup.kdl and let me add/remove.
+  6. Rollback safety net: document that
+       ~/niri-setup/scripts/switch-shell.sh waybar
+     reverts to the classic Waybar+dunst shell, and
+       ~/niri-setup/scripts/rollback-to-waybar.sh
+     is the emergency path. Tell me how to re-enter niri from a TTY (`niri-session`).
 PHASE 7 — FINAL REPORT
 Print:
   - Verification table (every Phase 5 check with PASS/FAIL)
@@ -634,7 +735,7 @@ Print:
 ````text
 You are installing AND personalising the "Sunset Niri" desktop environment on Debian
 (or Ubuntu/Mint/Pop!_OS).
-Repository: https://github.com/acaibowlz/niri-setup
+Repository: https://github.com/tahmidtameem2017/My-Linux-Setup
 
 You have permission to run shell commands, edit files, and manage packages. Work
 AUTONOMOUSLY through every phase below. Verify each step by actually running the
@@ -684,10 +785,27 @@ the ladder above. Fonts:
   sudo apt install -y fonts-jetbrains-mono fonts-noto-cjk
 
 PHASE 2 — CLONE + RUN setup.sh (WITH THE FLAG)
-  git clone https://github.com/acaibowlz/niri-setup.git ~/niri-setup
+  git clone https://github.com/tahmidtameem2017/My-Linux-Setup.git ~/niri-setup
   cd ~/niri-setup && ./setup.sh --skip-install
 
-PHASE 3 — CRITICAL FIXES (all four apply)
+PHASE 3 — CRITICAL FIXES (all five apply)
+FIX 0 — REWRITE THE HARDCODED PATHS (do this FIRST, before anything else).
+  This repo was written on a machine whose username was "me", so ~150 paths are
+  hardcoded as /home/me/niri-setup. If MY username is not "me", EVERY one of them
+  is wrong and the desktop will be badly broken — scripts not found, wallpaper
+  failing, sudo rules pointing at a nonexistent file.
+  First, find out where I ACTUALLY cloned the repo (do not assume ~/niri-setup —
+  ask me if it is not there). Let REPO be that path. Then:
+    cd "$REPO"
+    echo "current user: $(whoami) | repo: $REPO"
+    grep -rl '/home/me/niri-setup' --exclude-dir=.git . \
+      | xargs -r sed -i "s|/home/me/niri-setup|$REPO|g"
+    sed -i "s|\bme ALL|$(whoami) ALL|g" scripts/sudoers-cpu 2>/dev/null
+    grep -rIo '/home/me/niri-setup' --exclude-dir=.git . | wc -l   # must print 0
+  Confirm the count is 0 before continuing. If you deliberately keep the repo at
+  /home/me/niri-setup then there is nothing to rewrite — say so and skip.
+  NOTE: this makes the repo user-specific. Tell me that re-cloning or moving it
+  means re-running this rewrite.
 FIX 1 — install ALL niri config files.
   setup.sh only symlinks config.kdl, which `include`s ~10 more .kdl files; niri
   resolves includes relative to the symlink directory, so a lone symlink fails.
@@ -738,25 +856,41 @@ PHASE 5 — VERIFY (run each; report PASS/FAIL)
   python3 -m unittest discover -s ~/niri-setup/scripts -p 'test_*.py' 2>&1 | tail -3
 
 PHASE 6 — ONBOARDING (personalise it; ask me for choices)
-  1. Wallpapers: ask where mine live (default ~/Pictures/Wallpapers), then
-       ~/niri-setup/scripts/wallpaper.sh set <path>
-     Enable auto-theming:
-       ~/niri-setup/scripts/wallpaper-process.sh set AUTOSTART true
-       ~/niri-setup/scripts/auto-wallpaper.sh --oneshot
-  2. Theme: list palettes, let me pick a default:
-       qs -c sunset ipc call themes set <name>
-     Show the visual editor (Mod+Alt+Shift+T); explain the 11 tokens and that
-     components must never hardcode a hex.
-  3. Identity + locale: ask my city/timezone for clock, weather and lock screen.
-  4. Keybindings: ask for the 5 things I do most, add them to niri/binds.kdl or
-     binds-quickshell.kdl, then
+  3. Defaults and identity — DO NOT SKIP. This setup ships with the original
+     author's personal defaults baked in. Replace every one of these with mine:
+       a) Wallpaper directory (default: ~/Pictures/Wallpapers) and the rotation
+          knobs — interval, downscale, format, JPEG quality, PNG compression,
+          canvas colour, and whether wallust auto-theming runs:
+            ~/niri-setup/scripts/wallpaper-process.sh get
+            ~/niri-setup/scripts/wallpaper-process.sh setmany INTERVAL 30 DOWNSCALE 1920x1080
+          Explain what each knob does before changing it. setmany validates every
+          pair first and refuses the whole write if any value is invalid.
+       b) Theme palette — list the 15 available and let me pick a permanent default:
+            qs -c sunset ipc call themes set <name>
+          Explain that auto-theming ("auto on") is what makes the palette follow my
+          wallpaper; picking a fixed palette turns auto off by design.
+       c) City / timezone — drives the clock, weather popup and lock screen.
+       d) Idle timeout and power profile (shipped defaults: ~10m idle, balanced):
+            ~/niri-setup/scripts/change-idle-time.sh
+            ~/niri-setup/scripts/change-power-profile.sh
+       e) Terminal font/size and tmux behaviour (default prefix is C-b):
+            ~/niri-setup/tmux/tmux.conf   # behaviour only — colours are generated
+       f) Default apps for keybinds (shipped defaults: Brave browser, Thunar files,
+          GNOME Settings). These are hardcoded in niri/binds.kdl — change them if I
+          want Firefox, Nautilus, or something else, and tell me the app-id to use in
+          niri/rules.kdl.
+     For EVERY value you change, print a before/after table so I can see exactly what
+     differs from the shipped defaults.
+  4. Keybindings: ask for the 5 things I do most (open browser, screenshot, music,
+     terminal, clipboard), add them to niri/binds.kdl or binds-quickshell.kdl, then
        cp ~/niri-setup/niri/*.kdl ~/.config/niri/
        niri validate && niri msg action load-config-file
-  5. Startup apps: show me ~/.config/niri/spawn-at-startup.kdl, let me edit it.
-  6. Rollback: document scripts/switch-shell.sh waybar (reverts to classic
-     Waybar+dunst) and scripts/rollback-to-waybar.sh (emergency). Tell me how to
-     start niri from a TTY (`niri-session`).
-
+  5. Startup apps: show me ~/.config/niri/spawn-at-startup.kdl and let me add/remove.
+  6. Rollback safety net: document that
+       ~/niri-setup/scripts/switch-shell.sh waybar
+     reverts to the classic Waybar+dunst shell, and
+       ~/niri-setup/scripts/rollback-to-waybar.sh
+     is the emergency path. Tell me how to re-enter niri from a TTY (`niri-session`).
 PHASE 7 — FINAL REPORT
 Print:
   - Verification table (every Phase 5 check with PASS/FAIL)
@@ -1005,13 +1139,16 @@ This project stands on the shoulders of a lot of people. Thank you to everyone w
 built the tools this desktop is made of.
 
 ### This repository
-- **[acaibowlz](https://github.com/acaibowlz)** — creator of `niri-setup`, the original
-  design this fork grew out of. This README and much of the layout descend from their
-  work.
-- **[@hengtseChou](https://github.com/hengtseChou)** *(same person as acaibowlz — hankthedev)* —
-  the vast majority of the migration work: building the native Quickshell shell, the
-  theme engine, wallpaper theming, and the cross-cutting scripts.
-- **[tahmidtameem](https://github.com/tahmidtameem)** — contributions.
+- **[tahmidtameem2017](https://github.com/tahmidtameem2017)** — author and maintainer of
+  this setup. What began as a stock `niri-setup` install was rebuilt from the ground up:
+  the Waybar/dunst shell was replaced with a native Quickshell QML shell, a wallpaper-aware
+  theme engine was built from scratch, and the install was made cross-distro.
+- **[acaibowlz](https://github.com/acaibowlz)** *(aka **[@hengtseChou](https://github.com/hengtseChou)*
+  *— hankthedev)* — creator of the original
+  [`niri-setup`](https://github.com/acaibowlz/niri-setup) that this project started from,
+  and author of the native Quickshell migration this build descends from. The KDL config
+  layout, the Waybar theme, and much of the original design are their work — credited
+  and deeply respected.
 
 ### The upstream tools this desktop is built on
 A desktop is a team of open-source projects. In no particular order, with gratitude:
