@@ -34,7 +34,11 @@
   voice dictation (whisrs, Mod+Alt+D / Mod+Alt+Shift+D / Mod+Alt+Escape),
   the launcher Quick Look preview (Ctrl+Space), the screenshot menu's real
   row list, the Now Playing card as a player AND a downloader (Mod+Alt+M),
-  and the launcher's pinned Controls section. Every keycap on this page is
+  and the launcher's pinned Controls section. Also updated for the
+  Config Editor (tune niri itself — gaps, focus ring, animations,
+  touchpad — from the launcher) and the bookmark list: import from
+  any browser, delete with the Delete key, rename with %rename.
+  Every keycap on this page is
   checked against niri/binds.kdl + niri/binds-quickshell.kdl, and every
   "rows 1-N" claim is checked against the owning QML's own list.
 -->
@@ -158,10 +162,13 @@
   main { margin-top: 32px; }
   details.sec { border-top: 1px solid var(--line); }
   details.sec.hidden { display: none; }
+  /* Right padding leaves room for the absolutely-positioned star, and
+     position:relative makes the summary — NOT the <details> — the containing
+     block it is measured against (see the .star comment). */
   details.sec > summary {
-    cursor: pointer; list-style: none;
+    cursor: pointer; list-style: none; position: relative;
     display: flex; align-items: center; gap: 20px;
-    padding: 18px 20px; margin: 0 -20px;
+    padding: 18px 62px 18px 20px; margin: 0 -20px;
     border-left: 2px solid transparent;
     transition: background 130ms linear, border-color 130ms linear;
   }
@@ -178,6 +185,59 @@
     padding: 2px 8px; white-space: nowrap;
   }
   .chev { font-size: 17px; color: var(--text-2); transition: transform 160ms ease, color 160ms ease; display: inline-block; line-height: 1; }
+  /* The star lives INSIDE <summary>, absolutely positioned against it.
+     Two things made the obvious version wrong:
+       * a <details> is display:block, so a button placed after <summary>
+         dropped onto its own line under the header;
+       * even absolute, the containing block is the <details>' CONTENT box,
+         which starts BELOW the summary — so `top: 12px` rendered 100px down
+         over the section body. getBoundingClientRect proved it (offsetTop 99
+         against a computed top of 12px).
+     Anchoring to the summary avoids both: it is the box the header actually
+     occupies. The button is the LAST child and the summary is flex, so give
+     it position:absolute (out of flow) rather than a flex slot, and pad the
+     summary's right side so the count badge and chevron never sit under it.
+     It is a real <button> so it is focusable and answers Enter/Space. */
+  .star {
+    position: absolute; top: 50%; right: 20px; z-index: 2;
+    transform: translateY(-50%);
+    width: 34px; height: 34px; margin: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: none; border: 0; padding: 0; cursor: pointer;
+    color: var(--text-3); font-size: 15px; line-height: 1;
+    transition: color 130ms linear, font-size 130ms ease;
+  }
+  .star:hover { color: var(--accent-hi); font-size: 18px; }
+  .star:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .star[aria-pressed="true"] { color: var(--accent); }
+  details.sec:hover .star { color: var(--accent-hi); }
+
+  /* ---------------- saved list ---------------- */
+  .saved { margin-top: 22px; border: 1px solid rgba(var(--accent-rgb), 0.3); background: rgba(var(--accent-rgb), 0.05); }
+  .saved[hidden] { display: none; }
+  .saved > .saved-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px; border-bottom: 1px solid rgba(var(--accent-rgb), 0.22);
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--accent-hi);
+  }
+  .saved > .saved-head::before { content: "\2605"; font-size: 12px; letter-spacing: 0; }
+  .saved > .saved-head .n { margin-left: auto; color: var(--olive); letter-spacing: 1px; }
+  .saved-list { padding: 4px 0; }
+  .saved-row {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; text-align: left; background: none; border: 0;
+    padding: 9px 16px; cursor: pointer; color: var(--text-2); font-family: var(--sans);
+    font-size: 14.5px; transition: background 110ms linear, color 110ms linear;
+  }
+  .saved-row:hover { background: rgba(var(--accent-rgb), 0.09); }
+  .saved-row:focus-within { background: rgba(var(--accent-rgb), 0.09); }
+  .saved-row .s-go { display: flex; align-items: center; gap: 12px; flex: 1 1 auto; min-width: 0; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; color: inherit; text-align: left; }
+  .saved-row .s-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .saved-row .s-num { font-family: var(--mono); font-size: 11px; color: var(--olive); min-width: 20px; }
+  .saved-row .s-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .saved-row .s-unstar { flex-shrink: 0; color: var(--text-3); font-size: 13px; padding: 2px 6px; }
+  .saved-row .s-unstar:hover { color: var(--accent-hi); }
   details.sec > summary:hover .chev { color: var(--accent-hi); }
   details.sec > summary:hover .sec-title { color: var(--text-hi); }
   details.sec > summary:hover .sec-count { background: rgba(var(--olive-rgb), 0.22); }
@@ -311,6 +371,11 @@
     <div class="count" id="count"></div>
   </div>
 
+  <div class="saved" id="saved" hidden>
+    <div class="saved-head">Saved<span class="n" id="saved-count"></span></div>
+    <div class="saved-list" id="saved-list"></div>
+  </div>
+
   <details class="vocab">
     <summary>What the words mean</summary>
     <div class="vocab-grid">
@@ -339,6 +404,7 @@
           <span class="sec-hint">the eleven you will use most</span>
         </span>
         <span class="sec-meta"><span class="sec-count"><span class="n">11</span></span><span class="chev">&#8250;</span></span>
+          <button class="star" type="button" aria-pressed="false" aria-label="Save this section" title="Save this section">&#9734;</button>
       </summary>
       <div class="sec-body">
         <div class="rows">
@@ -367,6 +433,7 @@
           <span class="sec-hint">apps, files, clipboard, screenshots, leaving</span>
         </span>
         <span class="sec-meta"><span class="sec-count"><span class="n">52</span></span><span class="chev">&#8250;</span></span>
+          <button class="star" type="button" aria-pressed="false" aria-label="Save this section" title="Save this section">&#9734;</button>
       </summary>
       <div class="sec-body">
         <div class="sub">Opening things</div>
@@ -488,6 +555,7 @@
           <span class="sec-hint">moving, resizing, closing</span>
         </span>
         <span class="sec-meta"><span class="sec-count"><span class="n">18</span></span><span class="chev">&#8250;</span></span>
+          <button class="star" type="button" aria-pressed="false" aria-label="Save this section" title="Save this section">&#9734;</button>
       </summary>
       <div class="sec-body">
         <p class="blurb">Windows sit side by side in columns instead of covering each other. Both <kbd>Mod+HJKL</kbd> and the arrow keys move between them.</p>
@@ -537,6 +605,7 @@
           <span class="sec-hint">ten separate screens of windows</span>
         </span>
         <span class="sec-meta"><span class="sec-count"><span class="n">6</span></span><span class="chev">&#8250;</span></span>
+          <button class="star" type="button" aria-pressed="false" aria-label="Save this section" title="Save this section">&#9734;</button>
       </summary>
       <div class="sec-body">
         <p class="blurb">Give one to work, one to chat, one to videos. You never have to close anything to get a clean desktop.</p>
@@ -559,7 +628,8 @@
           <span class="sec-title">The launcher</span>
           <span class="sec-hint">one box for apps, files, maths, the web</span>
         </span>
-        <span class="sec-meta"><span class="sec-count"><span class="n">32</span></span><span class="chev">&#8250;</span></span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">58</span></span><span class="chev">&#8250;</span></span>
+          <button class="star" type="button" aria-pressed="false" aria-label="Save this section" title="Save this section">&#9734;</button>
       </summary>
       <div class="sec-body">
         <p class="blurb">Press <kbd>Alt+Space</kbd>, type what you want, press <kbd>Enter</kbd>. Start the line with a symbol and it searches something different instead.</p>
@@ -592,10 +662,12 @@
         <div class="sub">The pinned controls</div>
         <div class="rows">
           <div class="row"><span class="desc">A short list of the things you actually use, above everything else</span><span class="keys"><span class="hint">shown with nothing typed</span></span></div>
-          <div class="row"><span class="desc">Settings · Help &amp; Guide · Themes · Custom Editor</span><span class="keys"><span class="hint">rows 1–4</span></span></div>
-          <div class="row"><span class="desc">Quick Settings · Wi-Fi · Wallpaper · Power · Volume</span><span class="keys"><span class="hint">rows 5–9</span></span></div>
-          <div class="row"><span class="desc">Now Playing · Clipboard · Screenshot · Calendar</span><span class="keys"><span class="hint">rows 10–13</span></span></div>
-          <div class="row"><span class="desc">Crack the whip · Do Not Disturb</span><span class="keys"><span class="hint">rows 14–15</span></span></div>
+          <div class="row"><span class="desc">Settings · Help &amp; Guide · Instagram</span><span class="keys"><span class="hint">rows 1–3</span></span></div>
+          <div class="row"><span class="desc">Themes · Custom Editor · Config Editor</span><span class="keys"><span class="hint">rows 4–6</span></span></div>
+          <div class="row"><span class="desc">Quick Settings · Wi-Fi · Wallpaper · Power · Volume</span><span class="keys"><span class="hint">rows 7–11</span></span></div>
+          <div class="row"><span class="desc">Now Playing · Performance · Clipboard · Screenshot</span><span class="keys"><span class="hint">rows 12–15</span></span></div>
+          <div class="row"><span class="desc">Calendar · Crack the whip · Do Not Disturb</span><span class="keys"><span class="hint">rows 16–18</span></span></div>
+          <div class="row"><span class="desc">Import Bookmarks — pull in the bookmarks your browser already has, favicons and all</span><span class="keys"><span class="hint">row 19</span></span></div>
           <div class="row"><span class="desc">Jump straight to a window you already have open</span><span class="keys"><span class="hint">the <b>Open</b> section — one row per running app</span></span></div>
           <div class="row"><span class="desc">Your saved sites</span><span class="keys"><kbd>%</kbd></span></div>
         </div>
@@ -607,7 +679,8 @@
           <div class="row"><span class="desc">Narrow a search by adding words after the slash</span><span class="keys"><span class="pill">/ .pdf invoice @downloads</span></span></div>
           <div class="row"><span class="desc">Drag a file row into a chat or a document</span><span class="keys"><span class="hint">press and drag</span></span></div>
           <div class="row"><span class="desc">Copy a file row — text and pictures copy their contents, anything else copies the path</span><span class="keys"><kbd>Ctrl</kbd><kbd>C</kbd></span></div>
-          <div class="row"><span class="desc">Open the usual sites by name</span><span class="keys"><kbd>@</kbd><span class="hint">then</span><span class="pill">gh yt wiki so r maps</span></span></div>
+          <div class="row"><span class="desc">Search the web, or jump straight to one site</span><span class="keys"><kbd>@</kbd><span class="hint">then</span><span class="pill">@gh @yt @wiki</span></span></div>
+          <div class="row"><span class="desc">Your saved websites</span><span class="keys"><kbd>%</kbd></span></div>
           <div class="row"><span class="desc">Save a site you use often</span><span class="keys"><kbd>@</kbd><span class="hint">then type</span><span class="pill">-bookmark</span></span></div>
           <div class="row"><span class="desc">Write a note without leaving the keyboard</span><span class="keys"><kbd>!</kbd><span class="hint">add milk</span></span></div>
         </div>
@@ -616,6 +689,45 @@
           <kbd>Enter</kbd> opens · <kbd>Ctrl</kbd><kbd>Enter</kbd> reveals a file in its folder · <kbd>Ctrl</kbd><kbd>C</kbd> copies a file row · <kbd>↑</kbd> <kbd>↓</kbd> move · <kbd>Esc</kbd> closes.
           Typing <kbd>/</kbd> in the middle of your words switches to file search without starting over.
         </div>
+
+        <details class="more">
+          <summary>Every site shortcut, and saving one</summary>
+          <div class="inner">
+            <p>Start the line with <kbd>@</kbd> and the launcher searches the web instead of your apps. The first word picks the site; everything after it is what to look for. The site also works on its own — <kbd>@gh</kbd> alone just opens GitHub.</p>
+            <div class="rows">
+              <div class="row"><span class="desc">DuckDuckGo</span><span class="keys"><span class="pill">@dd @duck @duckduckgo</span></span></div>
+              <div class="row"><span class="desc">Google</span><span class="keys"><span class="pill">@g @google</span></span></div>
+              <div class="row"><span class="desc">YouTube</span><span class="keys"><span class="pill">@yt @youtube</span></span></div>
+              <div class="row"><span class="desc">Wikipedia</span><span class="keys"><span class="pill">@w @wiki @wikipedia</span></span></div>
+              <div class="row"><span class="desc">GitHub</span><span class="keys"><span class="pill">@gh @github</span></span></div>
+              <div class="row"><span class="desc">Stack Overflow</span><span class="keys"><span class="pill">@so @stackoverflow</span></span></div>
+              <div class="row"><span class="desc">Reddit</span><span class="keys"><span class="pill">@r @reddit</span></span></div>
+              <div class="row"><span class="desc">Maps</span><span class="keys"><span class="pill">@maps @gmaps</span></span></div>
+              <div class="row"><span class="desc">Anime, sorted by popularity</span><span class="keys"><span class="pill">@miruro @anime</span></span></div>
+              <div class="row"><span class="desc">See them all at once</span><span class="keys"><kbd>@</kbd><span class="hint">on its own</span></span></div>
+              <div class="row"><span class="desc">Something not on the list — a pasted link opens it, anything else searches DuckDuckGo</span><span class="keys"><span class="pill">@ https://… &nbsp;·&nbsp; @ a question</span></span></div>
+            </div>
+            <p><b>Saving a site.</b> Add <span class="pill">-bookmark</span> to the end and press <kbd>Enter</kbd> instead of opening it. It works with a plain link, with a site shortcut, and with a search you have typed.</p>
+            <div class="rows">
+              <div class="row"><span class="desc">Save a site without opening it</span><span class="keys"><span class="pill">@ github.com -bookmark</span></span></div>
+              <div class="row"><span class="desc">Save a search you have already typed</span><span class="keys"><span class="pill">@dd how to tile windows -bookmark</span></span></div>
+              <div class="row"><span class="desc">Save any link you paste into the launcher</span><span class="keys"><span class="hint">a <b>Bookmark</b> row appears — Enter to keep it</span></span></div>
+            </div>
+            <p><b>Coming back to them.</b> Saved sites live behind <kbd>%</kbd>. Type part of a name and <kbd>Enter</kbd> opens it; with nothing typed you get the whole list, and your five most recent sit above everything else in the launcher itself. To remove one, highlight it and press <kbd>Delete</kbd> — the row vanishes and the menu stays open, so you can clear several in a row. Renaming is a row, not a keystroke: type <span class="pill">%rename</span> and each match becomes <b>Rename “…”</b> — <kbd>Enter</kbd> rewrites the name. Neither path opens a browser.</p>
+            <div class="rows">
+              <div class="row"><span class="desc">Open the saved list</span><span class="keys"><kbd>%</kbd></span></div>
+              <div class="row"><span class="desc">Open one by typing part of its name</span><span class="keys"><span class="pill">% github</span></span></div>
+              <div class="row"><span class="desc">Remove the highlighted one — the menu stays open</span><span class="keys"><span class="pill">% github</span><kbd>Delete</kbd></span></div>
+              <div class="row"><span class="desc">Remove one by name instead of highlighting it</span><span class="keys"><span class="pill">%delete github</span><kbd>Enter</kbd></span></div>
+              <div class="row"><span class="desc">Rename one — everything before <b>to</b> picks it, everything after is the new name</span><span class="keys"><span class="pill">%rename github to GitHub</span><kbd>Enter</kbd></span></div>
+              <div class="row"><span class="desc">A rename keeps the link and its icon — only the name changes</span><span class="keys"><span class="hint">half-typed renames do nothing</span></span></div>
+              <div class="row"><span class="desc">They carry the site's own icon where the browser has one cached</span><span class="keys"><span class="pill">bookmark.svg</span><span class="hint">otherwise</span></span></div>
+              <div class="row"><span class="desc">Bring in the bookmarks your browser already has — Brave, Chrome, Chromium, Vivaldi, Edge, Opera, Firefox</span><span class="keys"><span class="pill cmd">scripts/import-browser-bookmarks.py</span></span></div>
+              <div class="row"><span class="desc">The same thing, found by name</span><span class="keys"><kbd>Alt+Space</kbd><span class="hint">then</span><span class="pill">Import Bookmarks</span></span></div>
+            </div>
+            <p>The import only ever <b>adds</b>. Run it again after bookmarking something new in the browser and only the new ones arrive — anything you renamed, reordered or deleted in the launcher is left alone, and a bookmark you deleted there is never brought back. See <a href="#tech">Under the hood</a> for what it reads.</p>
+          </div>
+        </details>
 
         <details class="more">
           <summary>Why a file sometimes is not found</summary>
@@ -635,6 +747,7 @@
           <span class="sec-hint">the looks and the noise</span>
         </span>
         <span class="sec-meta"><span class="sec-count"><span class="n">23</span></span><span class="chev">&#8250;</span></span>
+          <button class="star" type="button" aria-pressed="false" aria-label="Save this section" title="Save this section">&#9734;</button>
       </summary>
       <div class="sec-body">
         <div class="sub">Wallpaper</div>
@@ -695,7 +808,8 @@
           <span class="sec-title">Settings</span>
           <span class="sec-hint">the GNOME app, one panel per job</span>
         </span>
-        <span class="sec-meta"><span class="sec-count"><span class="n">13</span></span><span class="chev">&#8250;</span></span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">17</span></span><span class="chev">&#8250;</span></span>
+          <button class="star" type="button" aria-pressed="false" aria-label="Save this section" title="Save this section">&#9734;</button>
       </summary>
       <div class="sec-body">
         <p class="blurb">Anything about the machine itself lives in one normal app — the same one any Linux desktop has. It looks a little like a phone: icons down the left, the settings down the right.</p>
@@ -721,6 +835,14 @@
           <div class="row"><span class="desc">Update the system</span><span class="keys"><kbd>Mod+U</kbd><span class="hint">a small updater window</span></span></div>
         </div>
 
+        <div class="sub">The compositor itself</div>
+        <div class="rows">
+          <div class="row"><span class="desc">niri's own settings are not in that app — they have their own editor: window gaps, default column width, focus-ring width, window opacity, corner radius, the centre-focused-column policy, window open/close animations, tap-to-click, natural scrolling and mouse acceleration</span><span class="keys"><span class="hint">Alt+Space → <b>Config Editor</b></span></span></div>
+          <div class="row"><span class="desc">Applies as you drag — no logout, no restart</span><span class="keys"><span class="hint">hot-reloaded, live</span></span></div>
+          <div class="row"><span class="desc">A bad value cannot break the config — it is checked before the compositor sees it, and the old files come back if the check fails</span><span class="keys"><span class="hint"><kbd>niri validate</kbd> runs first</span></span></div>
+          <div class="row"><span class="desc">Edits the live config in <code>~/.config/niri/</code>, not this repo — your tweaks are the source of truth, and a theme sync cannot clobber them</span><span class="keys"><span class="hint">run it again to close it</span></span></div>
+        </div>
+
         <div class="note">
           The fast everyday things — brightness, mute, do-not-disturb, power mode — are also in the bar popup on <kbd>Mod+I</kbd>.
           Wi-Fi has its own card (<kbd>Mod+Alt+F</kbd>, or click the Wi-Fi icon) and Bluetooth its own too, both in the
@@ -739,6 +861,7 @@
           <span class="sec-hint">focus blocks, weather, layouts you reuse</span>
         </span>
         <span class="sec-meta"><span class="sec-count"><span class="n">8</span></span><span class="chev">&#8250;</span></span>
+          <button class="star" type="button" aria-pressed="false" aria-label="Save this section" title="Save this section">&#9734;</button>
       </summary>
       <div class="sec-body">
         <div class="rows">
@@ -763,6 +886,7 @@
           <span class="sec-hint">symptom first, fix second</span>
         </span>
         <span class="sec-meta"><span class="sec-count"><span class="n">15</span></span><span class="chev">&#8250;</span></span>
+          <button class="star" type="button" aria-pressed="false" aria-label="Save this section" title="Save this section">&#9734;</button>
       </summary>
       <div class="sec-body">
         <div class="rows">
@@ -793,7 +917,8 @@
           <span class="sec-title">Under the hood</span>
           <span class="sec-hint">only if you like this sort of thing</span>
         </span>
-        <span class="sec-meta"><span class="sec-count"><span class="n">25</span></span><span class="chev">&#8250;</span></span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">28</span></span><span class="chev">&#8250;</span></span>
+          <button class="star" type="button" aria-pressed="false" aria-label="Save this section" title="Save this section">&#9734;</button>
       </summary>
       <div class="sec-body">
         <p class="blurb">Everything above is enough for day to day. This section is for when you want to see, or change, the machine itself.</p>
@@ -814,6 +939,8 @@
           <div class="row"><span class="desc">Dictation from a terminal, or stop it for good</span><span class="keys"><span class="pill cmd">whisrs toggle</span><span class="pill cmd">scripts/dictation-reset.sh</span></span></div>
           <div class="row"><span class="desc">Edit config files <span class="dim">— you will need this one day</span></span><span class="keys"><span class="pill">helix · nvim · nano</span></span></div>
           <div class="row"><span class="desc">Manage tmux sessions without relearning it</span><span class="keys"><a href="tmux.html"><span class="pill">open the tmux cheat sheet →</span></a></span></div>
+          <div class="row"><span class="desc">What the bookmark import reads — the browser's own files, copied to a temp dir and opened read-only</span><span class="keys"><span class="pill">Bookmarks + Favicons — Chromium family</span><span class="pill">places.sqlite + favicons.sqlite — Firefox family</span></span></div>
+          <div class="row"><span class="desc">The Config Editor's back end — a loopback page that writes <code>~/.config/niri/</code> (a file:// page cannot), token in the URL and a required header on every write</span><span class="keys"><span class="pill cmd">scripts/config-editor-server.py</span></span></div>
         </div>
 
         <details class="more">
@@ -837,6 +964,7 @@
               <div class="row"><span class="desc">A hand-written manual inside the shell, and its <kbd>?</kbd> mode</span><span class="keys"><span class="pill">now this page — Mod+Alt+H</span></span></div>
               <div class="row"><span class="desc">A clickable editor for the wallpaper settings</span><span class="keys"><span class="pill">now scripts/wallpaper-process.sh</span></span></div>
               <div class="row"><span class="desc">Hand-editing <code>theme-custom.json</code> in a text editor</span><span class="keys"><span class="pill">now the Custom Editor — Mod+Alt+Shift+T</span></span></div>
+              <div class="row"><span class="desc">Hunting through <code>niri/*.kdl</code> to change a gap, a width or an animation</span><span class="keys"><span class="pill">now the Config Editor — Alt+Space → Config Editor</span></span></div>
               <div class="row"><span class="desc">Two settings programs from other desktops</span><span class="keys"><span class="pill">now GNOME Settings for both</span></span></div>
             </div>
             <p>Nothing was lost: the same jobs are done by programs that already do them well. A second copy of a settings screen, or a second copy of this manual, is not worth maintaining.</p>
@@ -861,8 +989,141 @@
   var secs = Array.prototype.slice.call(document.querySelectorAll("details.sec"));
   var rows = Array.prototype.slice.call(document.querySelectorAll(".row"));
   var extras = Array.prototype.slice.call(document.querySelectorAll("details.more"));
-  var index = rows.map(function (r) { return (r.textContent || "").toLowerCase(); });
+  // Index each row's DESCRIPTION and KEYS separately, so a search can be told
+  // apart from a match that only happens to appear in a command or a path.
+  var rowText = rows.map(function (r) { return (r.textContent || "").toLowerCase(); });
+  var rowDesc = rows.map(function (r) {
+    var d = r.querySelector(".desc");
+    return d ? (d.textContent || "").toLowerCase() : "";
+  });
+  // Fold punctuation so a query typed the way people speak still finds the row
+  // written the way the page spells it. Without this, searching "wifi" misses
+  // every row that says "Wi-Fi" — and the page is full of those. The same
+  // applies to "escape"/"Esc", "page up"/"Page_Up", "mod ctrl"/"Mod+Ctrl".
+  // Applied to BOTH sides, so it can never turn a non-match into a match: the
+  // raw text is still what gets searched, this only adds a second, looser key.
+  function loose(s) {
+    return s.toLowerCase().replace(/[-_+.·—]/g, "").replace(/\s+/g, " ");
+  }
+  var rowLoose = rowText.map(loose);
+  var rowDescLoose = rowDesc.map(loose);
+  // Where each row originally sat, recorded on the first applyFilter() pass
+  // (which runs before anything has moved) so clearing a ranked search can put
+  // the page back exactly as written.
+  var homeParent = rows.map(function () { return null; });
+  var homeIndex = rows.map(function () { return -1; });
   var filtering = false;
+
+  // ---------------- favourites ----------------
+  // A starred section is remembered in localStorage, which is per-origin and
+  // per-profile. The guide opens in its own Brave profile, so the stars are
+  // private to it and need no file, no server and no sync. Anything that goes
+  // wrong reading or writing storage degrades to "nothing saved" rather than
+  // throwing: the whole guide has to keep working even where localStorage is
+  // unavailable (a file:// page in some browsers, or storage turned off).
+  var SAVED_KEY = "sunset.help.saved";
+  var savedBox = document.getElementById("saved");
+  var savedList = document.getElementById("saved-list");
+  var savedCount = document.getElementById("saved-count");
+
+  function readSaved() {
+    try {
+      var raw = window.localStorage.getItem(SAVED_KEY);
+      var v = raw ? JSON.parse(raw) : [];
+      // Keep only ids that still exist on the page, so a section that was
+      // renamed or removed cannot leave an unopenable row behind.
+      return Array.isArray(v) ? v.filter(function (id) {
+        return secs.some(function (s) { return s.id === id; });
+      }) : [];
+    } catch (e) { return []; }
+  }
+  var saved = readSaved();
+
+  function writeSaved() {
+    try { window.localStorage.setItem(SAVED_KEY, JSON.stringify(saved)); }
+    catch (e) { /* private mode: stars last for this session only */ }
+  }
+
+  function secTitle(sec) {
+    var t = sec.querySelector(".sec-title");
+    return t ? t.textContent.trim() : sec.id;
+  }
+  function secNum(sec) {
+    var t = sec.querySelector(".sec-num");
+    return t ? t.textContent.trim() : "";
+  }
+
+  function renderSaved() {
+    secs.forEach(function (s) {
+      var star = s.querySelector(".star");
+      if (!star) return;
+      var on = saved.indexOf(s.id) !== -1;
+      star.setAttribute("aria-pressed", on ? "true" : "false");
+      star.setAttribute("aria-label", (on ? "Unsave the " : "Save the ") +
+        secTitle(s) + " section");
+      star.title = on ? "Remove from Saved" : "Save this section";
+      star.innerHTML = on ? "&#9733;" : "&#9734;";   // filled vs outline
+    });
+    savedBox.hidden = saved.length === 0;
+    savedCount.textContent = saved.length
+      ? saved.length + (saved.length === 1 ? " section" : " sections") : "";
+    // Rebuilt rather than reordered, so a section dropped from the list can
+    // never leave a stale row behind.
+    savedList.innerHTML = "";
+    saved.forEach(function (id) {
+      var found = secs.filter(function (s) { return s.id === id; })[0];
+      if (!found) return;
+
+      var go = document.createElement("button");
+      go.type = "button";
+      go.className = "s-go";
+      go.appendChild(Object.assign(document.createElement("span"),
+        { className: "s-num", textContent: secNum(found) }));
+      go.appendChild(Object.assign(document.createElement("span"),
+        { className: "s-title", textContent: secTitle(found) }));
+      go.addEventListener("click", function () {
+        // Open it the same way clicking the heading does, which also closes
+        // whichever other section was open (one-open-at-a-time), then bring
+        // it into view.
+        found.open = true;
+        found.scrollIntoView({ block: "start" });
+      });
+
+      var un = document.createElement("button");
+      un.type = "button";
+      un.className = "s-unstar";
+      un.setAttribute("aria-label", "Remove " + secTitle(found) + " from Saved");
+      un.title = "Remove from Saved";
+      un.innerHTML = "&#215;";
+      un.addEventListener("click", function () { toggleSaved(id); });
+
+      var row = document.createElement("div");
+      row.className = "saved-row";
+      row.appendChild(go);
+      row.appendChild(un);
+      savedList.appendChild(row);
+    });
+  }
+
+  function toggleSaved(id) {
+    var at = saved.indexOf(id);
+    if (at === -1) saved.push(id); else saved.splice(at, 1);
+    writeSaved();
+    renderSaved();
+  }
+
+  secs.forEach(function (s) {
+    var star = s.querySelector(".star");
+    if (!star) return;
+    // click, not toggle: the star is a SIBLING of <summary>, so it never
+    // reaches the summary's own toggle handler. stopPropagation is belt and
+    // braces for whoever later moves the button inside the summary.
+    star.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleSaved(s.id);
+    });
+  });
 
   // One section open at a time: opening a section closes the rest. Search is
   // the only thing allowed to open several, and it hands them back on clear.
@@ -880,17 +1141,116 @@
     else if (extra.getAttribute("data-auto") === "1") { extra.open = false; extra.removeAttribute("data-auto"); }
   }
 
+  // Rank one row against the search terms. Higher is better; -1 means "no
+  // match at all". The point is that a page of 200 shortcuts is only useful
+  // if the row you meant is near the top, and the terms that separate the good
+  // rows from the incidental ones are, in order: an exact prefix on the
+  // description, the word appearing early, a match in the description at all
+  // (rather than only inside a command or a file path), and finally word
+  // boundaries. Consecutive words matching in order ("mod alt h") beats the
+  // same words scattered across the row, which is what makes multi-word
+  // searches feel deliberate instead of lucky.
+  function scoreRow(i, terms) {
+    var text = rowText[i], desc = rowDesc[i], total = 0;
+    // The loose pass is only a FALLBACK: a hit in the exact text is always
+    // worth more than one that needed punctuation folded away, so the same
+    // query still ranks the precisely-spelled row first.
+    var lText = rowLoose[i], lDesc = rowDescLoose[i];
+    for (var t = 0; t < terms.length; ++t) {
+      var term = terms[t], lTerm = loose(term);
+      var at = text.indexOf(term);
+      var folded = false;
+      if (at === -1) {
+        at = lText.indexOf(lTerm);
+        if (at === -1) return -1;
+        folded = true;
+      }
+      var inDesc = desc.indexOf(term) !== -1 || lDesc.indexOf(lTerm) !== -1;
+      var s = folded ? -6 : 0;   // a real match always outranks a folded one
+      // Where in the description the word lands: the beginning of a row is
+      // where the plain-English answer to "I want to ___" lives.
+      var dAt = desc.indexOf(term);
+      if (dAt === -1) dAt = lDesc.indexOf(lTerm);
+      if (dAt === 0) s += 60;
+      else if (dAt > 0 && dAt < 24) s += 40;
+      else if (inDesc) s += 20;
+      if (inDesc) s += 30;
+      // Word boundary: "mod" should not rank "model" or "Mod+Alt+Mod".
+      var before = at === 0 ? " " : lText.charAt(at - 1);
+      if (!/[a-z0-9]/.test(before)) s += 12;
+      // Whole word is worth more than a substring hit deep in the row.
+      var after = lText.charAt(at + lTerm.length);
+      if (after === "" || !/[a-z0-9]/.test(after)) s += 8;
+      // Shorter rows that contain the term are more likely to be the point.
+      s -= Math.min(lText.length, 400) / 400;
+      total += s;
+    }
+    // Multi-word searches that appear in order read as a deliberate query.
+    if (terms.length > 1) {
+      var joined = text.indexOf(terms.join(" "));
+      if (joined !== -1) total += 40;
+    }
+    return total;
+  }
+
   function applyFilter() {
     var terms = (input.value || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
     filtering = terms.length > 0;
     document.body.classList.toggle("filtering", filtering);
     var shown = 0;
 
+    // Score first, then hide, then reorder. Reordering only happens inside a
+    // .rows group: moving rows BETWEEN groups would scramble the sub-labels
+    // (each label introduces the group beneath it) and read as a bug.
+    var scored = [];
     rows.forEach(function (r, i) {
-      var ok = terms.every(function (t) { return index[i].indexOf(t) !== -1; });
-      r.classList.toggle("hidden", !ok);
-      if (ok) shown++;
+      var s = filtering ? scoreRow(i, terms) : 0;
+      if (filtering && s < 0) { r.classList.add("hidden"); return; }
+      r.classList.remove("hidden");
+      shown++;
+      scored.push({ row: r, score: s });
     });
+
+    if (filtering) {
+      var groups = new Map();
+      scored.forEach(function (item) {
+        var g = item.row.parentElement;
+        if (!groups.has(g)) groups.set(g, []);
+        groups.get(g).push(item);
+      });
+      groups.forEach(function (items) {
+        if (items.length < 2) return;              // nothing to reorder
+        items.sort(function (a, b) { return b.score - a.score; });
+        // Append in ranked order directly to the captured parent. The parent
+        // is re-read from the FIRST row every time rather than reused from the
+        // Map key: moving rows out of a DocumentFragment detaches them, so a
+        // stale `g` reference is not a node any more and appendChild throws
+        // "cannot read properties of null".
+        items.forEach(function (item) {
+          item.row.parentElement.appendChild(item.row);
+        });
+      });
+    } else {
+      // Clearing the search must put every row back exactly where the author
+      // wrote it, or a ranked page would stay shuffled forever. The home
+      // position is recorded ONCE, on the first pass, which happens before
+      // anything has moved (applyFilter() runs at startup with no query).
+      //
+      // The position is the row's index among its parent's CHILDREN, not among
+      // the rows: a .row is often followed by a <details class="more"> or a
+      // .sub label, and remembering "the next row" instead of "the next
+      // element" would push every row to the bottom of its group. Rows only
+      // ever move within their own parent, so restoring in ascending order
+      // puts each one back before whatever currently occupies its slot.
+      rows.forEach(function (r, i) {
+        var parent = r.parentElement;
+        if (homeParent[i] === null) {
+          homeParent[i] = parent;
+          homeIndex[i] = Array.prototype.indexOf.call(parent.children, r);
+        }
+        parent.insertBefore(r, parent.children[homeIndex[i]] || null);
+      });
+    }
 
     secs.forEach(function (s) {
       var vis = s.querySelectorAll(".row:not(.hidden)").length;
@@ -964,6 +1324,7 @@
   });
 
   applyFilter();
+  renderSaved();
 })();
 </script>
 </body>

@@ -149,6 +149,20 @@ window-rule {
     default-window-height { fixed 880; }
 }
 
+// All-in-one config editor (scripts/config-editor.sh ->
+// config-editor-server.py on 127.0.0.8). Edits the LIVE config
+// (~/.config/niri/*.kdl) and hot-reloads. Single column of cards,
+// taller than wide. Own loopback host because Chromium derives the
+// app-id from the host, and .1 is already pinned to the legacy
+// volume popup's 400x440.
+window-rule {
+    match app-id=r#"^brave-127\.0\.0\.8__-Default$"#
+    open-floating true
+    open-maximized-to-edges false
+    default-column-width { fixed 620; }
+    default-window-height { fixed 860; }
+}
+
 // Chromium progressive web apps (WhatsApp, YouTube, ...) open maximized to
 // the edges. This matches any Chromium-based browser. Two app-id shapes exist:
 //   installed PWA  <browser>-<32-char a-p extension id>-<Profile>   (--app-id=)

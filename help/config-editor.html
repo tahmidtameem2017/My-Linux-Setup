@@ -1,0 +1,378 @@
+<!doctype html>
+<!--
+  All-in-one niri config editor.
+
+  Opened by scripts/config-editor.sh, which also starts
+  scripts/config-editor-server.py. The server exists only because
+  this page has to write ~/.config/niri/*.kdl and a file:// page
+  cannot.
+
+  DESIGN NOTE, do not "fix" this by theming the chrome: like the
+  custom palette editor, every surface here is a fixed neutral dark.
+  An editor that follows the active palette moves its own background
+  while you judge a value in it.
+
+  It edits the LIVE config (~/.config/niri/*.kdl), not the repo
+  copies, because the compositor runs the live ones and they have
+  drifted from the repo on purpose (gaps, animations, input).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Config Editor — niri-setup</title>
+<style>
+  /* Fixed chrome. Deliberately not palette-derived — see the note above. */
+  :root {
+    --c-bg: #16181b;
+    --c-panel: #1e2126;
+    --c-panel-2: #262a30;
+    --c-line: #333941;
+    --c-text: #e6e8ea;
+    --c-muted: #a8aeb6;
+    --c-dim: #7d848d;
+    --c-accent: #6ea8fe;
+    --c-danger: #e06c75;
+    --c-ok: #7ec98a;
+    --c-warn: #e5c07b;
+    --radius: 10px;
+    --mono: "JetBrainsMono NF", "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--c-bg); color: var(--c-text);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  body { padding: 20px 24px 96px; }
+  h1 { font-size: 19px; margin: 0 0 2px; font-weight: 650; letter-spacing: .2px; }
+  h2 { font-size: 13px; margin: 0 0 2px; font-weight: 650;
+       text-transform: uppercase; letter-spacing: .09em; color: var(--c-muted); }
+  code, .mono { font-family: var(--mono); }
+  .sub { color: var(--c-dim); margin: 0 0 18px; font-size: 12.5px; }
+  .sub code { color: var(--c-muted); }
+
+  .card { background: var(--c-panel); border: 1px solid var(--c-line);
+          border-radius: var(--radius); padding: 13px 16px 7px; margin-bottom: 14px; }
+  .card .file { color: var(--c-dim); font-size: 11px; margin: 0 0 6px; }
+  .note { font-size: 11.5px; color: var(--c-warn); background: #2a2416;
+          border: 1px solid #4a3f22; border-radius: 7px;
+          padding: 6px 9px; margin: 4px 0 8px; }
+
+  /* ---- control rows ---- */
+  .row { display: grid; grid-template-columns: minmax(0, 1fr) auto;
+         gap: 14px; align-items: center;
+         padding: 8px 0; border-bottom: 1px solid var(--c-line); }
+  .row:last-child { border-bottom: 0; }
+  .row .name { font-size: 13px; }
+  .row .hint { color: var(--c-dim); font-size: 11.5px; margin-top: 1px; }
+  .ctl { display: flex; align-items: center; gap: 10px; }
+
+  /* sliders: the percentage/size knobs */
+  input[type=range] { -webkit-appearance: none; appearance: none;
+                      width: 150px; height: 4px; border-radius: 2px;
+                      background: var(--c-line); cursor: pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none;
+                      width: 14px; height: 14px; border-radius: 50%;
+                      background: var(--c-accent); cursor: pointer; }
+  input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border: 0;
+                      border-radius: 50%; background: var(--c-accent); }
+  /* exact-value text boxes for defined sizes */
+  .val { width: 62px; font-family: var(--mono); font-size: 12.5px;
+         text-align: right; background: var(--c-panel-2); color: var(--c-text);
+         border: 1px solid var(--c-line); border-radius: 7px; padding: 5px 7px; }
+  .val:focus { outline: 2px solid var(--c-accent); outline-offset: -1px; }
+  .unit { font-size: 11.5px; color: var(--c-dim); min-width: 20px; }
+
+  /* dropdowns */
+  select { font: 13px system-ui, sans-serif; background: var(--c-panel-2);
+           color: var(--c-text); border: 1px solid var(--c-line);
+           border-radius: 7px; padding: 6px 8px; min-width: 150px; }
+  select:focus { outline: 2px solid var(--c-accent); outline-offset: -1px; }
+
+  /* toggles */
+  .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+  .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .switch .track { position: absolute; inset: 0; background: var(--c-panel-2);
+                   border: 1px solid var(--c-line); border-radius: 999px;
+                   transition: background .15s, border-color .15s; }
+  .switch .track::after { content: ""; position: absolute; left: 2px; top: 2px;
+                   width: 16px; height: 16px; border-radius: 50%;
+                   background: var(--c-muted); transition: transform .15s, background .15s; }
+  .switch input:checked + .track { background: #24344d; border-color: var(--c-accent); }
+  .switch input:checked + .track::after { transform: translateX(18px); background: var(--c-accent); }
+
+  /* ---- footer ---- */
+  footer { position: fixed; left: 0; right: 0; bottom: 0;
+           display: flex; align-items: center; gap: 10px;
+           padding: 10px 24px; background: var(--c-panel);
+           border-top: 1px solid var(--c-line); }
+  #msg { font-size: 12.5px; color: var(--c-dim); overflow: hidden;
+         text-overflow: ellipsis; white-space: nowrap; }
+  #msg.good { color: var(--c-ok); }
+  #msg.bad { color: var(--c-danger); }
+  #msg.warn { color: var(--c-warn); }
+  .spacer { flex: 1; }
+  button { font: 13px system-ui, sans-serif; color: var(--c-text);
+           background: var(--c-panel-2); border: 1px solid var(--c-line);
+           border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+  button:hover { border-color: var(--c-dim); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--c-accent); border-color: var(--c-accent);
+                   color: #10141c; font-weight: 600; }
+  button.primary:hover { filter: brightness(1.08); }
+  #dirty { font-size: 11px; color: var(--c-warn); }
+</style>
+</head>
+<body>
+<h1>niri Config Editor</h1>
+<p class="sub">Edits the live config at <code id="configDir">~/.config/niri</code>
+and reloads niri — changes apply instantly. One card per config file;
+sliders and boxes are the quick and exact way to set the same value.</p>
+
+<div id="sections"></div>
+
+<footer>
+  <span id="msg"></span>
+  <span id="dirty"></span>
+  <span class="spacer"></span>
+  <button id="btnReload" title="Re-read the config files from disk">Reload</button>
+  <button id="btnRevert" title="Undo unsaved changes">Revert</button>
+  <button id="btnApply" class="primary" disabled>Apply</button>
+</footer>
+
+<script>
+// The one definition of every setting: section -> file -> fields.
+// kind: size (px), ms, percent (config stores a 0-1 proportion),
+// slider (free float), select (one of options), toggle (on/off).
+const SECTIONS = [
+  { title: "Layout", file: "layout.kdl", fields: [
+    { key: "gaps", label: "Window gaps", kind: "size", min: 0, max: 40, step: 1, unit: "px",
+      hint: "Space between windows, and between windows and the screen edge" },
+    { key: "centerFocusedColumn", label: "Center focused column", kind: "select",
+      options: [["never", "Never"], ["on-overflow", "On overflow"], ["always", "Always"]],
+      hint: "When the focused column snaps to the middle of the screen" },
+    { key: "defaultColumnWidth", label: "Default column width", kind: "percent", min: 20, max: 100, step: 1,
+      hint: "How wide a newly opened column is" },
+    { key: "focusRingWidth", label: "Focus ring width", kind: "size", min: 0, max: 10, step: 1, unit: "px",
+      hint: "Outline around the focused window (0 = off)" },
+  ]},
+  { title: "Windows", file: "rules.kdl", fields: [
+    { key: "opacity", label: "Window opacity", kind: "percent", min: 50, max: 100, step: 1,
+      hint: "All windows. 100% keeps direct scanout; lower costs a framebuffer" },
+    { key: "cornerRadius", label: "Corner radius", kind: "size", min: 0, max: 30, step: 1, unit: "px",
+      hint: "Rounded window corners (0 = square)" },
+  ]},
+  { title: "Input", file: "input.kdl", fields: [
+    { key: "tapToClick", label: "Tap to click", kind: "toggle",
+      hint: "Tap the touchpad to click" },
+    { key: "naturalScroll", label: "Natural scrolling", kind: "toggle",
+      hint: "Swipe toward the content, like a phone" },
+    { key: "mouseAccel", label: "Mouse acceleration", kind: "slider", min: -1, max: 1, step: 0.05,
+      hint: "Pointer speed curve, -1 … +1" },
+  ]},
+  { title: "Animations", file: "animations.kdl", fields: [
+    { key: "windowOpen", label: "Window open", kind: "ms", min: 0, max: 600, step: 10,
+      hint: "How long new windows take to appear" },
+    { key: "windowClose", label: "Window close", kind: "ms", min: 0, max: 600, step: 10,
+      hint: "How long closing windows take to fade out" },
+  ]},
+];
+
+// ---- state ----
+const token = new URLSearchParams(location.search).get("t") || "";
+let saved = null;    // last values the server reported
+let draft = {};      // what the controls show right now
+let notes = {};
+const $ = (id) => document.getElementById(id);
+
+// percent fields live in the config as proportions; everywhere else
+// the UI value is the config value.
+const toUi = (f, v) => f.kind === "percent" ? Math.round(v * 100) : v;
+const fromUi = (f, v) => f.kind === "percent" ? v / 100 : v;
+
+// ---- build the cards ----
+function build() {
+  const host = $("sections");
+  host.innerHTML = "";
+  for (const sec of SECTIONS) {
+    const card = document.createElement("section");
+    card.className = "card";
+    card.appendChild(el("h2", sec.title));
+    card.appendChild(el("div", "file mono", sec.file));
+    if (sec.title === "Animations" && !notes.animationsEnabled)
+      card.appendChild(el("div", "note",
+        "Animations are currently off (animations.kdl is empty). Setting a duration turns that animation back on."));
+    if (sec.title === "Input" && !notes.mouseBlock)
+      card.appendChild(el("div", "note",
+        "No mouse settings exist yet — applying a mouse acceleration adds them."));
+    for (const f of sec.fields) card.appendChild(row(sec, f));
+    host.appendChild(card);
+  }
+}
+
+function el(tag, cls, text) {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function row(sec, f) {
+  const node = el("div", "row");
+  const lab = el("div");
+  lab.appendChild(el("div", "name", f.label));
+  lab.appendChild(el("div", "hint", f.hint));
+  node.appendChild(lab);
+
+  const ctl = el("div", "ctl");
+  if (f.kind === "select") {
+    const sel = document.createElement("select");
+    for (const [value, label] of f.options) {
+      const opt = document.createElement("option");
+      opt.value = value; opt.textContent = label;
+      sel.appendChild(opt);
+    }
+    sel.value = draft[f.key];
+    sel.addEventListener("change", () => { draft[f.key] = sel.value; changed(); });
+    ctl.appendChild(sel);
+  } else if (f.kind === "toggle") {
+    const sw = document.createElement("label");
+    sw.className = "switch";
+    sw.innerHTML = '<input type="checkbox" aria-label="' + f.label + '"><span class="track"></span>';
+    const box = sw.querySelector("input");
+    box.checked = !!draft[f.key];
+    box.addEventListener("change", () => { draft[f.key] = box.checked; changed(); });
+    ctl.appendChild(sw);
+  } else {
+    const range = document.createElement("input");
+    range.type = "range";
+    range.min = f.min; range.max = f.max; range.step = f.step;
+    range.value = draft[f.key];
+    range.setAttribute("aria-label", f.label);
+    const val = document.createElement("input");
+    val.className = "val"; val.spellcheck = false;
+    val.value = fmt(f, draft[f.key]);
+    const unit = f.unit ? el("span", "unit", f.unit) : null;
+    range.addEventListener("input", () => {
+      draft[f.key] = parseFloat(range.value);
+      if (!val.matches(":focus")) val.value = fmt(f, draft[f.key]);
+      changed();
+    });
+    val.addEventListener("change", () => {
+      let n = parseFloat(val.value);
+      if (isNaN(n)) { val.value = fmt(f, draft[f.key]); return; }
+      n = Math.min(f.max, Math.max(f.min, n));
+      if (f.step >= 1) n = Math.round(n);
+      draft[f.key] = n;
+      range.value = n;
+      val.value = fmt(f, n);
+      changed();
+    });
+    ctl.appendChild(range);
+    ctl.appendChild(val);
+    if (unit) ctl.appendChild(unit);
+  }
+  node.appendChild(ctl);
+  return node;
+}
+
+function fmt(f, v) {
+  if (f.kind === "slider") return v.toFixed(2);
+  return String(Math.round(v));
+}
+
+function changed() {
+  $("dirty").textContent = "unsaved changes";
+  $("btnApply").disabled = false;
+}
+
+// ---- server ----
+async function api(path, body) {
+  const options = body === undefined ? {} : {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Config-Token": token },
+    body: JSON.stringify(body)
+  };
+  const response = await fetch(path, options);
+  const data = await response.json().catch(() => ({ error: "bad response" }));
+  if (!response.ok) throw new Error(data.error || ("HTTP " + response.status));
+  return data;
+}
+
+function say(text, kind) {
+  const node = $("msg");
+  node.textContent = text;
+  node.className = kind ? kind : "";
+}
+
+async function load(announce) {
+  try {
+    const data = await api("/api/config");
+    saved = data.values;
+    notes = data.notes;
+    draft = {};
+    for (const sec of SECTIONS)
+      for (const f of sec.fields)
+        draft[f.key] = toUi(f, saved[f.key]);
+    $("configDir").textContent = data.configDir;
+    build();
+    $("dirty").textContent = "";
+    $("btnApply").disabled = true;
+    if (announce)
+      say(data.niriRunning
+        ? "Loaded the live config."
+        : "Loaded — but niri is not running, so Apply saves without reloading.");
+  } catch (error) {
+    say("Cannot reach the editor server: " + error.message, "bad");
+  }
+}
+
+function payload() {
+  const p = {};
+  for (const sec of SECTIONS)
+    for (const f of sec.fields)
+      p[f.key] = fromUi(f, draft[f.key]);
+  return p;
+}
+
+async function apply() {
+  say("Applying…");
+  $("btnApply").disabled = true;
+  try {
+    const res = await api("/api/apply", { values: payload() });
+    await load(false);
+    const parts = [];
+    if (res.changed && res.changed.length)
+      parts.push("applied to " + res.changed.join(", "));
+    else
+      parts.push("nothing to change");
+    if (res.missing && res.missing.length)
+      parts.push("could not set: " + res.missing.join(", "));
+    if (!res.reloaded)
+      parts.push(res.niriRunning ? "reload failed" : "niri is not running — applies at next start");
+    say(parts.join("; ") + ".", (res.missing && res.missing.length) ? "warn" : "good");
+  } catch (error) {
+    say("Not applied: " + error.message, "bad");
+    await load(false);
+  }
+}
+
+$("btnApply").addEventListener("click", apply);
+$("btnRevert").addEventListener("click", () => {
+  if (!saved) return;
+  draft = {};
+  for (const sec of SECTIONS)
+    for (const f of sec.fields)
+      draft[f.key] = toUi(f, saved[f.key]);
+  build();
+  $("dirty").textContent = "";
+  $("btnApply").disabled = true;
+  say("Reverted to the last applied values.");
+});
+$("btnReload").addEventListener("click", () => load(true));
+
+load(true);
+</script>
+</body>
+</html>

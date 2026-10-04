@@ -24,6 +24,56 @@ a full rewrite of the original
 
 ## 📝 Changelog
 
+**2026-10-04 — All-in-one Config Editor.** <kbd>Alt</kbd>+<kbd>Space</kbd>
+→ **Config Editor** opens a floating panel that tunes the compositor
+itself — no config file, no logout:
+
+| Setting | Range |
+| :-- | :-- |
+| Window gaps · focus-ring width · corner radius | sliders, in px |
+| Default column width · window opacity | sliders, in % |
+| Center focused column | never / on-overflow / always |
+| Window open / close animations | 0–600 ms each |
+| Tap-to-click · natural scrolling | toggles |
+| Mouse acceleration | −1 … +1 |
+
+Three things make it safe: it edits the **live** `~/.config/niri/*.kdl`
+(not the repo, so your tweaks survive a theme sync), every change is
+`niri validate`d **before** the compositor sees it — a bad drag restores
+the old files — and applying is a hot-reload, not a restart. Run the row
+again to close it. Backed by `scripts/config-editor.sh` +
+`scripts/config-editor-server.py` (a loopback page on `127.0.0.8` — a
+`file://` page cannot write your config — with a token in the URL and a
+required header on every POST, so no other page can reconfigure the
+compositor), pinned to 620×860 by a `rules.kdl` window rule.
+
+**2026-10-04 — The launcher's `%` list is a real bookmark manager.**
+Four things landed:
+
+- **Import from your browser** — <kbd>Alt</kbd>+<kbd>Space</kbd> →
+  **Import Bookmarks** pulls in bookmarks from Brave, Chrome, Chromium,
+  Vivaldi, Edge, Opera, Arc, Firefox, LibreWolf and Waterfox, **with
+  their favicons** taken from the browser's own cache (nothing is
+  fetched over the network). The import only ever **adds**: run it again
+  after bookmarking something new and only the genuinely new ones arrive —
+  anything you renamed, reordered or deleted in the launcher is left
+  alone, and a bookmark you deleted there is never brought back.
+- **Delete with <kbd>Delete</kbd>** — highlight a bookmark and press
+  <kbd>Delete</kbd>: the row vanishes in place and the menu **stays
+  open**, so several can be removed in a row. `%delete <name>` still
+  works for deleting by name without highlighting.
+- **Rename** — `%rename <old> to <new>` rewrites the name only; the link
+  and its icon survive. Half-typed renames do nothing.
+- **Real names for URL-only bookmarks** — a bookmark saved as a bare
+  link now shows a name derived from the URL's path
+  (`github.com/anthropics` → *anthropics*), not the link itself.
+
+Backed by `scripts/import-browser-bookmarks.py` (pure stdlib —
+`sqlite3` + `json`; databases are copied to a temp dir before reading,
+because Chromium keeps them open in WAL mode) + `scripts/import-bookmarks.sh`
+(the launcher row relays the report as a notification), covered by
+`scripts/test_import_bookmarks.py`.
+
 **2026-10-04 — `Ctrl+C` copies any file row.** In the launcher, type `/`
 to search files, highlight a row, press <kbd>Ctrl</kbd>+<kbd>C</kbd>:
 
@@ -72,6 +122,14 @@ CPU is a real delta over 0.5 s rather than an instantaneous reading. Backed by
 | Desktop | Volume mixer | Now Playing |
 | :--: | :--: | :--: |
 | ![Desktop](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/desktop.png) | ![Volume mixer](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/volume-mixer.png) | ![Now Playing](https://raw.githubusercontent.com/tahmidtameem2017/My-Linux-Setup/refs/heads/main/.github/assets/screenshots/now-playing.png) |
+
+**Startup RAM usage** — the whole desktop (bar, compositor, a terminal)
+about 40 s after login, measured with btop:
+
+![Startup RAM usage](Screenshots/startup%20ram%20usage%20.png)
+
+> `quickshell` 246 MB · `niri` 106 MB · `alacritty` 72 MB — with every
+> popup lazy-loaded on demand rather than resident.
 
 <details>
 <summary><b>More from the original niri-setup (acaibowlz)</b></summary>
@@ -196,6 +254,7 @@ bash scripts/change-idle-time.sh
 | :-- | :-- | :-- |
 | **Keybindings** | `niri/binds.kdl`, `niri/binds-quickshell.kdl` | `cp niri/*.kdl ~/.config/niri/ && niri validate && niri msg action load-config-file` |
 | **Colours / theme** | `quickshell/sunset/services/Theme.qml` — or use the editor (<kbd>Mod</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd>) | restart shell: <kbd>Mod</kbd>+<kbd>Shift</kbd>+<kbd>Q</kbd> |
+| **The compositor itself** (gaps, focus ring, column width, opacity, corner radius, animations, touchpad, mouse) | <kbd>Alt</kbd>+<kbd>Space</kbd> → **Config Editor** | applied live — `niri validate`d first |
 | **The bar layout** | `quickshell/sunset/components/Bar.qml` | restart shell |
 | **A popup's look** | the matching `quickshell/sunset/components/XPopup.qml` | restart shell |
 | **Wallpaper behaviour** | `scripts/wallpaper-process.sh` (`get`/`setmany`/`reset`) | takes effect immediately |
@@ -246,7 +305,7 @@ please send them.
 touches the theme, run the tests first:
 
 ```bash
-python3 -m unittest discover -s scripts -p 'test_*.py'    # 168 tests, ~14s
+python3 -m unittest discover -s scripts -p 'test_*.py'    # 202 tests, ~14s
 niri validate
 ```
 
@@ -596,8 +655,8 @@ You have permission to run shell commands, edit files, and manage packages. Work
 AUTONOMOUSLY through every phase below. Verify each step by actually running the
 verification command — never assume a command worked. When something fails, read the
 error, find the ROOT CAUSE, fix it, and re-verify. Only interrupt me for (a) sudo
-passwords, (b) a choice only I can make (city, timezone, wallpaper folder), or (c) a
-destructive action.
+passwords, (b) a choice only I can make (city, timezone, wallpaper folder,
+default apps — Phase 6f), or (c) a destructive action.
 
 PHASE 0 — ENVIRONMENT AUDIT
   cat /etc/os-release | head -3; uname -r
@@ -731,10 +790,27 @@ PHASE 6 — ONBOARDING (personalise it; ask me for choices)
             ~/niri-setup/scripts/change-power-profile.sh
        e) Terminal font/size and tmux behaviour (default prefix is C-b):
             ~/niri-setup/tmux/tmux.conf   # behaviour only — colours are generated
-       f) Default apps for keybinds (shipped defaults: Brave browser, Thunar files,
-          GNOME Settings). These are hardcoded in niri/binds.kdl — change them if I
-          want Firefox, Nautilus, or something else, and tell me the app-id to use in
-          niri/rules.kdl.
+       f) Default apps — ASK ME FOR EACH ONE, never assume: browser,
+          file manager, terminal, AND the settings app (the one most
+          often forgotten). Shipped defaults: Brave browser, Thunar
+          files, GNOME Settings. The settings app is GNOME Settings
+          (gnome-control-center) only because that is the desktop this
+          repo was built on — ASK which settings app I want: GNOME,
+          KDE (systemsettings6), COSMIC (cosmic-settings), XFCE
+          (xfce4-settings-manager), or another. If the answer is NOT
+          GNOME: install it, then repoint EVERY place that calls it —
+            scripts/gnome-settings.sh   the exec line, the
+                                       XDG_CURRENT_DESKTOP value, and
+                                       drop the gtk-nocsd LD_PRELOAD
+                                       if the app is not GTK
+            niri/binds.kdl              Mod+Shift+I (Network panel),
+                                       Mod+Shift+P (all settings)
+            niri/binds-quickshell.kdl   Mod+Alt+S
+            quickshell/sunset/components/Launcher.qml
+                                       the "Settings" control row
+                                       (gnomeSettingsScript property)
+          For browser/files/terminal, change the matching binds in
+          niri/binds.kdl and tell me the app-id to use in niri/rules.kdl.
      For EVERY value you change, print a before/after table so I can see exactly what
      differs from the shipped defaults.
   4. Keybindings: ask for the 5 things I do most (open browser, screenshot, music,
@@ -777,8 +853,8 @@ You have permission to run shell commands, edit files, and manage packages. Work
 AUTONOMOUSLY through every phase below. Verify each step by actually running the
 verification command — never assume a command worked. When something fails, read the
 error, find the ROOT CAUSE, fix it, and re-verify. Only interrupt me for (a) sudo
-passwords, (b) a choice only I can make (city, timezone, wallpaper folder), or (c) a
-destructive action.
+passwords, (b) a choice only I can make (city, timezone, wallpaper folder,
+default apps — Phase 6f), or (c) a destructive action.
 
 *** READ THIS FIRST — setup.sh IS ARCH-ONLY ***
 setup.sh calls `pacman`. On Fedora it dies instantly with
@@ -911,10 +987,27 @@ PHASE 6 — ONBOARDING (personalise it; ask me for choices)
             ~/niri-setup/scripts/change-power-profile.sh
        e) Terminal font/size and tmux behaviour (default prefix is C-b):
             ~/niri-setup/tmux/tmux.conf   # behaviour only — colours are generated
-       f) Default apps for keybinds (shipped defaults: Brave browser, Thunar files,
-          GNOME Settings). These are hardcoded in niri/binds.kdl — change them if I
-          want Firefox, Nautilus, or something else, and tell me the app-id to use in
-          niri/rules.kdl.
+       f) Default apps — ASK ME FOR EACH ONE, never assume: browser,
+          file manager, terminal, AND the settings app (the one most
+          often forgotten). Shipped defaults: Brave browser, Thunar
+          files, GNOME Settings. The settings app is GNOME Settings
+          (gnome-control-center) only because that is the desktop this
+          repo was built on — ASK which settings app I want: GNOME,
+          KDE (systemsettings6), COSMIC (cosmic-settings), XFCE
+          (xfce4-settings-manager), or another. If the answer is NOT
+          GNOME: install it, then repoint EVERY place that calls it —
+            scripts/gnome-settings.sh   the exec line, the
+                                       XDG_CURRENT_DESKTOP value, and
+                                       drop the gtk-nocsd LD_PRELOAD
+                                       if the app is not GTK
+            niri/binds.kdl              Mod+Shift+I (Network panel),
+                                       Mod+Shift+P (all settings)
+            niri/binds-quickshell.kdl   Mod+Alt+S
+            quickshell/sunset/components/Launcher.qml
+                                       the "Settings" control row
+                                       (gnomeSettingsScript property)
+          For browser/files/terminal, change the matching binds in
+          niri/binds.kdl and tell me the app-id to use in niri/rules.kdl.
      For EVERY value you change, print a before/after table so I can see exactly what
      differs from the shipped defaults.
   4. Keybindings: ask for the 5 things I do most (open browser, screenshot, music,
@@ -959,8 +1052,8 @@ You have permission to run shell commands, edit files, and manage packages. Work
 AUTONOMOUSLY through every phase below. Verify each step by actually running the
 verification command — never assume a command worked. When something fails, read the
 error, find the ROOT CAUSE, fix it, and re-verify. Only interrupt me for (a) sudo
-passwords, (b) a choice only I can make (city, timezone, wallpaper folder), or (c) a
-destructive action.
+passwords, (b) a choice only I can make (city, timezone, wallpaper folder,
+default apps — Phase 6f), or (c) a destructive action.
 
 *** READ THIS FIRST — setup.sh IS ARCH-ONLY ***
 setup.sh calls `pacman`. On Debian it dies instantly with
@@ -1101,10 +1194,27 @@ PHASE 6 — ONBOARDING (personalise it; ask me for choices)
             ~/niri-setup/scripts/change-power-profile.sh
        e) Terminal font/size and tmux behaviour (default prefix is C-b):
             ~/niri-setup/tmux/tmux.conf   # behaviour only — colours are generated
-       f) Default apps for keybinds (shipped defaults: Brave browser, Thunar files,
-          GNOME Settings). These are hardcoded in niri/binds.kdl — change them if I
-          want Firefox, Nautilus, or something else, and tell me the app-id to use in
-          niri/rules.kdl.
+       f) Default apps — ASK ME FOR EACH ONE, never assume: browser,
+          file manager, terminal, AND the settings app (the one most
+          often forgotten). Shipped defaults: Brave browser, Thunar
+          files, GNOME Settings. The settings app is GNOME Settings
+          (gnome-control-center) only because that is the desktop this
+          repo was built on — ASK which settings app I want: GNOME,
+          KDE (systemsettings6), COSMIC (cosmic-settings), XFCE
+          (xfce4-settings-manager), or another. If the answer is NOT
+          GNOME: install it, then repoint EVERY place that calls it —
+            scripts/gnome-settings.sh   the exec line, the
+                                       XDG_CURRENT_DESKTOP value, and
+                                       drop the gtk-nocsd LD_PRELOAD
+                                       if the app is not GTK
+            niri/binds.kdl              Mod+Shift+I (Network panel),
+                                       Mod+Shift+P (all settings)
+            niri/binds-quickshell.kdl   Mod+Alt+S
+            quickshell/sunset/components/Launcher.qml
+                                       the "Settings" control row
+                                       (gnomeSettingsScript property)
+          For browser/files/terminal, change the matching binds in
+          niri/binds.kdl and tell me the app-id to use in niri/rules.kdl.
      For EVERY value you change, print a before/after table so I can see exactly what
      differs from the shipped defaults.
   4. Keybindings: ask for the 5 things I do most (open browser, screenshot, music,
@@ -1160,6 +1270,8 @@ Print:
 ### ⌨️ Thoughtful everyday details
 - **Offline voice dictation** with `whisrs` (whisper.cpp) — no cloud, no key.
 - **Copy any file with `Ctrl+C`** in the launcher — text and pictures copy their contents, everything else copies the path.
+- **A real bookmark manager in the launcher** (`%`) — import from any browser with favicons, delete with <kbd>Delete</kbd>, rename with `%rename`, and URL-only entries get real names.
+- **Config Editor** — tune niri itself (gaps, focus ring, column width, opacity, corner radius, animations, touchpad, mouse) from the launcher; validated and hot-reloaded live.
 - **Music**: download from a link, dedup, and play your whole library; MPRIS-aware.
 - **On-demand performance monitor** (`Mod+Alt+P`) — a CPU · GPU · MEM · BAT
   pill in the bar's center island, hidden by default so the island stays just
@@ -1236,7 +1348,7 @@ Print:
 
 ## 🧪 Development & Validation
 
-This repo ships a **179-test suite** guarding the theming and export logic:
+This repo ships a **202-test suite** guarding the theming and export logic:
 
 ```bash
 python3 -m unittest discover -s scripts -p 'test_*.py'   # run the tests

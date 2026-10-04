@@ -13,29 +13,29 @@ x = 10
 y = 10
 
 [colors.primary]
-foreground = '#fafce3'
-background = '#271F1F'
+foreground = '#dee0de'
+background = '#242D39'
 
 [colors.cursor]
-text = '#271F1F'
-cursor = '#EDBA47'
+text = '#242D39'
+cursor = '#95958A'
 
 [colors.normal]
-black = "#706B6B"
-red = "#EDBA47"
-green = "#8B897A"
-yellow = "#F5D99B"
-blue = "#477AED"
-magenta = "#ED477A"
-cyan = "#7AED47"
-white = "#FAFCE3"
+black = "#71777E"
+red = "#95958A"
+green = "#919498"
+yellow = "#BABAB0"
+blue = "#8A8A95"
+magenta = "#958A8A"
+cyan = "#8A958A"
+white = "#DEE0DE"
 
 [colors.bright]
-black = "#7A7675"
-red = "#F1C96F"
-green = "#A5A397"
-yellow = "#F7E0AD"
-blue = "#6F97F1"
-magenta = "#F16F97"
-cyan = "#97F16F"
-white = "#FCFDED"
+black = "#7F848B"
+red = "#ACACA4"
+green = "#A9ACAF"
+yellow = "#C6C6BE"
+blue = "#A4A4AC"
+magenta = "#ACA4A4"
+cyan = "#A4ACA4"
+white = "#EAEBEA"

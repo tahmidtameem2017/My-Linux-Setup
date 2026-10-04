@@ -123,15 +123,29 @@
 //       `Bookmark "<url>"` row, Enter to bookmark, no % needed. Exact-id
 //       fallback still unshifts on top. All provider.search calls are
 //       try/catch (degrade to app search, never blank the menu).
-//   Bookmark add/open/delete (keyboard-first, see BookmarksProvider.qml
-//     header for the contract): type URL → Enter to bookmark → later
-//     type part of title → Enter opens in browser; `@ <site> -bookmark`
-//     bookmarks straight from web mode (Enter saves, no % needed);
-//     `%` mode keeps the
-//     create-row for any non-empty query; deletion is `%delete <needle>`
-//     + Enter on a Delete row (Shift+Delete deliberately unused: Keys
-//     blocks are frozen, deletion is a row not a keybinding). Bookmark
-//     rows use icon:null → logo.svg fallback (no favicon fetching).
+//   Bookmark add/open/delete/rename (keyboard-first, see
+//     BookmarksProvider.qml header for the contract): type URL →
+//     Enter to bookmark → later type part of title → Enter opens in
+//     browser; `@ <site> -bookmark` bookmarks straight from web mode
+//     (Enter saves, no % needed); `%` mode keeps the create-row for
+//     any non-empty query; rename is `%rename <needle> to <new name>`
+//     + Enter on a Rename row (rewrites the title only — url, icon
+//     and folder survive).
+//   Deleting a bookmark: highlight it and press Delete — the row
+//     vanishes in place and the menu STAYS OPEN so several can be
+//     removed in a row (deletion is not a dismissal, the Ctrl+C/copy
+//     precedent). deleteCurrentBookmark() only ever removes a real
+//     saved bookmark (kind "bookmark", data.action "open"); the
+//     create/delete/rename rows are commands, not bookmarks, and no
+//     other kind is touched, so Delete on an app/control/file row
+//     keeps its default. In the search box the Delete key applies
+//     only with the caret at the END of the query (mid-caret it
+//     forward-deletes a character, so an in-progress filter is never
+//     clobbered); in the list it applies at any caret. `%delete
+//     <needle>` + Enter on a Delete row still works too (same
+//     removeAt path) for deleting by name without highlighting.
+//     Bookmark rows carry bookmark.svg; imported bookmarks carry
+//     their browser favicon instead (no network fetching).
 //   Async (calc/files/clipboard/sessions return [] while pending):
 //     Launcher-side asyncCache keyed by provider+query merged in rebuild
 //     via cachedProvSearch; each provider's resultsChanged caches
@@ -213,7 +227,9 @@ Scope {
     readonly property string openHelpScript: setupHome + "/scripts/open-help.sh"
     readonly property string instagramScript: setupHome + "/scripts/instagram.sh"
     readonly property string customThemeScript: setupHome + "/scripts/custom-theme.sh"
+    readonly property string configEditorScript: setupHome + "/scripts/config-editor.sh"
     readonly property string sushiScript: setupHome + "/scripts/sushi-preview.sh"
+    readonly property string importBookmarksScript: setupHome + "/scripts/import-bookmarks.sh"
 
     property bool isOpen: false
     property string query: ""
@@ -303,6 +319,7 @@ Scope {
         { "kind": "control", "name": "Instagram", "keywords": "instagram insta social photos reels stories dms feed", "icon": "camera.svg", "cmd": root.instagramScript },
         { "kind": "control", "name": "Themes", "keywords": "theme themes style colors rice omarchy catppuccin tokyo gruvbox nord kanagawa everforest dracula rose pine skillet", "icon": "palette.svg", "ipcTarget": "themes", "ipcVerb": "toggle" },
         { "kind": "control", "name": "Custom Editor", "keywords": "custom theme edit colors palette hex contrast accessibility editor tweak rice", "icon": "palette.svg", "cmd": root.customThemeScript },
+        { "kind": "control", "name": "Config Editor", "keywords": "config editor niri settings gaps opacity corner radius focus ring column width animation duration input mouse touchpad acceleration tap scroll toggle tune adjust slider dropdown", "icon": "sliders.svg", "cmd": root.configEditorScript },
         { "kind": "control", "name": "Quick Settings", "keywords": "settings quick brightness volume dnd idle power profile", "icon": "settings.svg", "ipcTarget": "settings", "ipcVerb": "toggle" },
         { "kind": "control", "name": "Wi-Fi", "keywords": "wifi wi-fi wireless network ssid connect disconnect forget rescan internet ethernet", "icon": "wifi.svg", "ipcTarget": "wifi", "ipcVerb": "toggle" },
         { "kind": "control", "name": "Wallpaper", "keywords": "wallpaper background gallery random next theme", "icon": "wallpaper.svg", "ipcTarget": "wallpaper-menu", "ipcVerb": "toggle" },
@@ -314,7 +331,8 @@ Scope {
         { "kind": "control", "name": "Screenshot", "keywords": "screenshot capture region window screen scroll recording ocr redact annotate shot print camera", "icon": "camera.svg", "ipcTarget": "capture", "ipcVerb": "toggle" },
         { "kind": "control", "name": "Calendar", "keywords": "calendar clock pomodoro timer date", "icon": "logo.svg", "ipcTarget": "calendar", "ipcVerb": "toggle" },
         { "kind": "control", "name": "Crack the Whip", "keywords": "whip crack lash fun", "icon": "whip.svg", "ipcTarget": "whip", "ipcVerb": "toggle" },
-        { "kind": "control", "name": "Do Not Disturb", "keywords": "dnd disturb silent mute notifications", "icon": "empty.svg", "ipcTarget": "notifications", "ipcVerb": "toggleSilent" }
+        { "kind": "control", "name": "Do Not Disturb", "keywords": "dnd disturb silent mute notifications", "icon": "empty.svg", "ipcTarget": "notifications", "ipcVerb": "toggleSilent" },
+        { "kind": "control", "name": "Import Bookmarks", "keywords": "import bookmarks browser brave chrome chromium firefox librewolf waterfox favicon icons sync pull in", "icon": "bookmark.svg", "cmd": root.importBookmarksScript }
     ]
 
     // ---- provider instances (top-level; see dir contract in header) ----
@@ -718,7 +736,7 @@ Scope {
                                 "kind": "bookmark",
                                 "name": "Bookmark: type a site first",
                                 "detail": "Usage: @ github.com -bookmark",
-                                "icon": null,
+                                "icon": bookmarksProv.bookmarkIcon,
                                 "score": 100,
                                 "section": "Bookmarks",
                                 "data": { "action": "create", "text": "", "url": "" }
@@ -1139,6 +1157,40 @@ Scope {
         try {
             filesProv.copyFile(row);
         } catch (e) {}
+        return true;
+    }
+
+    // Delete key on a highlighted bookmark: remove it in place.
+    // The menu STAYS OPEN so several bookmarks can be deleted in
+    // a row — deletion is not a dismissal (Ctrl+C/copy precedent).
+    // Only a real saved bookmark qualifies: kind "bookmark" whose
+    // data action is "open". The create/delete/rename rows are
+    // commands, not bookmarks, and no other kind is ever removed,
+    // so Delete on an app/control/file row keeps its default.
+    // Returns true when a bookmark was deleted so the caller can
+    // accept the key; false otherwise.
+    function deleteCurrentBookmark(): bool {
+        const idx = appList.currentIndex;
+        if (idx < 0 || idx >= rows.length)
+            return false;
+        const row = rows[idx];
+        if (!row || row.kind !== "bookmark" || !row.data || row.data.action !== "open")
+            return false;
+        const mi = row.data.index;
+        if (typeof mi !== "number" || mi < 0 || mi >= bookmarksProv.marks.length)
+            return false;
+        // removeAt splices the provider's marks, saves, and
+        // re-searches its own list; rebuild() then regenerates the
+        // launcher rows (% mode via search(), bare mode via the
+        // marks interleave) so every data.index stays correct.
+        bookmarksProv.removeAt(mi);
+        rebuild();
+        // rebuild() resets the selection to the top; put it back
+        // where the deleted row was so the row below slides up
+        // into place (clamped for a now-shorter list).
+        const n = rows.length;
+        appList.currentIndex = n > 0 ? Math.min(idx, n - 1) : -1;
+        root.updateCounter();
         return true;
     }
 
@@ -1798,6 +1850,18 @@ Scope {
                                     // otherwise); the menu stays open.
                                     if (root.copyCurrent())
                                         event.accepted = true;
+                                } else if (event.key === Qt.Key_Delete) {
+                                    // Delete key: remove the highlighted
+                                    // bookmark in place (menu stays open).
+                                    // Only with the caret at the END of the
+                                    // query — mid-caret, Delete keeps its
+                                    // normal job of forward-deleting a
+                                    // character, so an in-progress filter is
+                                    // never clobbered. The list handler
+                                    // below allows it at any caret since the
+                                    // list never edits text.
+                                    if (searchInput.cursorPosition === searchInput.text.length && root.deleteCurrentBookmark())
+                                        event.accepted = true;
                                 } else if (event.key === Qt.Key_Up || (ctrl && (event.key === Qt.Key_K || event.key === Qt.Key_P))) {
                                     event.accepted = true;
                                     root.moveSelection(-1);
@@ -1946,6 +2010,14 @@ Scope {
                             // (contents for text/images, path
                             // otherwise); the menu stays open.
                             if (root.copyCurrent())
+                                event.accepted = true;
+                        } else if (event.key === Qt.Key_Delete) {
+                            // Delete key: remove the highlighted
+                            // bookmark in place (list-focus parity
+                            // with the searchInput path). The list
+                            // never edits text, so Delete is always
+                            // free here — no caret guard needed.
+                            if (root.deleteCurrentBookmark())
                                 event.accepted = true;
                         } else if (event.key === Qt.Key_Up || event.key === Qt.Key_K || (ctrl && event.key === Qt.Key_P)) {
                             event.accepted = true;
