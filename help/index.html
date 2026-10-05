@@ -629,7 +629,7 @@
           <span class="sec-title">The launcher</span>
           <span class="sec-hint">one box for apps, files, maths, the web</span>
         </span>
-        <span class="sec-meta"><span class="sec-count"><span class="n">59</span></span><span class="chev">&#8250;</span></span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">77</span></span><span class="chev">&#8250;</span></span>
           <button class="star" type="button" aria-pressed="false" aria-label="Save this section" title="Save this section">&#9734;</button>
       </summary>
       <div class="sec-body">
@@ -706,7 +706,6 @@
               <div class="row"><span class="desc">Stack Overflow</span><span class="keys"><span class="pill">@so @stackoverflow</span></span></div>
               <div class="row"><span class="desc">Reddit</span><span class="keys"><span class="pill">@r @reddit</span></span></div>
               <div class="row"><span class="desc">Maps</span><span class="keys"><span class="pill">@maps @gmaps</span></span></div>
-              <div class="row"><span class="desc">Anime, sorted by popularity</span><span class="keys"><span class="pill">@miruro @anime</span></span></div>
               <div class="row"><span class="desc">See them all at once</span><span class="keys"><kbd>@</kbd><span class="hint">on its own</span></span></div>
               <div class="row"><span class="desc">Something not on the list — a pasted link opens it, anything else searches DuckDuckGo</span><span class="keys"><span class="pill">@ https://… &nbsp;·&nbsp; @ a question</span></span></div>
             </div>
@@ -734,6 +733,36 @@
               <div class="row"><span class="desc">The same thing, found by name</span><span class="keys"><kbd>Alt+Space</kbd><span class="hint">then</span><span class="pill">Import Bookmarks</span></span></div>
             </div>
             <p>The import only ever <b>adds</b>. Run it again after bookmarking something new in the browser and only the new ones arrive — anything you renamed, reordered or deleted in the launcher is left alone, and a bookmark you deleted there is never brought back. See <a href="#tech">Under the hood</a> for what it reads.</p>
+          </div>
+
+          <div class="sub">The right-click menu</div>
+          <div class="rows">
+            <div class="row"><span class="desc">Open the menu for whatever is highlighted</span><span class="keys"><kbd>F10</kbd><span class="hint">or</span><kbd>Menu</kbd><span class="hint">or right-click</span></span></div>
+            <div class="row"><span class="desc">Right-clicking the search box, or the empty space under the list, gives the help menu instead</span><span class="keys"><span class="hint">what every symbol means</span></span></div>
+            <div class="row"><span class="desc">On an app or a file</span><span class="keys"><span class="hint">Preview · Reveal · Terminal · Copy · Pin</span></span></div>
+            <div class="row"><span class="desc">On a saved site</span><span class="keys"><span class="hint">the same, plus Search this site</span></span></div>
+            <div class="row"><span class="desc">On a bookmark</span><span class="keys"><span class="hint">the same, plus Rename · Delete</span></span></div>
+            <div class="row"><span class="desc">Every item shows its keyboard twin on the right — so you learn the key, not the mouse path</span><span class="keys"><kbd>Enter</kbd><kbd>Ctrl+Enter</kbd><kbd>Ctrl+T</kbd><kbd>Ctrl+C</kbd></span></div>
+            <div class="row"><span class="desc">A row is never offered something it cannot do — a folder with no real path gets no Terminal or Copy</span><span class="keys"><span class="hint">nothing dead</span></span></div>
+          </div>
+          <p><b>Not <kbd>;</kbd>.</b> That is already the <b>Modes</b> prefix — <span class="pill">;</span> on its own lists every mode — so it cannot also open this menu. <kbd>F10</kbd> was unused, so it needed no new desktop shortcut and works whether your cursor is in the search box or on the list. <kbd>Esc</kbd> closes the menu and hands the keyboard straight back to the search box.</p>
+
+          <div class="sub">Pinning</div>
+          <div class="rows">
+            <div class="row"><span class="desc">Pin the highlighted row to the top</span><span class="keys"><span class="hint">menu → <b>Pin to top</b></span></span></div>
+            <div class="row"><span class="desc">Take it off again — the label changes to <b>Unpin from top</b> once it is pinned</span><span class="keys"><span class="hint">same menu</span></span></div>
+            <div class="row"><span class="desc">Pinned rows sit in their own section above the controls, and are still there tomorrow</span><span class="keys"><span class="hint">shown with nothing typed</span></span></div>
+            <div class="row"><span class="desc">Pinning copies, it does not move — the Applications list stays complete and alphabetical</span><span class="keys"><span class="hint">nothing disappears</span></span></div>
+            <div class="row"><span class="desc">Type anything and the pinned block goes away, so a search never shows the same app twice</span><span class="keys"><span class="hint">no duplicates</span></span></div>
+            <div class="row"><span class="desc">Pin an app and its extra rows come with it</span><span class="keys"><span class="hint">one pin, the whole group</span></span></div>
+            <div class="row"><span class="desc">Where they are kept</span><span class="keys"><span class="pill">~/.local/share/niri-setup/launcher-pins.json</span></span></div>
+          </div>
+          <p>Uninstall an app and its pin quietly disappears the next time you open the launcher, instead of leaving a row that can never be opened.</p>
+
+          <div class="sub">Opening a terminal where the file is</div>
+          <div class="rows">
+            <div class="row"><span class="desc">Open a terminal already sitting in that folder, so you can rename, move or delete it</span><span class="keys"><kbd>Ctrl</kbd><kbd>T</kbd></span></div>
+            <div class="row"><span class="desc">Highlight a folder and it opens there; highlight a file and it opens in the folder holding it</span><span class="keys"><span class="hint">the obvious place either way</span></span></div>
           </div>
         </details>
 

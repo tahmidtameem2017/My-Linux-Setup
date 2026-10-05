@@ -24,6 +24,49 @@ a full rewrite of the original
 
 ## 📝 Changelog
 
+**2026-10-05 — The launcher has a right-click menu, and you can pin things.**
+Right-click any row — or press <kbd>F10</kbd>, or the Menu key — and get a menu
+that matches what that row *is*. An app gets Preview · Reveal · Terminal ·
+Copy · Pin. A file gets the same, plus Open in file manager. A bookmark gets
+Rename · Delete. Right-click the search box, or the empty space under the
+list, and you get the plain "how to use this" menu instead:
+
+| Right-clicking… | gives you |
+| :-- | :-- |
+| an app row | Preview · Reveal · Terminal · Copy · Pin |
+| a file row | the same, plus Open in file manager |
+| a saved site | the same, plus Search this site |
+| the search box | the help menu — what every symbol means |
+| the desktop, or the bar | the desktop menu (Settings, Help, lock, …) |
+
+Every item shows its keyboard twin on the right, so you learn the shortcut
+instead of the mouse path. **Nothing is offered that the row cannot do** — a
+folder in the help list with no real path gets no Terminal or Copy.
+
+> **<kbd>F10</kbd>, not <kbd>;</kbd>.** <kbd>;</kbd> is already the launcher's
+> *Modes* prefix, so it cannot be both. <kbd>F10</kbd> is unbound in niri, so
+> the key handler handles it directly — adding a compositor bind would make it
+> fire twice.
+
+**Pinned rows** land in their own **Pinned** section above Controls, and stay
+there next session. Pick **Pin to top** from the right-click menu, or press
+<kbd>F10</kbd> and choose it there. A pin is a *duplicate*, not a move: the
+Applications list stays complete and alphabetical, and typing shows no pinned
+block at all, so a search can never return the same app twice.
+
+Also new in the launcher:
+
+| Keys | What it does |
+| :-- | :-- |
+| <kbd>Ctrl</kbd>+<kbd>T</kbd> | Open a terminal in the highlighted file's own folder |
+| <kbd>Ctrl</kbd>+<kbd>Tab</kbd> | Fill in the highlighted site's shortcut, so you can search *that* site |
+| <kbd>Ctrl</kbd>+<kbd>Space</kbd> | Instant web search (moved from Quick Look) |
+
+Pinned by two new tests that run the launcher's real functions: one compares
+both halves of the menu's command allowlist (a name present in one and not the
+other renders an item that silently does nothing), the other pins the
+site-shortcut logic.
+
 **2026-10-05 — <kbd>Ctrl</kbd>+<kbd>Space</kbd> is instant web search.**
 Press it, type your query, press <kbd>Enter</kbd> — the launcher opens
 *already in web search*, with `@` filled in for you, so you go straight to
@@ -36,8 +79,8 @@ typing:
 | <span class="pill">github niri</span> | GitHub |
 | <span class="pill">https://…</span> | the link itself |
 
-All nine site shortcuts — `@dd` `@g` `@yt` `@w` `@gh` `@so` `@r` `@maps`
-`@miruro` — work exactly as before, because this is the **same**
+All eight site shortcuts — `@dd` `@g` `@yt` `@w` `@gh` `@so` `@r` `@maps`
+— work exactly as before, because this is the **same**
 `WebProvider` the typed `@` prefix already used. The result opens with
 `xdg-open`, i.e. a tab in your real browser.
 
@@ -166,6 +209,31 @@ about 40 s after login, measured with btop:
 
 > `quickshell` 246 MB · `niri` 106 MB · `alacritty` 72 MB — with every
 > popup lazy-loaded on demand rather than resident.
+
+### 📸 Screenshots still to capture
+
+New in this build and **not photographed yet**. Each row is one image to grab;
+drop it in `.github/assets/screenshots/` with the exact filename and tick the
+box — the table below and the `Screenshots needed` note in the agent prompt
+(`scripts/CHANGELOG-AGENT.md`) are the checklist.
+
+| # | What to show | Why it earns a picture | File | Done |
+| :-: | :-- | :-- | :-- | :-: |
+| 1 | Launcher with the **row menu** open on an app row | The whole feature is a right-click, so a static shot of the launcher shows none of it. Show Preview · Reveal · Terminal · Copy · Pin and the keyboard hints on the right. | `launcher-row-menu.png` | ☐ |
+| 2 | Launcher with the **Pinned** section populated | Pinning is invisible until rows are pinned — an unpinned launcher looks identical whether the feature works or not. | `launcher-pinned.png` | ☐ |
+| 3 | **Ctrl+Space** web search mid-query | Proves `@` is pre-filled and the site shortcuts still resolve — the "just works" moment. | `launcher-websearch.png` | ☐ |
+| 4 | **Ctrl+Tab** on a highlighted site | One keypress fills the site's shortcut. Static before/after in a single frame if you can. | `launcher-site-seed.png` | ☐ |
+| 5 | **Ctrl+T** terminal opened in a file's folder | Proves the cwd is the file's *own* folder, which is the entire point. Terminal title/prompt should show the path. | `launcher-terminal.png` | ☐ |
+| 6 | **CaptureBar** with all eight tools | Replaces the older `screenshot6.png` capture shot, which shows a different menu. | `capture-bar.png` | ☐ |
+| 7 | **Config Editor** window | Last build's headline feature; `Alt+Space` → Config Editor. | `config-editor.png` | ☐ |
+| 8 | **Wi-Fi card** docked top-right | Moving from a floating nmtui terminal to a native card is a visible change. | `wifi-card.png` | ☐ |
+| 9 | Bar with the **performance pill** visible | It's hidden by default, so the default desktop shot can never show it. Toggle with `Mod+Alt+P`. | `performance-pill.png` | ☐ |
+| 10 | **Theme picker** on a wallpaper-derived palette | The dynamic theming pitch is one picture: wallpaper colours in the bar and popups. | `theme-picker.png` | ☐ |
+
+> `.github/assets/screenshots/screenshot7.png` is tracked but referenced
+> nowhere — reuse or delete it rather than leaving a third spare. Rename the
+> new images to match the existing lowercase-hyphen style (`desktop.png`,
+> `volume-mixer.png`, `now-playing.png`) so the table stays consistent.
 
 <details>
 <summary><b>More from the original niri-setup (acaibowlz)</b></summary>
@@ -1283,6 +1351,182 @@ Print:
 
 </details>
 
+---
+
+## 🛠️ AI-Guided Updates
+
+Installed it already? These are the prompts for **changing** the desktop later
+— the same one-paste style as the install prompts above, and just as
+self-contained. Paste one as your agent's first message in `~/niri-setup`.
+
+Each one ends with the same rule, and it is the whole point:
+
+```bash
+python3 scripts/changelog.py verify     # must exit 0
+python3 -m unittest discover -s scripts -p 'test_*.py'
+```
+
+`scripts/changelog.py` owns the one number a human cannot keep straight:
+`help/index.html` declares a row count per section, and adding a shortcut row
+without bumping it makes the in-app help quietly lie about itself. It was
+already wrong before the tool existed — the launcher section claimed 59 rows
+while holding 62.
+
+### A · Fix this machine's install
+
+*Paths rewritten, hardware guessed, defaults replaced with yours. No new
+features.* This is the one most people actually need.
+
+````text
+You are repairing MY installed copy of the "Sunset Niri" desktop so it matches
+MY machine, not the machine it was written on. Repository is cloned at the path
+below — find it, do not assume.
+
+PHASE 1 — AUDIT. Do not change anything yet. Run and report:
+  whoami; echo $HOME; niri --version; quickshell --version
+  git -C "$REPO" remote -v | head -2; git -C "$REPO" status --short | head -20
+  ls -l ~/.config/niri/ ~/.config/quickshell/ 2>&1 | head -20
+  diff -q "$REPO/niri/config.kdl" ~/.config/niri/config.kdl
+  ls /dev/dri/; lspci | grep -iE 'vga|3d|display'
+  free -h | head -2; nproc
+
+PHASE 2 — THE USERNAME BUG (do this first, it breaks everything else).
+  ~150 paths are hardcoded as /home/me/niri-setup. If my username is not "me",
+  every one is wrong. Find every occurrence:
+    grep -rn '/home/me' "$REPO" --exclude-dir=.git --exclude-dir=node_modules
+  Replace with the real path. Do NOT rewrite occurrences inside comments that
+  are quoting example output, and do NOT touch test fixtures that use /home/me
+  as an arbitrary string. Then verify nothing is left that matters:
+    grep -rn '/home/me' "$REPO/niri" "$REPO/quickshell" "$REPO/waybar" "$REPO/scripts"
+
+PHASE 3 — MAKE THE REPO THE SOURCE OF TRUTH.
+  ~/.config/niri/*.kdl are COPIES, not symlinks, so they drift silently. Report
+  every file that differs between the repo and ~/.config/niri. For each, show me
+  the diff and ask whether the live copy or the repo copy is correct — do NOT
+  overwrite either until I answer. ~/.config/quickshell/sunset SHOULD be a
+  symlink into the repo; if it is a real directory, say so and stop.
+
+PHASE 4 — HARDWARE-SPECIFIC DEFAULTS.
+  brave/brave-flags.conf was tuned for an Intel Broadwell iGPU with 7.6 GB of
+  RAM. Read it, read my GPU from PHASE 1, and propose flags for MY hardware.
+  Explain each change in one line. Apply nothing until I approve.
+
+PHASE 5 — PERSONAL DEFAULTS. Ask me, then write the answers:
+  wallpaper folder · rotation interval · idle timeout · power profile ·
+  city (for weather) · timezone · browser · file manager · terminal
+  Write them with scripts/wallpaper-process.sh (setmany validates before
+  writing), never by hand-editing .state/wallpaper-process.conf.
+
+PHASE 6 — VERIFY. Actually run these and report PASS/FAIL for each:
+  niri validate
+  python3 scripts/changelog.py verify
+  python3 -m unittest discover -s scripts -p 'test_*.py'
+  bash -n on every scripts/*.sh
+  quickshell -c sunset --version
+Then print: what you changed, what you deliberately left alone, and anything
+still hardcoded for the original machine.
+````
+
+### B · Make it yours (look, don't touch)
+
+*Walks you through the settings by showing you the current values first. No
+surprises, and it never edits without asking.*
+
+````text
+You are helping me PERSONALISE the "Sunset Niri" desktop in this repo. Show me
+what is currently set BEFORE changing anything, and ask before every write.
+
+STEP 1 — READ AND REPORT. Print a table of the current value and where it lives
+for each of these, read from the real files (do not guess):
+  bash scripts/wallpaper-process.sh get
+  grep -A3 'focus-ring' niri/layout.kdl
+  grep -E 'opacity|corner' niri/rules.kdl | head
+  grep -cE '^\s*\w+\s*\{' niri/binds.kdl niri/binds-quickshell.kdl
+  qs -c sunset ipc call themes list 2>/dev/null || true
+
+STEP 2 — WHAT LOOKS WRONG. Point out defaults that are clearly somebody else's:
+  the wallpaper folder path, a rotation interval I would find too fast, a theme
+  that clashes with my wallpaper, gaps or opacity I would want different. Offer
+  a concrete alternative for each and wait for me to pick.
+
+STEP 3 — APPLY ONLY WHAT I PICKED. Write it with the repo's own tool for that
+  setting (wallpaper-process.sh for wallpaper knobs), never by editing the
+  state file directly. After any niri/*.kdl edit:
+    cp niri/<file> ~/.config/niri/<file>
+    niri validate && niri msg action load-config-file
+  After any QML edit, remind me: Mod+Shift+Q restarts the shell, no niri reload
+  needed, because ~/.config/quickshell/sunset is a symlink into the repo.
+
+STEP 4 — PREVIEW THE THEMES. List the palettes from services/Theme.qml with
+  their bg/accent hex values, and offer to switch one at a time so I can see it:
+    qs -c sunset ipc call themes set <name>
+  Remind me that a wallpaper-derived palette follows the wallpaper while
+  auto-theming is on, and that picking a fixed theme turns auto off.
+
+Finish by printing a short cheat-sheet of the shortcuts I actually use.
+````
+
+### C · Add a feature (read the repo's own rules first)
+
+*The one to use when you want a new keybinding, popup or launcher row. Teaches
+the agent the traps this repo has already paid for.*
+
+````text
+You are adding ONE feature to the "Sunset Niri" desktop in this repo. Read these
+files BEFORE writing any code — they document traps that are not visible in the
+source and have each caused a silent, hard-to-debug failure:
+  AGENTS.md      (the full list; read the sections your feature touches)
+  scripts/CHANGELOG-AGENT.md  (how docs must be updated alongside code)
+  taste.md       (design tokens and popup conventions)
+
+HARD RULES FOR THIS REPO, all of them load-bearing:
+  - NEVER hardcode a colour. Use a token from quickshell/sunset/services/Theme.qml
+    (bg, text, dim, accent, onAccent...). A literal hex silently stops
+    following the palette, which is exactly how 8 files once got stuck.
+  - NEVER write the output of scripts/sync-external-theme.py into git. It owns
+    tmux/theme.conf, alacritty/*.toml, help/theme.css, niri/layout.kdl. Edit the
+    *.in template instead.
+  - A file the shell watches must be written IN PLACE, never tmp-then-rename:
+    FileView watches the inode, and os.replace() kills the watch silently.
+  - An IPC verb is not automatically the method it forwards to. shell.qml does
+    loader.item[fn], so a function that exists only inside an IpcHandler throws
+    and does nothing. Any new verb needs BOTH the shim in shell.qml and a root
+    method on the popup.
+  - If a keybinding moves or changes meaning, grep every doc for the old chord:
+      grep -rn 'Ctrl+Space' README.md help/index.html AGENTS.md
+  - LazyLoader.active is ASYNCHRONOUS. You cannot activate and call in the same
+    tick; park the call and replay it in onItemChanged.
+
+WORKING STEPS
+  1. Restate the feature in one sentence, and name the key it answers to. Ask me
+     to confirm before writing code.
+  2. Find the existing pattern it most resembles and copy that shape exactly.
+  3. Write the code. Comment only the non-obvious WHY — this repo's comments
+     explain decisions and traps, not syntax.
+  4. If it changes behaviour that a test can pin, write the test by LIFTING the
+     real function out of the QML and running it under node, the way
+     scripts/test_launcher_row_menu.py and test_icon_colors.py already do.
+     Reimplementing the logic in the test is worthless — it tests the copy.
+  5. Update the docs: new chord into niri/binds*.kdl AND the README keybinding
+     tables AND help/index.html. Then run
+       python3 scripts/changelog.py counts --write
+       python3 scripts/changelog.py verify
+  6. Add a row to the README's "Screenshots still to capture" table if the
+     feature is visual. A feature nobody can picture does not get believed.
+
+BEFORE YOU REPORT DONE
+  niri validate
+  python3 scripts/changelog.py verify
+  python3 -m unittest discover -s scripts -p 'test_*.py'
+Then tell me: what you added, which existing pattern you copied, what you
+deliberately did NOT do, and which of my HARD RULES applied to this change.
+````
+
+> The full brief these three prompts are condensed from lives in
+> **`scripts/CHANGELOG-AGENT.md`** — read it directly if you want the agent to
+> follow the checklist step by step rather than paraphrasing it.
+
+---
 
 ## ✨ Features
 
@@ -1304,7 +1548,10 @@ Print:
 - **Memory-smart**: popups are torn down 600 ms after close (~208 MB → ~177 MB at rest).
 
 ### ⌨️ Thoughtful everyday details
-- **Instant web search** (<kbd>Ctrl</kbd>+<kbd>Space</kbd>) — the launcher opens already in `@` mode; type, <kbd>Enter</kbd>, and it opens in your browser. All nine site shortcuts still work.
+- **Instant web search** (<kbd>Ctrl</kbd>+<kbd>Space</kbd>) — the launcher opens already in `@` mode; type, <kbd>Enter</kbd>, and it opens in your browser. All eight site shortcuts still work.
+- **A right-click menu on every launcher row** (<kbd>F10</kbd> too) — the items follow the row: an app gets Preview · Reveal · Terminal · Copy · Pin, a bookmark gets Rename · Delete. Each item names its keyboard twin, and a row is never offered something it cannot do.
+- **Pin what you use** — pinned rows get their own section above Controls and survive a restart. A duplicate, not a move: Applications stays complete, and searching never shows the same app twice.
+- **Search the highlighted site** (<kbd>Ctrl</kbd>+<kbd>Tab</kbd>) — fills in that site's shortcut, so you never have to remember which one goes with which site.
 - **Offline voice dictation** with `whisrs` (whisper.cpp) — no cloud, no key.
 - **Copy any file with `Ctrl+C`** in the launcher — text and pictures copy their contents, everything else copies the path.
 - **A real bookmark manager in the launcher** (`%`) — import from any browser with favicons, delete with <kbd>Delete</kbd>, rename with `%rename`, and URL-only entries get real names.
@@ -1330,6 +1577,8 @@ Print:
 | <kbd>Mod</kbd>+<kbd>Enter</kbd> | Terminal |
 | <kbd>Alt</kbd>+<kbd>Space</kbd> / <kbd>Mod</kbd>+<kbd>Ctrl</kbd>+<kbd>Enter</kbd> | Launcher |
 | <kbd>Ctrl</kbd>+<kbd>Space</kbd> | Web search — opens the launcher already in `@` mode |
+| <kbd>F10</kbd> / <kbd>Menu</kbd> / right-click | Menu for the highlighted launcher row |
+| <kbd>Ctrl</kbd>+<kbd>Tab</kbd> | Search the highlighted site |
 | <kbd>Mod</kbd>+<kbd>B</kbd> | Browser (Brave) |
 | <kbd>Mod</kbd>+<kbd>E</kbd> | Files (Thunar) |
 | <kbd>Mod</kbd>+<kbd>L</kbd> | Lock screen |
