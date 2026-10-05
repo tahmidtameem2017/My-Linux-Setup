@@ -27,6 +27,17 @@
 //
 // Row shape: {kind, name, detail, icon, score, section, data}.
 //   icon "wifi.svg" is a verified basename in quickshell/sunset/assets/icons/.
+//   data.bang is present ONLY on a site's homepage row (no search terms yet)
+//   and holds its canonical bang — the same "@g" the user would have typed.
+//   That is what seedFor() reads, so Ctrl+Tab can drop the user straight
+//   into a search on the highlighted site.
+//
+// seedFor(row) -> the text to put in the launcher input, or "" when the row
+//   is not a searchable site (a search that already has terms, a plain URL,
+//   the live "search the web" row). Returning "" rather than guessing is
+//   what lets the launcher leave Tab alone on rows it cannot help with —
+//   Tab is the input<->list focus trap, so falling back to a wrong seed
+//   would be worse than not seeding at all.
 
 import QtQuick
 import Quickshell
@@ -80,11 +91,13 @@ QtObject {
             return {
                 "kind": "web",
                 "name": site.name,
-                "detail": "Open " + site.name + " — Enter to open",
+                "detail": "Open " + site.name + " — Enter to open, Ctrl+Tab to search it",
                 "icon": "wifi.svg",
                 "score": 100,
                 "section": "Web",
-                "data": { "url": site.home }
+                // The canonical bang (bangs[0]) — NOT whatever the user typed,
+                // so "@github", "@gh" and "@g" all seed the same "@gh ".
+                "data": { "url": site.home, "bang": site.bangs[0] }
             };
         }
         const shown = t.length > 80 ? t.slice(0, 80) : t;
@@ -158,6 +171,66 @@ QtObject {
         }
         latestRows = rows;
         return rows;
+    }
+
+    // Text to put in the launcher input so the user goes straight to typing a
+    // search on the highlighted site: "@g " (bang + trailing space, so the
+    // caret lands where the words go and nothing has to be deleted).
+    // "" for every row that cannot become a search — a site already carrying
+    // terms, a bare URL, the live "search the web" row, or a bookmark.
+    function seedFor(row: var): string {
+        if (!row || row.kind !== "web" || !row.data || !row.data.bang)
+            return "";
+        return "@" + row.data.bang + " ";
+    }
+
+    // Host of a URL, without pulling in Qt.url / a parser: drop the scheme,
+    // cut at the first "/", "?" or "#", then drop userinfo and port. This
+    // only has to be good enough to match a bookmark against the site table,
+    // where a near-miss just means "no bang" (no seed), never a wrong seed.
+    function hostOf(url: string): string {
+        let s = (url ?? "").trim();
+        if (s === "")
+            return "";
+        const sch = s.indexOf("://");
+        if (sch !== -1)
+            s = s.slice(sch + 3);
+        let cut = s.length;
+        for (let i = 0; i < s.length; ++i) {
+            if (s[i] === "/" || s[i] === "?" || s[i] === "#") {
+                cut = i;
+                break;
+            }
+        }
+        s = s.slice(0, cut);
+        const at = s.lastIndexOf("@");
+        if (at !== -1)
+            s = s.slice(at + 1);
+        const colon = s.indexOf(":");
+        if (colon !== -1)
+            s = s.slice(0, colon);
+        return s.toLowerCase();
+    }
+
+    // Canonical bang for a saved bookmark whose URL belongs to a known site
+    // ("" when it does not). Lets Ctrl+Tab work on the "%" bookmarks too —
+    // a bookmark is a website, so highlighting your saved GitHub and hitting
+    // the key should search it, exactly like the bare "@" site list.
+    // Subdomain-tolerant both ways: a bookmark to "docs.github.com" still
+    // finds github.com, and a bookmark to plain "github.com" still finds a
+    // site hosted on "www.github.com".
+    function bangForUrl(url: string): string {
+        const h = hostOf(url);
+        if (h === "")
+            return "";
+        for (let i = 0; i < sites.length; ++i) {
+            const sh = hostOf(sites[i].home);
+            if (sh === "")
+                continue;
+            if (h === sh || h.endsWith("." + sh) || sh.endsWith("." + h))
+                return sites[i].bangs[0];
+        }
+        return "";
     }
 
     function activate(row: var): void {

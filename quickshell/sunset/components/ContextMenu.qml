@@ -31,8 +31,29 @@
 //   layer-rule { match namespace="sunset-context-menu" }
 //   Verify while running: `niri msg layers`
 //
+//   Launcher rows (2026-10-05): the launcher is a context menu host too.
+//   Launcher.qml builds its OWN item set per highlighted row (kind decides
+//   the items — file rows get Reveal/Terminal/Copy, app+control rows get
+//   Pin to top, bookmarks get Delete) and hands it to openRow(). Items there
+//   carry `op` instead of `fn`, because the work is a launcher method, not a
+//   fixed command: a right click must NEVER be able to run an arbitrary
+//   command, so `op` is resolved through the same closed `runLauncherOp`
+//   allowlist rather than dispatched by string. Right-clicking the launcher's
+//   search box or empty space (not a row) opens helpMenu's "how to use this".
+//
+//   One menu, three item sets (desktop | bar | caller-supplied), because the
+//   launcher's window is top-level like the others: a menu that is a CHILD of
+//   the launcher card cannot be positioned in screen coords, cannot take
+//   Exclusive keyboard focus off the launcher without ending the launcher's
+//   own focusTimer war, and would have to duplicate this whole card.
+//
 // IPC: `qs -c sunset ipc call menu toggle` (also: openDesktop, openBar,
 //      open, close)
+//
+// Deliberately NO `openRow` verb: a caller-supplied item set cannot cross the
+// IPC boundary (QVariant), so such a verb could not carry a menu anyway. The
+// launcher reaches openRow() directly through shell.qml, and the keybind
+// path is F10 inside the launcher itself.
 
 import QtQuick
 import Quickshell
@@ -50,6 +71,10 @@ Scope {
     readonly property color cBorder: Theme.border
     readonly property color cBorderStrong: Theme.borderStrong
     readonly property string cFontFamily: Theme.fontFamily
+    // Theme.withAlpha(Theme.muted, …) for the same reason Launcher.qml does it:
+    // a literal alpha freezes the surface to sunset colours under every other
+    // palette. Used for the hint column and for disabled (informational) rows.
+    readonly property color cMuted: Theme.withAlpha(Theme.muted, 0.75)
     readonly property color cPanel: Theme.panel
     readonly property int cRadius: Theme.radius
     readonly property color cText: Theme.text
@@ -62,9 +87,13 @@ Scope {
     readonly property string openHelpScript: setupHome + "/scripts/open-help.sh"
 
     property bool isOpen: false
-    // Which item set is showing: "desktop" | "bar".
+    // Which item set is showing: "desktop" | "bar" | "launcher".
     property string menuKind: "desktop"
     property var items: desktopItems
+    // Caller-supplied item set (launcher openRow). Set by openRow() and
+    // CLEARED on close(), so a stale launcher set can never outlive the menu
+    // and later be reopened by an unrelated openDesktop()/openBar() call.
+    property var rowItems: null
     // Menu top-left in overlay-window coords (= screen coords).
     property real menuX: 0
     property real menuY: 0
@@ -72,9 +101,32 @@ Scope {
     property int current: -1
     // Mouse must not vote until it moves (PowerMenu hoverArmed parity).
     property bool hoverArmed: false
+    // Disabled rows (hint text in the launcher's help menu) render muted and
+    // cannot be selected or activated, but still count as rows for layout.
+    readonly property var shownItems: rowItems !== null ? rowItems : items
 
     readonly property int rowHeight: 24
-    readonly property int menuWidth: 236
+    readonly property int menuWidthDesktop: 236
+    // Desktop/bar menus are short commands. Launcher menus carry a label AND
+    // a chord ("Open in file manager" + "Ctrl+Enter"), which does not fit the
+    // narrow desktop width. Derived from the longest label rather than
+    // hardcoded, so adding a longer item cannot silently ellipsis it — and it
+    // is a readonly BINDING on the data, so there is nothing to keep in sync
+    // by hand.
+    readonly property int menuWidthLauncher: {
+        let w = 236;
+        const list = rowItems !== null ? rowItems : [];
+        for (let i = 0; i < list.length; ++i) {
+            const it = list[i];
+            if (!it || it.sep === true)
+                continue;
+            // ~6.2px per char at 10pt bold monospace + label/hint margins.
+            const chars = String(it.label || "").length + String(it.hint || "").length + 3;
+            w = Math.max(w, Math.round(chars * 6.2) + 40);
+        }
+        return Math.min(w, 400);
+    }
+    readonly property int menuWidth: menuKind === "launcher" ? menuWidthLauncher : menuWidthDesktop
 
     // Right-click on the desktop. Dispatcher rows only; destructive power
     // actions live behind "Power..." (own confirm-to-run popup).
@@ -189,6 +241,7 @@ Scope {
 
     function openDesktop(x: real, y: real): void {
         menuKind = "desktop";
+        rowItems = null;
         items = desktopItems;
         open(x, y);
     }
@@ -197,8 +250,20 @@ Scope {
     // menu just below the bar so it drops down at the click column.
     function openBar(x: real, y: real): void {
         menuKind = "bar";
+        rowItems = null;
         items = barItems;
         open(x + 2, y + 2);
+    }
+
+    // Launcher right click / F10: the caller passes its OWN item set.
+    // `x`/`y` are screen coords, which is what the launcher's PanelWindow
+    // mapToItem gives for a point inside its fullscreen surface.
+    function openRow(list: var, x: real, y: real): void {
+        if (!list || list.length === 0)
+            return;
+        menuKind = "launcher";
+        rowItems = list;
+        open(x, y);
     }
 
     function open(x: real, y: real): void {
@@ -213,6 +278,11 @@ Scope {
     function close(): void {
         isOpen = false;
         hoverArmed = false;
+        // Drop the caller's set: a launcher menu left bound here would be
+        // re-shown by the next openDesktop()/openBar() (both of which reset
+        // rowItems themselves, but `toggle`/`open` over IPC do not go
+        // through them).
+        rowItems = null;
     }
 
     function toggle(): void {
@@ -254,29 +324,73 @@ Scope {
         close();
     }
 
+    // Launcher row menu dispatch: `op` -> the launcher's own rowMenuItem().
+    //
+    // Closed allowlist for the same reason runOp() is: a right click must
+    // never be able to execute an arbitrary command. The launcher builds its
+    // item set (rowMenuItems) and this resolves it; neither side can invent
+    // an op the other has not heard of. `rowMenuItem` then re-checks the op
+    // against ITS own closed set before acting, so this list and that one
+    // must agree — scripts/test_launcher_row_menu.py pins that.
+    //
+    // Named after the launcher rather than reusing runOp(), so a launcher menu
+    // can never accidentally execute a desktop-menu command (`lock`,
+    // `restart-shell`, …) if the two item sets are ever mixed up.
+    //
+    // Informational rows (the help menu's key legend) carry NO op at all and
+    // land in the final `else return;` — they render, and choosing one does
+    // nothing. That is also why `isActionable` skips them.
+    function runLauncherOp(op: string): void {
+        if (op === undefined || op === null || op === "")
+            return;
+        launcherIpc("rowMenuItem", String(op));
+        close();
+    }
+
+    // Resolve `op` on the LAUNCHER root. dispatch() in shell.qml requires the
+    // verb name to be a method on the popup root, so `rowMenuItem` must exist
+    // as a root method there (2026-10-05) and as a shim in shell.qml's
+    // `launcher` IpcHandler — without the shim this is a no-op, exactly like
+    // `themes set`.
+    //
+    // The verb is called with the launcher NOT closed, so an op that is a
+    // no-op for the current row (which rowMenuItem's own guards handle) leaves
+    // the launcher exactly as it was. close() here is the MENU's close, not
+    // the launcher's — they are different surfaces.
+    function launcherIpc(verb: string, arg: string): void {
+        Quickshell.execDetached(["qs", "-c", "sunset", "ipc", "call", "launcher", verb, arg]);
+    }
+
     function isActionable(i: int): bool {
-        return i >= 0 && i < items.length && items[i].sep !== true;
+        if (i < 0 || i >= root.shownItems.length)
+            return false;
+        // A disabled row (the help menu's key legend) is rendered but never
+        // selectable: navigation must be able to step over it, so it is
+        // skipped exactly like a separator.
+        return root.shownItems[i].sep !== true && root.shownItems[i].disabled !== true;
     }
 
     function firstIndex(): int {
-        for (let i = 0; i < items.length; ++i)
-            if (items[i].sep !== true)
+        const list = root.shownItems;
+        for (let i = 0; i < list.length; ++i)
+            if (isActionable(i))
                 return i;
         return -1;
     }
 
     function moveSelection(delta: int): void {
         hoverArmed = true;
-        if (items.length === 0)
+        const list = root.shownItems;
+        if (list.length === 0)
             return;
         let idx = current;
-        for (let step = 0; step < items.length; ++step) {
+        for (let step = 0; step < list.length; ++step) {
             idx += delta;
-            if (idx < 0 || idx >= items.length) {
+            if (idx < 0 || idx >= list.length) {
                 idx = current;
                 break;
             }
-            if (items[idx].sep !== true)
+            if (isActionable(idx))
                 break;
         }
         if (isActionable(idx))
@@ -290,8 +404,9 @@ Scope {
 
     function goLast(): void {
         hoverArmed = true;
-        for (let i = items.length - 1; i >= 0; --i)
-            if (items[i].sep !== true) {
+        const list = root.shownItems;
+        for (let i = list.length - 1; i >= 0; --i)
+            if (isActionable(i)) {
                 current = i;
                 return;
             }
@@ -300,7 +415,14 @@ Scope {
     function activateCurrent(): void {
         if (!isActionable(current))
             return;
-        runOp(items[current].fn);
+        // The launcher set uses `op` (a launcher root method); the desktop and
+        // bar sets use `fn` (a fixed command). Two closed allowlists, chosen
+        // by which item set is showing — a launcher menu can never execute a
+        // desktop command, and vice versa.
+        if (menuKind === "launcher")
+            runLauncherOp(shownItems[current].op);
+        else
+            runOp(shownItems[current].fn);
     }
 
     Timer {
@@ -431,12 +553,16 @@ Scope {
                     anchors.margins: 6
 
                     Repeater {
-                        model: root.items
+                        // shownItems, not items: the launcher hands this menu a
+                        // caller-supplied set (openRow) while items still holds
+                        // the desktop set.
+                        model: root.shownItems
                         delegate: Rectangle {
                             id: row
                             readonly property bool isSep: itemData ? itemData.sep === true : false
-                            readonly property bool isCurrent: root.current === index && !isSep
-                            readonly property bool lit: isCurrent || (mHover.hovered && !isSep && root.hoverArmed)
+                            readonly property bool isDisabled: itemData ? itemData.disabled === true : false
+                            readonly property bool isCurrent: root.current === index && !isSep && !isDisabled
+                            readonly property bool lit: isCurrent || (mHover.hovered && !isSep && !isDisabled && root.hoverArmed)
                             property var itemData: modelData
                             width: col.width
                             height: isSep ? 6 : root.rowHeight
@@ -464,14 +590,38 @@ Scope {
                             Text {
                                 anchors.fill: parent
                                 anchors.leftMargin: 12
+                                // Right margin leaves room for the hint column
+                                // (the launcher's "Enter" / "Ctrl+T" chords),
+                                // so a long label never runs under it.
+                                anchors.rightMargin: row.itemData && row.itemData.hint ? 64 : 12
                                 visible: !row.isSep
                                 verticalAlignment: Text.AlignVCenter
                                 text: row.itemData && row.itemData.label ? row.itemData.label : ""
                                 font.family: root.cFontFamily
                                 font.pointSize: 10
                                 font.bold: true
-                                color: row.lit ? root.cBg : root.cText
+                                // Theme.muted for a disabled row: it must read
+                                // as a hint, never as something you can click.
+                                // A lit row still inverts to cBg on the accent fill
+                                // (a disabled row can never be lit, by isActionable).
+                                color: row.isDisabled ? root.cMuted : (row.lit ? root.cBg : root.cText)
                                 elide: Text.ElideRight
+                            }
+
+                            // Right-hand keyboard chord. Keyboard twins are the
+                            // point of this menu (a beginner can see the chord
+                            // instead of hunting for it), and they double as the
+                            // item's own hint when it has no chord.
+                            Text {
+                                anchors.right: parent.right
+                                anchors.rightMargin: 12
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: !row.isSep && !!(row.itemData && row.itemData.hint)
+                                text: row.itemData && row.itemData.hint ? row.itemData.hint : ""
+                                font.family: root.cFontFamily
+                                font.pointSize: 9
+                                color: row.isDisabled ? root.cMuted : (row.lit ? root.cBg : root.cMuted)
+                                opacity: row.lit ? 0.85 : 1.0
                             }
 
                             HoverHandler {
@@ -480,7 +630,11 @@ Scope {
                             MouseArea {
                                 anchors.fill: parent
                                 acceptedButtons: Qt.LeftButton
-                                visible: !row.isSep
+                                // A disabled row is not clickable at all, so the
+                                // press falls through to the menu's backdrop,
+                                // which closes the menu — the same as clicking
+                                // outside it.
+                                enabled: !row.isSep && !row.isDisabled
                                 hoverEnabled: true
                                 onEntered: if (root.hoverArmed)
                                     root.current = index
@@ -488,7 +642,7 @@ Scope {
                                 onPressed: root.hoverArmed = true
                                 onClicked: {
                                     root.current = index;
-                                    root.runOp(row.itemData.fn);
+                                    root.activateCurrent();
                                 }
                             }
                         }

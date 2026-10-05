@@ -24,6 +24,42 @@ a full rewrite of the original
 
 ## 📝 Changelog
 
+**2026-10-05 — <kbd>Ctrl</kbd>+<kbd>Space</kbd> is instant web search.**
+Press it, type your query, press <kbd>Enter</kbd> — the launcher opens
+*already in web search*, with `@` filled in for you, so you go straight to
+typing:
+
+| You type | What opens |
+| :-- | :-- |
+| <span class="pill">google weather</span> | Google (the `google` site shortcut) |
+| <span class="pill">how to tile windows</span> | DuckDuckGo |
+| <span class="pill">github niri</span> | GitHub |
+| <span class="pill">https://…</span> | the link itself |
+
+All nine site shortcuts — `@dd` `@g` `@yt` `@w` `@gh` `@so` `@r` `@maps`
+`@miruro` — work exactly as before, because this is the **same**
+`WebProvider` the typed `@` prefix already used. The result opens with
+`xdg-open`, i.e. a tab in your real browser.
+
+> **Quick Look moved to <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Space</kbd>.**
+> <kbd>Ctrl</kbd>+<kbd>Space</kbd> belonged to the launcher's file preview
+> since before this desktop was written up. Web search wanted that chord
+> specifically, so Quick Look moved one modifier along. Highlights the file
+> row as before.
+
+Also works from a terminal:
+
+```sh
+qs -c sunset ipc call launcher websearch
+```
+
+Backed by `Launcher.qml`'s `websearch()` (it calls the existing
+`applyPrefix()`, extracted so the `;` mode rows and this keybind share one
+code path instead of two copies of the debounce handling), the `launcher`
+IPC shim in `shell.qml`, and one bind in `niri/binds-quickshell.kdl`.
+No new QML component, no new icon, no new script — the whole feature is a
+re-pointing of a prefix that was already there.
+
 **2026-10-04 — All-in-one Config Editor.** <kbd>Alt</kbd>+<kbd>Space</kbd>
 → **Config Editor** opens a floating panel that tunes the compositor
 itself — no config file, no logout:
@@ -1268,6 +1304,7 @@ Print:
 - **Memory-smart**: popups are torn down 600 ms after close (~208 MB → ~177 MB at rest).
 
 ### ⌨️ Thoughtful everyday details
+- **Instant web search** (<kbd>Ctrl</kbd>+<kbd>Space</kbd>) — the launcher opens already in `@` mode; type, <kbd>Enter</kbd>, and it opens in your browser. All nine site shortcuts still work.
 - **Offline voice dictation** with `whisrs` (whisper.cpp) — no cloud, no key.
 - **Copy any file with `Ctrl+C`** in the launcher — text and pictures copy their contents, everything else copies the path.
 - **A real bookmark manager in the launcher** (`%`) — import from any browser with favicons, delete with <kbd>Delete</kbd>, rename with `%rename`, and URL-only entries get real names.
@@ -1292,6 +1329,7 @@ Print:
 | :-- | :-- |
 | <kbd>Mod</kbd>+<kbd>Enter</kbd> | Terminal |
 | <kbd>Alt</kbd>+<kbd>Space</kbd> / <kbd>Mod</kbd>+<kbd>Ctrl</kbd>+<kbd>Enter</kbd> | Launcher |
+| <kbd>Ctrl</kbd>+<kbd>Space</kbd> | Web search — opens the launcher already in `@` mode |
 | <kbd>Mod</kbd>+<kbd>B</kbd> | Browser (Brave) |
 | <kbd>Mod</kbd>+<kbd>E</kbd> | Files (Thunar) |
 | <kbd>Mod</kbd>+<kbd>L</kbd> | Lock screen |

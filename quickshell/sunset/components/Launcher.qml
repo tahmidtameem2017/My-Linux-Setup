@@ -102,7 +102,10 @@
 //     ">" runner (Shift+Enter runs in terminal via alacritty -e;
 //     Ctrl+Enter reveals a file row in the default file manager;
 //     Ctrl+C copies a file row to the clipboard — contents for
-//     text/image types, path string otherwise),
+//     text/image types, path string otherwise;
+//     Ctrl+T opens a terminal in a file row's own directory — a
+//     directory row starts the shell there, a file row in its parent
+//     folder),
 //     "." symbols, "!" todo, "%" bookmarks, ";" modes.
 //   Bare queries (no prefix char):
 //     empty -> 13 controls FIRST, then up to 5 recent Bookmarks (most
@@ -165,6 +168,19 @@
 //     (Raycast-style "3 of 114"), updated via updateCounter() at the end
 //     of rebuild() and on currentIndex change.
 //
+// Ctrl+Tab seeds a site search (2026-10-05): with a row highlighted in the
+//   "@" site list, or a saved bookmark whose URL maps to a known site, the
+//   query becomes "@<bang> " and the caret sits after the space, so you type
+//   straight into a search of THAT site instead of opening its homepage and
+//   hunting for its search box. It fires only when it can produce a real seed
+//   and otherwise falls through to plain Tab — plain Tab is the
+//   input<->list focus trap, so hijacking it unconditionally would break
+//   keyboard navigation on every non-site row. Ctrl+Shift+Tab is a synonym.
+//   The seed goes through applyPrefix() (the same path the ";" mode rows and
+//   websearch take), so it rebuilds immediately and refocuses the input.
+//   Seed text is owned by WebProvider.seedFor/bangForUrl, not here: the site
+//   table is the only place that knows the canonical bang.
+//
 // Keybindings (for the binds owner — do NOT edit binds.kdl here):
 //   Mod+Ctrl+Return { spawn-sh "qs -c sunset ipc call launcher toggle"; }
 //   Alt+Space       { spawn-sh "qs -c sunset ipc call launcher toggle"; }
@@ -175,7 +191,7 @@
 //   Verify while running: `niri msg layers`
 //
 // IPC: `qs -c sunset ipc call launcher toggle`
-//      (also: open, close)
+//      (also: open, close, websearch, seedSiteSearch)
 
 import QtQuick
 import Quickshell
@@ -273,10 +289,449 @@ Scope {
     // provider's own resultsChanged).
     property var lastProvQuery: ({})
 
-    // ---- Ctrl+Space preview (Quick Look parity, hybrid surface) --------
+    // ---- pinned rows (2026-10-05) ---------------------------------------
+    // Pinning is a launcher-row feature, so the store lives here and NOT in a
+    // service: nothing outside the launcher reads it, and a service would add
+    // a file for one array.
+    //
+    // Persisted so a pin survives a shell restart (the whole point of pinning
+    // a favourite). FileView + setText, the BookmarksProvider precedent in
+    // this same directory — NOT a tmp+rename: FileView sits on
+    // QFileSystemWatcher, which watches the INODE, so os.replace() would
+    // silently kill the watch and the list would only reload on a restart
+    // (the write_watched() rule, see scripts/sync-external-theme.py).
+    //
+    // Same state dir as bookmarks.json (Theme.themeDir), which is what
+    // BookmarksProvider spells out as its own stateDir — the two stores live
+    // side by side and a third location for the same kind of data would be
+    // one more thing to look for.
+    readonly property string pinnedPath: Theme.themeDir + "/launcher-pins.json"
+    // Pin identities, most-recent-first. See pinKeyFor() for the shapes:
+    //   "app:<desktop-file-id>"      app + action rows share it, so pinning
+    //                                 an app pins its action rows with it
+    //   "control:<Control row name>" name is the key, not the index — the
+    //                                 order of controlEntries is data and can
+    //                                 move; an index would silently repoint
+    // A pin whose app has been uninstalled is dropped on the next rebuild
+    // (reconcilePins) rather than shown as a dead row.
+    property var pinned: []
+    property int pinsLoaded: 0
+    property bool pinsDirReady: false
+
+    // True while the contextual menu owns the keyboard. Set by shell.qml when
+    // it routes rowMenuRequested to ContextMenu.openRow(), and cleared by the
+    // shell again when the menu's own isOpen flips false. It gates the
+    // focusTimer retry loop above, which would otherwise rip focus straight
+    // back to the search input and leave the menu's own Up/Down/Enter dead.
+    //
+    // The shell owns both ends of this handshake because the launcher and
+    // ContextMenu are sibling Scopes that cannot see each other — the same
+    // reason rowMenuRequested is a signal. It is NOT a timeout on the
+    // launcher side: a fixed delay would hand focus back while the menu was
+    // still open (the user is reading it), which is the bug a timer
+    // "fixes" into a different one.
+    property bool menuOpen: false
+
+    function markMenuOpen(): void {
+        menuOpen = true;
+    }
+
+    // Menu went away: give the keyboard back, and restart the focus loop
+    // markMenuOpen effectively suspended.
+    function markMenuClosed(): void {
+        if (!menuOpen)
+            return;
+        menuOpen = false;
+        if (!isOpen)
+            return; // launcher went with it; nothing to refocus
+        focusTimer.attempts = 0;
+        focusTimer.restart();
+    }
+
+    // Stable identity for a row, or "" when the row is not pinnable.
+    //
+    // Apps are keyed on the desktop-file id, not the name: the name is what
+    // the user sees and therefore what they can change (a renamed .desktop
+    // repoints the name), while the id is what actually identifies the
+    // entry. An "action" row resolves to its parent app on purpose, so
+    // pinning an app also keeps its action rows in the pinned block instead
+    // of leaving orphans that filter back into the Applications section.
+    //
+    // Controls are keyed on the row NAME, not an index into controlEntries:
+    // that array is data and its order changes (rows were reordered when
+    // Instagram and Custom Editor were added), so an index would silently
+    // repoint a pin at a different control.
+    function pinKeyFor(row): string {
+        if (!row)
+            return "";
+        if (row.kind === "app" || row.kind === "action") {
+            if (row.entry && row.entry.id)
+                return "app:" + row.entry.id;
+            return "";
+        }
+        if (row.kind === "control" && row.name)
+            return "control:" + row.name;
+        return "";
+    }
+
+    function isPinned(row): bool {
+        const k = root.pinKeyFor(row);
+        if (k === "")
+            return false;
+        return root.pinned.indexOf(k) !== -1;
+    }
+
+    // Index of the first row with this pin key, or -1. Used after a rebuild to
+    // put the selection back on the row the user actually acted on (see
+    // togglePinCurrent). First match, because a pinned row exists twice — in
+    // the Pinned section and in its normal section — and the top one is the
+    // one that moved under the cursor.
+    function indexOfPinKey(key: string): int {
+        if (!key)
+            return -1;
+        for (let i = 0; i < root.rows.length; ++i)
+            if (root.pinKeyFor(root.rows[i]) === key)
+                return i;
+        return -1;
+    }
+
+    function loadPinsText(txt: string): void {
+        const t = (txt ?? "").trim();
+        if (t === "") {
+            root.pinned = [];
+            pinsLoaded = 1;
+            return;
+        }
+        try {
+            const parsed = JSON.parse(t);
+            // Defensive shape check: a hand-edited or truncated file must not
+            // become a `pinned` array of arbitrary values that rowMenuItems
+            // then has to defend against on every click.
+            root.pinned = Array.isArray(parsed) ? parsed.filter(k => typeof k === "string") : [];
+        } catch (e) {
+            root.pinned = [];
+        }
+        pinsLoaded = 1;
+    }
+
+    function savePins(): void {
+        if (!pinsDirReady)
+            return;
+        pinnedFile.setText(JSON.stringify(pinned));
+    }
+
+    // Toggle the highlighted row's pin. The launcher stays open (Ctrl+C/copy and
+    // Delete precedent: an in-place edit is not a dismissal) so a second row
+    // can be pinned without reopening.
+    //
+    // The selection must follow the ROW, not its old index. Pinning inserts a
+    // new row at index 0 (the Pinned section) and unpinning removes one, so
+    // restoring `idx` verbatim lands on a DIFFERENT row — pressing pin twice
+    // in a row pinned a second control instead of undoing the first, which is
+    // exactly what the end-to-end run caught.
+    function togglePinCurrent(): void {
+        const idx = appList.currentIndex;
+        if (idx < 0 || idx >= rows.length)
+            return;
+        const key = root.pinKeyFor(rows[idx]);
+        if (key === "")
+            return;
+        const next = root.pinned.slice();
+        const at = next.indexOf(key);
+        if (at !== -1)
+            next.splice(at, 1);
+        else
+            // Most-recent-first, so re-pinning an app moves it back to the top
+            // of the pinned block instead of leaving it where it was.
+            next.unshift(key);
+        root.pinned = next;
+        root.savePins();
+        root.rebuild();
+        // Re-find the row by identity. When it is pinned there are now two
+        // rows with this key (the Pinned one and the section copy), so take
+        // the FIRST — the top of the list is where the user just acted.
+        const moved = root.indexOfPinKey(key);
+        const n = rows.length;
+        appList.currentIndex = moved >= 0 ? moved : (n > 0 ? Math.min(idx, n - 1) : -1);
+        root.updateCounter();
+        searchInput.forceActiveFocus();
+    }
+
+    // Drop pins whose target no longer exists, so uninstalling an app cannot
+    // leave a dead row at the top of the launcher forever. Runs on every
+    // rebuild: it is O(pins) with no I/O (the app list is already loaded).
+    function reconcilePins(): void {
+        if (pinsLoaded !== 1 || root.pinned.length === 0)
+            return;
+        let dropped = false;
+        const next = [];
+        for (let i = 0; i < root.pinned.length; ++i) {
+            const k = root.pinned[i];
+            if (root.pinTargetExists(k)) {
+                next.push(k);
+            } else {
+                dropped = true;
+            }
+        }
+        if (dropped) {
+            root.pinned = next;
+            root.savePins();
+        }
+    }
+
+    function pinTargetExists(key: string): bool {
+        if (!key || key.indexOf("control:") === 0) {
+            // A control pin is kept even when controlEntries changes: a
+            // control is a shell feature, not an installed package, so a
+            // missing one means the feature was renamed, and silently
+            // deleting the pin would lose the user's intent.
+            return true;
+        }
+        if (key.indexOf("app:") !== 0)
+            return false;
+        const id = key.slice(4);
+        if (!id)
+            return false;
+        // Read the same source rebuild() does rather than a cached `apps`
+        // local: that list is scoped to rebuild(), so a helper here cannot
+        // see it, and a stale copy would keep a pin alive for an app that is
+        // already uninstalled — the exact case reconcilePins exists for.
+        const list = DesktopEntries.applications.values;
+        for (let i = 0; i < list.length; ++i)
+            if (list[i] && list[i].id === id)
+                return true;
+        return false;
+    }
+
+    // ---- contextual row menu (right click / F10, 2026-10-05) ------------
+    //
+    // One item set per highlighted row, chosen by the row's `kind` — so the
+    // menu never offers an action the row cannot perform. Every item carries
+    // its keyboard twin in the `hint`, which is the whole point for a
+    // beginner: the mouse path and the key path are printed side by side, so
+    // nobody has to learn one and discover the other later.
+    //
+    // Item shape consumed by ContextMenu.qml:
+    //   { label, hint, op }         actionable; `op` is one of the closed
+    //                                set in rowMenuItem() below
+    //   { label, hint, disabled }   informational: rendered muted, skipped by
+    //                                keyboard nav, inert on click
+    //   { sep: true }               divider
+    //
+    // The menu is hosted by ContextMenu.qml, not a child of this card: it is
+    // a top-level layer-shell surface, it positions in screen coordinates,
+    // and it can take Exclusive keyboard focus without fighting the launcher's
+    // own focusTimer. See ContextMenu.qml's header for the full reasoning.
+    // This file reaches it by EMITTING rowMenuRequested, and shell.qml
+    // routes it to contextMenu.openRow() — the same shape as
+    // Bar.qml's contextMenuRequested, and mandatory rather than stylistic:
+    // two sibling Scopes cannot read each other's properties, so a direct
+    // `contextMenu.openRow(...)` call from here cannot resolve.
+    function rowMenuItems(): var {
+        // `appList` is a bare id (a ListView declared inside `win`), NOT a
+        // property of root, so it MUST stay unqualified here: `root.appList`
+        // is undefined and the whole function bails to [] — which is exactly
+        // why an earlier build opened the help menu for every row.
+        const idx = appList.currentIndex;
+        if (idx < 0 || idx >= rows.length)
+            return [];
+        const row = rows[idx];
+        if (!row || row.kind === "header")
+            return [];
+        const out = [];
+        // Open is universal (every row kind has an activate() path — the same
+        // Enter action launchRow runs) so it leads the menu in every case.
+        const openLabel = row.kind === "bookmark" ? "Open in browser" : "Open";
+        out.push({ "label": openLabel, "hint": "Enter", "op": "open" });
+
+        // ---- file rows: the full set of file verbs, each with its chord ----
+        // Guarded on a real absolute path, exactly like currentFilePath() and
+        // the delegate's isFileRow: the `/`-mode cheatsheet rows carry data {}
+        // and every one of these verbs is a no-op on them, so offering them
+        // there would be a menu full of dead entries.
+        if (row.kind === "file" && row.data && String(row.data.path || "")[0] === "/") {
+            out.push({ "sep": true });
+            out.push({ "label": "Preview", "hint": "Ctrl+Alt+Space", "op": "preview" });
+            out.push({ "label": "Open in file manager", "hint": "Ctrl+Enter", "op": "reveal" });
+            out.push({ "label": "Open terminal here", "hint": "Ctrl+T", "op": "terminal" });
+            out.push({ "label": "Copy", "hint": "Ctrl+C", "op": "copy" });
+        }
+
+        // ---- app + action + control rows: pinning ----
+        // Offered wherever pinKeyFor() can name the row, and the label flips
+        // to Unpin once it is pinned — a menu that said "Pin to top" on an
+        // already-pinned row would be a lie about its own state.
+        if (root.pinKeyFor(row) !== "") {
+            out.push({ "sep": true });
+            out.push({
+                "label": root.isPinned(row) ? "Unpin from top" : "Pin to top",
+                "hint": "",
+                "op": "pin"
+            });
+        }
+
+        // ---- bookmarks: deletion (the Delete key's twin) ----
+        // Only a real saved bookmark, not the create/rename/delete command
+        // rows: deleteCurrentBookmark() guards on exactly this, and offering
+        // "Delete bookmark" on the "Rename bookmark" row would be nonsense.
+        if (row.kind === "bookmark" && row.data && row.data.action === "open") {
+            out.push({ "sep": true });
+            out.push({ "label": "Delete bookmark", "hint": "Delete", "op": "delete" });
+        }
+        return out;
+    }
+
+    // Right-click NOT on a row (the search box, or the space below the list):
+    // the beginner menu. It is pure information plus one action, so every
+    // legend row is `disabled` — nothing here pretends to be clickable.
+    // The prefix list is derived from rebuild()'s prefixKind table rather
+    // than retyped, so a new mode cannot be missing from the legend.
+    readonly property var modePrefixes: [
+        { "p": "=", "n": "Calculator" },
+        { "p": "$", "n": "Windows" },
+        { "p": ":", "n": "Clipboard" },
+        { "p": "@", "n": "Web search" },
+        { "p": "/", "n": "Files" },
+        { "p": ">", "n": "Run a command" },
+        { "p": ".", "n": "Symbols" },
+        { "p": "!", "n": "Todo" },
+        { "p": "%", "n": "Bookmarks" },
+        { "p": ";", "n": "Modes & controls" }
+    ]
+
+    function helpMenuItems(): var {
+        const out = [];
+        out.push({ "label": "Type to search apps, files or the web", "hint": "", "disabled": true });
+        out.push({ "sep": true });
+        for (let i = 0; i < root.modePrefixes.length; ++i)
+            out.push({
+                "label": root.modePrefixes[i].p + "   " + root.modePrefixes[i].n,
+                "hint": "",
+                "disabled": true
+            });
+        out.push({ "sep": true });
+        out.push({ "label": "Move between rows", "hint": "Up / Down", "disabled": true });
+        out.push({ "label": "Open the highlighted row", "hint": "Enter", "disabled": true });
+        // The two chords a beginner cannot guess, so they are printed here as
+        // well as in the row menu.
+        out.push({ "label": "Preview a file", "hint": "Ctrl+Alt+Space", "disabled": true });
+        out.push({ "label": "This menu on any row", "hint": "F10", "disabled": true });
+        out.push({ "sep": true });
+        // The one real action: a way out of a launcher they are stuck in.
+        out.push({ "label": "Close the launcher", "hint": "Esc", "op": "close" });
+        return out;
+    }
+
+    // Execute one item of the contextual menu. Named after the IPC verb and
+    // lives on the ROOT on purpose (2026-10-05): shell.qml's dispatch() calls
+    // the verb name on the popup root, so a method that existed only inside
+    // the IpcHandler is undefined there and the menu would silently do
+    // nothing. The `op` allowlist is closed — an op the menu cannot produce
+    // is dropped rather than guessed at.
+    //
+    // Everything here reuses the EXACT functions the matching key handler
+    // calls (activateCurrent / togglePreview / revealCurrent /
+    // copyCurrent / terminalCurrent / deleteCurrentBookmark / togglePinCurrent).
+    // That is what keeps the mouse path and the keyboard path from ever
+    // disagreeing: there is no second implementation of "reveal a file" here
+    // to drift, only a second way to reach the one that already exists.
+    function rowMenuItem(op: string): void {
+        if (op === "open") {
+            root.activateCurrent();
+            return;
+        }
+        if (op === "close") {
+            root.close();
+            return;
+        }
+        if (op === "preview") {
+            root.togglePreview();
+            return;
+        }
+        if (op === "reveal") {
+            root.revealCurrent();
+            return;
+        }
+        if (op === "terminal") {
+            root.terminalCurrent();
+            return;
+        }
+        if (op === "copy") {
+            // Copy deliberately keeps the menu's dismissal behaviour of the
+            // chord it mirrors: copying is not a dismissal, so the launcher
+            // stays open either way. Nothing to close here.
+            root.copyCurrent();
+            return;
+        }
+        if (op === "delete") {
+            root.deleteCurrentBookmark();
+            return;
+        }
+        if (op === "pin") {
+            root.togglePinCurrent();
+            return;
+        }
+    }
+
+    // The help menu's own entry point (used by the `menu openRow` IPC verb
+    // and by F10 when no row is highlighted). Named for the same reason as
+    // rowMenuItem: the shim in shell.qml calls this exact name on the root.
+    function helpMenu(): void {
+        root.openContextMenu(root.helpMenuItems(), root.cardCentreX(), root.cardCentreY());
+    }
+
+    // ---- menu plumbing ---------------------------------------------------
+    // Emitted, not called: shell.qml owns the eager ContextMenu (it has to be
+    // eager — it owns the desktop input plane) and two sibling Scopes cannot
+    // read each other's properties, so this is the only way across. Mirrors
+    // Bar.qml's contextMenuRequested(x, y) exactly.
+    signal rowMenuRequested(var items, real x, real y)
+
+    // Centre of the card, in SCREEN coordinates (ContextMenu.openRow clamps in
+    // screen space). `win` is anchored to all four edges of the output, so a
+    // coordinate inside it IS a screen coordinate and no mapping call is
+    // needed — the same assumption Bar.qml makes when it hands ContextMenu
+    // `mouse.x` unscaled.
+    //
+    // It maps through the card rather than assuming the card is centred,
+    // because the card moves LEFT when the Quick Look pane is open
+    // (card.horizontalCenterOffset).
+    readonly property int cardCentreX: card.x + Math.round(card.width / 2)
+    readonly property int cardCentreY: card.y + Math.round(card.height / 2)
+
+    function openContextMenu(list: var, sx: real, sy: real): void {
+        if (!list || list.length === 0)
+            return;
+        root.rowMenuRequested(list, sx, sy);
+    }
+
+    // Right click on the highlighted row (F10 / Key_Menu). Anchored to the
+    // card centre, not the mouse — see screenPointFor.
+    function openRowMenu(): void {
+        const list = root.rowMenuItems();
+        // No actionable row (empty result list): fall back to the help menu
+        // rather than opening nothing, so the chord is never a dead key.
+        if (list.length === 0) {
+            root.helpMenu();
+            return;
+        }
+        root.openContextMenu(list, root.cardCentreX, root.cardCentreY);
+    }
+
+    // Right click anywhere in the launcher that is NOT a row: the search box
+    // or the space below the list. Routed to the card backdrop's handler,
+    // which is why the delegate consumes its own right click.
+    function openHelpMenuAt(sx: real, sy: real): void {
+        root.openContextMenu(root.helpMenuItems(), sx, sy);
+    }
     // Browse-aware was the starting point, but the search field owns Space
-    // (multi-word file queries like `/ quarterly report`), so the chord is
-    // Ctrl+Space and Space keeps typing. Ctrl+Space toggles:
+    // (multi-word file queries like `/ quarterly report`), so the chord is a
+    // modified Space and Space keeps typing. Two chords open it:
+    //   Ctrl+Space      files mode only — routed through the `websearch`
+    //                   IPC verb (websearch(): the bind is compositor-side,
+    //                   so THIS handler never sees it), decided there
+    //   Ctrl+Alt+Space  always, handled right here
+    // The chord toggles:
     //   native pane      images, animated gifs, PDFs (paged), text, folders
     //   Sushi window     audio, video, office docs, fonts (hybrid fallback)
     // The launcher never loses keyboard focus: the native pane is part of
@@ -403,6 +858,133 @@ Scope {
         isOpen = true;
         focusTimer.attempts = 0;
         focusTimer.restart();
+    }
+
+    // Switch the launcher into one of its prefix modes (`@` web, `/` files,
+    // `:` clipboard, …). Shared by the ";" mode rows and by websearch()
+    // so the two cannot drift on the debounce handling below.
+    //
+    // Immediate (bypasses the typing debounce): a mode switch must show
+    // now, not 300ms later. The text assignment fires onTextChanged
+    // (restarting the timer); the lines below override it back to an
+    // instant rebuild.
+    function applyPrefix(p: string): void {
+        searchInput.text = p;
+        pendingQuery = p;
+        query = p;
+        debounceTimer.stop();
+        rebuild();
+        searchInput.forceActiveFocus();
+    }
+
+    // What Ctrl+Space does depends on where the query is pointing. PURE and
+    // side-effect free on purpose: it is the one decision in this file that
+    // decides between the user's two most-used launcher chords (browse a hit
+    // vs search the web), it reads as one `if` in websearch(), and an untested
+    // `if` on that shape is how the chord silently ended up bound to web search
+    // in every mode. scripts/test_launcher_ctrl_space.py lifts this verbatim
+    // out of the QML and runs it under node, the same way
+    // test_launcher_site_seed.py does for WebProvider's site helpers.
+    //
+    // Returns "preview" or "search". `isOpen` is passed in rather than read:
+    // the test has no panel. Closed means there is no query and nothing to
+    // browse, so it is always a search (which also opens the launcher).
+    function ctrlSpaceAction(isOpen: bool, q: string): string {
+        const t = q.trim();
+        // Files mode = the "/" entry of rebuild()'s prefixKind table, read off
+        // the TRIMMED first character so a leading space cannot take you out.
+        if (isOpen && t.length > 0 && t[0] === "/")
+            return "preview";
+        return "search";
+    }
+
+    // Ctrl+Space (niri/binds-quickshell.kdl -> `launcher websearch`).
+    //
+    // The action is chosen here rather than in a key handler, because niri binds
+    // Ctrl+Space at the COMPOSITOR: the key event never reaches the QML
+    // Keys.onPressed handlers at all, so a chord implemented only there is dead
+    // code that reads correct. The IPC verb is the one path that bind actually
+    // takes, so the decision has to live in this function.
+    //
+    //   files mode   -> Quick Look on the highlighted file row (the chord's
+    //                   original job, kept because it is the fastest way to
+    //                   eyeball a search hit; a no-op when no file row is
+    //                   highlighted, e.g. one of the hint rows)
+    //   anything else -> the launcher, opened already in web-search mode
+    //                   (`open()` FIRST, because it resets query to "" — seeding
+    //                   the prefix before that would be wiped)
+    //
+    // "@" is the web prefix (see rebuild()'s prefixKind table), so the search
+    // path is the same WebProvider the typed "@" path uses, bangs included.
+    //
+    // Named `websearch`, not `openWebSearch`, because that is what makes the
+    // IPC verb work: shell.qml's dispatch() calls the verb name on the popup
+    // ROOT, and a function that exists only inside the IpcHandler is
+    // undefined there (the same trap `themes set` -> runItem() has).
+    function websearch(): void {
+        if (root.ctrlSpaceAction(root.isOpen, root.query) === "preview") {
+            root.togglePreview();
+            return;
+        }
+        open();
+        applyPrefix("@");
+    }
+
+    // Ctrl+Tab on a website row: drop a search on that site into the input,
+    // so you go straight to typing instead of opening the homepage and
+    // hunting for its search box. The text is "@<bang> " — bang plus a
+    // trailing space, so the caret lands exactly where the words go.
+    //
+    // Works on the bare "@" site list AND on saved bookmarks ("%"), because
+    // a bookmark is a website too — see WebProvider.bangForUrl, which maps
+    // a bookmark's URL back to its site's canonical bang.
+    //
+    // Two rules make this safe rather than surprising:
+    //   - It only fires when it can produce a real seed (site or matching
+    //     bookmark). Otherwise it returns false and the key falls through to
+    //     its plain meaning, because plain Tab is the input<->list focus trap
+    //     (searchInput's onTabPressed) and hijacking that would break keyboard
+    //     navigation for every row that is not a website.
+    //   - The seed goes through applyPrefix(), the SAME path the ";" mode rows
+    //     and Ctrl+Space's web search already use: immediate rebuild (a mode
+    //     switch must show now, not 300ms later), pendingQuery kept in step,
+    //     and the input refocused. Only the caret is added on top — placed
+    //     after the trailing space so typing continues at the end.
+    function seedSiteSearch(): bool {
+        const idx = appList.currentIndex;
+        if (idx < 0 || idx >= rows.length)
+            return false;
+        const row = rows[idx];
+        if (!row)
+            return false;
+        let seed = "";
+        // A site row from the "@" list carries its own canonical bang.
+        if (row.kind === "web") {
+            try {
+                seed = webProv.seedFor(row);
+            } catch (e) {
+                seed = "";
+            }
+        } else if (row.kind === "bookmark" && row.data && row.data.action === "open") {
+            // A saved bookmark: resolve its URL to a site. Guarded on
+            // data.index because the create/delete/rename rows are commands,
+            // not bookmarks, and must never seed.
+            const mi = row.data.index;
+            if (typeof mi === "number" && mi >= 0 && mi < bookmarksProv.marks.length) {
+                try {
+                    const bang = webProv.bangForUrl(bookmarksProv.marks[mi].url);
+                    if (bang !== "")
+                        seed = "@" + bang + " ";
+                } catch (e) {}
+            }
+        }
+        if (seed === "")
+            return false;
+        root.applyPrefix(seed);
+        // Caret to the end, past the seeded space, so the first word the user
+        // types lands in the query rather than before the bang.
+        searchInput.cursorPosition = searchInput.text.length;
+        return true;
     }
 
     function close(): void {
@@ -588,6 +1170,94 @@ Scope {
             h += (root.detailFor(r) !== "" ? rowHeightTall : rowHeight);
         }
         return h;
+    }
+
+    // Emit the pinned rows, in pin order, as their own section.
+    //
+    // Uses the SAME row objects the normal app/control sections build (one
+    // factory each, below), so a pinned app is activated by exactly the same
+    // launchRow() code path as an unpinned one — a pinned row is a position,
+    // not a second kind of row, and it must never drift into its own
+    // activation logic.
+    //
+    // A pinned app's action rows come with it (their pinKeyFor resolves to
+    // the parent app, so `isPinned` is true for them too): pinning Brave
+    // should not hide "New Window" behind a filter.
+    function pushPinnedRows(out: var): void {
+        if (pinsLoaded !== 1 || root.pinned.length === 0)
+            return;
+        const list = DesktopEntries.applications.values;
+        for (let i = 0; i < root.pinned.length; ++i) {
+            const key = root.pinned[i];
+            if (!key)
+                continue;
+            if (key.indexOf("control:") === 0) {
+                const want = key.slice(8);
+                for (let c = 0; c < root.controlEntries.length; ++c) {
+                    if (root.controlEntries[c].name !== want)
+                        continue;
+                    out.push(root.makeControlRow(root.controlEntries[c], "Pinned"));
+                    break;
+                }
+                continue;
+            }
+            if (key.indexOf("app:") !== 0)
+                continue;
+            const id = key.slice(4);
+            for (let a = 0; a < list.length; ++a) {
+                const e = list[a];
+                if (!e || e.id !== id)
+                    continue;
+                out.push(root.makeAppRow(e, "Pinned"));
+                // show-actions=yes parity: the app's action rows ride along
+                // under it, which is what the plain Applications section does.
+                if (e.actions) {
+                    for (let k = 0; k < e.actions.length; ++k)
+                        out.push(root.makeActionRow(e, e.actions[k], "Pinned"));
+                }
+                break;
+            }
+        }
+    }
+
+    // One factory per row kind, shared by the pinned block and the normal
+    // sections. Added with pinning because the row objects were previously
+    // built inline in three places in rebuild(); two copies of a row shape
+    // is how a pinned row ends up missing a field the delegate needs.
+    function makeControlRow(ce: var, section: string, score: real): var {
+        return {
+            "kind": "control",
+            "entry": null,
+            "action": null,
+            "name": ce.name,
+            "keywords": ce.keywords,
+            "icon": ce.icon,
+            "ipcTarget": ce.ipcTarget,
+            "ipcVerb": ce.ipcVerb,
+            "cmd": ce.cmd,
+            "score": score !== undefined ? score : 0,
+            "section": section !== undefined ? section : "Controls"
+        };
+    }
+
+    function makeAppRow(e: var, section: string, score: real): var {
+        return {
+            "kind": "app",
+            "entry": e,
+            "action": null,
+            "score": score !== undefined ? score : 0,
+            "section": section !== undefined ? section : "Applications"
+        };
+    }
+
+    function makeActionRow(e: var, a: var, section: string, score: real): var {
+        return {
+            "kind": "action",
+            "entry": e,
+            "action": a,
+            "score": score !== undefined ? score : -1,
+            "section": section !== undefined ? section : "Applications"
+        };
     }
 
     function updateCounter(): void {
@@ -828,23 +1498,17 @@ Scope {
             return;
         }
         if (q === "") {
-            // No typing: control rows FIRST, then alpha-sorted apps.
-            for (let c = 0; c < root.controlEntries.length; ++c) {
-                const ce = root.controlEntries[c];
-                out.push({
-                    "kind": "control",
-                    "entry": null,
-                    "action": null,
-                    "name": ce.name,
-                    "keywords": ce.keywords,
-                    "icon": ce.icon,
-                    "ipcTarget": ce.ipcTarget,
-                    "ipcVerb": ce.ipcVerb,
-                    "cmd": ce.cmd,
-                    "score": 0,
-                    "section": "Controls"
-                });
-            }
+            // No typing. Pinned rows FIRST (their own section), then the
+            // control rows, then alpha-sorted apps.
+            //
+            // reconcilePins runs here, not in open(): the app list is already
+            // loaded by this point (DesktopEntries above), so a pin whose app
+            // was uninstalled is dropped BEFORE it can be emitted as a dead
+            // row, rather than after.
+            root.reconcilePins();
+            root.pushPinnedRows(out);
+            for (let c = 0; c < root.controlEntries.length; ++c)
+                out.push(root.makeControlRow(root.controlEntries[c]));
             // The "Open" section: what is ALREADY running, pinned below the
             // controls and above bookmarks. Controls stay first so the default
             // selection is still Settings (documented in this file's header);
@@ -876,14 +1540,18 @@ Scope {
                 }
             } catch (e) {}
             const sorted = apps.slice().sort((a, b) => a.name.localeCompare(b.name));
+            // A pinned app is ALSO in `sorted` — pinned rows are a duplicate,
+            // not a move — so it shows twice on an empty query: once under
+            // Pinned, once here. Deliberate: Applications stays the complete
+            // alphabetical list it has always been, so pinning never REMOVES
+            // an app from it.
+            //
+            // Typing shows the normal scored results with no pinned block at
+            // all (pushPinnedRows is only called on this branch), so a search
+            // can never return the same app twice. Pinning is a shortcut for
+            // the empty query, not a filter that survives into every search.
             for (let i = 0; i < sorted.length; ++i)
-                out.push({
-                    "kind": "app",
-                    "entry": sorted[i],
-                    "action": null,
-                    "score": 0,
-                    "section": "Applications"
-                });
+                out.push(root.makeAppRow(sorted[i]));
             if (gen !== generation)
                 return;
             rows = out;
@@ -984,20 +1652,7 @@ Scope {
             scored.sort((a, b) => (b.s - a.s) || rowName(a).localeCompare(rowName(b)));
             for (let k = 0; k < scored.length; ++k) {
                 if (scored[k].t === "control") {
-                    const ce = scored[k].c;
-                    out.push({
-                        "kind": "control",
-                        "entry": null,
-                        "action": null,
-                        "name": ce.name,
-                        "keywords": ce.keywords,
-                        "icon": ce.icon,
-                        "ipcTarget": ce.ipcTarget,
-                        "ipcVerb": ce.ipcVerb,
-                        "cmd": ce.cmd,
-                        "score": scored[k].s,
-                        "section": "Controls"
-                    });
+                    out.push(root.makeControlRow(scored[k].c, "Controls", scored[k].s));
                     continue;
                 }
                 if (scored[k].t === "media") {
@@ -1031,22 +1686,10 @@ Scope {
                     continue;
                 }
                 const e = scored[k].e;
-                out.push({
-                    "kind": "app",
-                    "entry": e,
-                    "action": null,
-                    "score": scored[k].s,
-                    "section": "Applications"
-                });
+                out.push(root.makeAppRow(e, "Applications", scored[k].s));
                 // show-actions=yes: action rows directly under their app.
                 for (let a = 0; e.actions && a < e.actions.length; ++a)
-                    out.push({
-                        "kind": "action",
-                        "entry": e,
-                        "action": e.actions[a],
-                        "score": scored[k].s - 1,
-                        "section": "Applications"
-                    });
+                    out.push(root.makeActionRow(e, e.actions[a], "Applications", scored[k].s - 1));
             }
             // Bare-query extra: math expression -> prepend calc rows (cap 3).
             try {
@@ -1160,6 +1803,23 @@ Scope {
         return true;
     }
 
+    // Ctrl+T on a file row: open the default terminal in the file's own
+    // directory (FilesProvider.openTerminal: the directory itself for a
+    // directory row, its parent folder for a file row). Same
+    // close-before-act contract as reveal.
+    function terminalCurrent(): bool {
+        if (appList.currentIndex < 0 || appList.currentIndex >= rows.length)
+            return false;
+        const row = rows[appList.currentIndex];
+        if (!row || row.kind !== "file" || !row.data || !row.data.path)
+            return false;
+        close();
+        try {
+            filesProv.openTerminal(row);
+        } catch (e) {}
+        return true;
+    }
+
     // Delete key on a highlighted bookmark: remove it in place.
     // The menu STAYS OPEN so several bookmarks can be deleted in
     // a row — deletion is not a dismissal (Ctrl+C/copy precedent).
@@ -1207,9 +1867,11 @@ Scope {
         return p[0] === "/" ? p : "";
     }
 
-    // Ctrl+Space: toggle the preview for the selected file. A second press
-    // on the same file closes it (Finder Quick Look parity); a press on a
-    // different file switches renderer as needed.
+    // The chord toggles the preview for the selected file: Ctrl+Alt+Space
+    // from anywhere (the QML handlers), or Ctrl+Space in files mode
+    // (routed here from the bind's `websearch` verb — see websearch()).
+    // A second press on the same file closes it (Finder Quick Look parity); a
+    // press on a different file switches renderer as needed.
     function togglePreview(): void {
         const p = root.currentFilePath();
         if (p === "")
@@ -1452,17 +2114,8 @@ Scope {
             const d = row.data || {};
             // Prefix mode (key presence, NOT truthiness: "" is Applications):
             // switch the query text + refocus, do NOT call activate.
-            // Immediate (bypasses the typing debounce): a mode switch
-            // must show now, not 300ms later. The text assignment fires
-            // onTextChanged (restarting the timer); the lines below
-            // override it back to an instant rebuild.
             if ("prefix" in d) {
-                searchInput.text = d.prefix;
-                pendingQuery = d.prefix;
-                query = d.prefix;
-                debounceTimer.stop();
-                rebuild();
-                searchInput.forceActiveFocus();
+                root.applyPrefix(d.prefix);
                 return;
             }
             // IPC row: exactly-once — exec here, do NOT call activate
@@ -1659,6 +2312,16 @@ Scope {
         repeat: true
         property int attempts: 0
         onTriggered: {
+            // YIELD while the contextual menu is up. ContextMenu is a
+            // top-level surface with Exclusive keyboard focus, so this retry
+            // loop would rip focus straight back to the search input and the
+            // menu's own Up/Down/Enter would go nowhere. The timer simply
+            // stops; menuOpen going false restarts it (see its onChanged),
+            // which is what puts the caret back for the next keystroke.
+            if (root.menuOpen) {
+                stop();
+                return;
+            }
             if (searchInput.activeFocus) {
                 stop();
                 return;
@@ -1681,6 +2344,37 @@ Scope {
             root.rebuild();
         }
     }
+
+    // ---- pinned rows: persistence (BookmarksProvider precedent) ----------
+    Process {
+        id: pinsMkdir
+        command: ["mkdir", "-p", Theme.themeDir]
+        running: false
+        onExited: {
+            root.pinsDirReady = true;
+            pinnedFile.reload();
+        }
+    }
+
+    FileView {
+        id: pinnedFile
+        path: root.pinnedPath
+        watchChanges: true
+        onLoaded: {
+            root.loadPinsText(text());
+            // The pin list can arrive after open() already built the rows, so
+            // a first-load rebuild is the only way the Pinned section appears
+            // without closing and reopening the launcher.
+            if (root.isOpen)
+                root.rebuild();
+        }
+        // No file yet (or a directory that is not there): empty list, and the
+        // file is created lazily by the first pin.
+        onLoadFailed: root.loadPinsText("")
+        onFileChanged: reload()
+    }
+
+    Component.onCompleted: pinsMkdir.running = true
 
     PanelWindow {
         id: win
@@ -1721,9 +2415,24 @@ Scope {
         // Click outside the card closes (fuzzel click-to-close parity).
         // Suppressed while a file drag is in flight so the release that
         // ends a cancelled drag doesn't instantly close the menu.
+        //
+        // RIGHT click is NOT a dismissal: it opens the help menu (the
+        // beginner's "what can I do here"), which is the point of it —
+        // reaching this area means the click was NOT on a row (the row
+        // delegates claim their own right click), so there is nothing to
+        // act on and closing the launcher would be the least helpful
+        // possible answer. Left click outside still closes, unchanged.
         MouseArea {
             anchors.fill: parent
-            onClicked: {
+            onPressed: (mouse) => {
+                if (mouse.button === Qt.RightButton) {
+                    root.openHelpMenuAt(mouse.x, mouse.y);
+                    return;
+                }
+            }
+            onClicked: (mouse) => {
+                if (mouse.button === Qt.RightButton)
+                    return; // handled in onPressed
                 if (!root.dragActive)
                     root.close();
             }
@@ -1827,6 +2536,7 @@ Scope {
                             }
                             Keys.onPressed: (event) => {
                                 const ctrl = (event.modifiers & Qt.ControlModifier) !== 0;
+                                const alt = (event.modifiers & Qt.AltModifier) !== 0;
                                 // PDF paging wins over everything below
                                 // (Ctrl+Home/End would otherwise hit the
                                 // first/last row branch).
@@ -1839,9 +2549,24 @@ Scope {
                                     // open (Finder Quick Look layering).
                                     if (!root.dismissPreview())
                                         root.close();
-                                } else if (ctrl && event.key === Qt.Key_Space) {
+                                } else if (event.key === Qt.Key_F10 || event.key === Qt.Key_Menu) {
+                                    // The contextual menu, from the keyboard.
+                                    // NOT the ContextMenu key alone: Qt.Key_Menu
+                                    // is what most keyboards send for it and
+                                    // F10 is the same action spelled as a
+                                    // literal, because a right-click-only
+                                    // feature would be unreachable without a
+                                    // mouse. `;` was the obvious candidate and
+                                    // is ALREADY the Modes prefix (rebuild()'s
+                                    // prefixKind), so it cannot be both.
+                                    event.accepted = true;
+                                    root.openRowMenu();
+                                } else if (ctrl && alt && event.key === Qt.Key_Space) {
                                     // Quick Look chord. Plain Space stays a
                                     // space: multi-word file queries need it.
+                                    // Ctrl+Space never lands here — niri binds
+                                    // it to the `websearch` verb, which decides
+                                    // preview-vs-search by mode (websearch()).
                                     event.accepted = true;
                                     root.togglePreview();
                                 } else if (ctrl && event.key === Qt.Key_C) {
@@ -1849,6 +2574,13 @@ Scope {
                                     // (contents for text/images, path
                                     // otherwise); the menu stays open.
                                     if (root.copyCurrent())
+                                        event.accepted = true;
+                                } else if (ctrl && event.key === Qt.Key_T) {
+                                    // Ctrl+T opens a terminal in the
+                                    // selected file row's directory. Menu
+                                    // closes (terminal is a dismissal,
+                                    // reveal precedent).
+                                    if (root.terminalCurrent())
                                         event.accepted = true;
                                 } else if (event.key === Qt.Key_Delete) {
                                     // Delete key: remove the highlighted
@@ -1911,11 +2643,26 @@ Scope {
                             }
                             // Tab cycles input <-> list (focus trap); plain
                             // j/k still type (Ctrl+J/K navigate, above).
+                            // Ctrl+Tab (and Ctrl+Shift+Tab as a synonym)
+                            // seeds a site search instead — see
+                            // seedSiteSearch. It is checked FIRST and only
+                            // accepted when it actually produced a seed, so
+                            // on every other row Ctrl+Tab still falls through
+                            // to the focus trap below rather than being
+                            // swallowed.
                             Keys.onTabPressed: (event) => {
+                                if ((event.modifiers & Qt.ControlModifier) !== 0 && root.seedSiteSearch()) {
+                                    event.accepted = true;
+                                    return;
+                                }
                                 event.accepted = true;
                                 appList.forceActiveFocus();
                             }
                             Keys.onBacktabPressed: (event) => {
+                                if ((event.modifiers & Qt.ControlModifier) !== 0 && root.seedSiteSearch()) {
+                                    event.accepted = true;
+                                    return;
+                                }
                                 event.accepted = true;
                                 appList.forceActiveFocus();
                             }
@@ -1992,6 +2739,7 @@ Scope {
                     }
                     Keys.onPressed: (event) => {
                         const ctrl = (event.modifiers & Qt.ControlModifier) !== 0;
+                        const alt = (event.modifiers & Qt.AltModifier) !== 0;
                         // PDF paging wins over everything below (list-focus
                         // parity; Ctrl+Home/End would otherwise hit the
                         // first/last row branch).
@@ -2002,7 +2750,16 @@ Scope {
                             // Preview peels first (searchInput parity).
                             if (!root.dismissPreview())
                                 root.close();
-                        } else if (ctrl && event.key === Qt.Key_Space) {
+                        } else if (event.key === Qt.Key_F10 || event.key === Qt.Key_Menu) {
+                            // Contextual menu (searchInput parity — both
+                            // handlers must answer it, or the chord dies
+                            // whenever focus happens to sit on the list).
+                            event.accepted = true;
+                            root.openRowMenu();
+                        } else if (ctrl && alt && event.key === Qt.Key_Space) {
+                            // Quick Look chord from the list too, where
+                            // searchInput's handler cannot fire (Ctrl+Space
+                            // itself is the bind, see websearch()).
                             event.accepted = true;
                             root.togglePreview();
                         } else if (ctrl && event.key === Qt.Key_C) {
@@ -2010,6 +2767,11 @@ Scope {
                             // (contents for text/images, path
                             // otherwise); the menu stays open.
                             if (root.copyCurrent())
+                                event.accepted = true;
+                        } else if (ctrl && event.key === Qt.Key_T) {
+                            // Ctrl+T opens a terminal in the selected
+                            // file row's directory (searchInput parity).
+                            if (root.terminalCurrent())
                                 event.accepted = true;
                         } else if (event.key === Qt.Key_Delete) {
                             // Delete key: remove the highlighted
@@ -2065,11 +2827,25 @@ Scope {
                             searchInput.forceActiveFocus();
                         }
                     }
+                    // List-focus parity with the searchInput handlers above:
+                    // plain Tab returns to the input, Ctrl+Tab seeds a site
+                    // search on the highlighted row (and moves focus there,
+                    // since applyPrefix refocuses the input — the key's whole
+                    // job is to put the caret in the query). Checked before
+                    // the focus trap so a seedable row never loses the key.
                     Keys.onTabPressed: (event) => {
+                        if ((event.modifiers & Qt.ControlModifier) !== 0 && root.seedSiteSearch()) {
+                            event.accepted = true;
+                            return;
+                        }
                         event.accepted = true;
                         searchInput.forceActiveFocus();
                     }
                     Keys.onBacktabPressed: (event) => {
+                        if ((event.modifiers & Qt.ControlModifier) !== 0 && root.seedSiteSearch()) {
+                            event.accepted = true;
+                            return;
+                        }
                         event.accepted = true;
                         searchInput.forceActiveFocus();
                     }
@@ -2215,7 +2991,10 @@ Scope {
                         MouseArea {
                             id: rowMouse
                             anchors.fill: parent
-                            acceptedButtons: Qt.LeftButton
+                            // Right click is claimed HERE so it cannot reach
+                            // the fullscreen backdrop below, which would
+                            // close the launcher instead of opening a menu.
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
                             hoverEnabled: true
                             // Gated: a resting cursor must not steal selection
                             // on open (delegate appears under it, firing
@@ -2223,14 +3002,17 @@ Scope {
                             // explicit mouse movement or keyboard nav.
                             onEntered: if (root.hoverArmed) appList.currentIndex = index
                             onPositionChanged: root.hoverArmed = true
-                            // Click implies intent: arm + select regardless of
-                            // armed state; double-click activates as before.
-                            // File rows also pre-snapshot the drag image here
-                            // (press precedes the DragHandler threshold, so
-                            // the image is ready before Drag.active flips —
-                            // setting imageSource after the drag starts is a
-                            // no-op per the Drag docs).
-                            onPressed: {
+                            // Right click: select THIS row (not the one the
+                            // keyboard last left highlighted — the menu must
+                            // describe the row under the cursor) and open the
+                            // menu under the cursor. onClicked, not onReleased,
+                            // so a press-drag-release does not fire it.
+                            onPressed: (mouse) => {
+                                if (mouse.button === Qt.RightButton) {
+                                    root.hoverArmed = true;
+                                    appList.currentIndex = index;
+                                    return;
+                                }
                                 root.hoverArmed = true;
                                 if (row.isFileRow) {
                                     row.grabToImage(function(result) {
@@ -2238,7 +3020,22 @@ Scope {
                                     });
                                 }
                             }
-                            onClicked: {
+                            onClicked: (mouse) => {
+                                if (mouse.button === Qt.RightButton) {
+                                    // `mouse.x`/`mouse.y` are ITEM-LOCAL to this
+                                    // MouseArea (it fills the delegate), NOT
+                                    // screen coords — using them raw put the
+                                    // menu ~175px up and left of the cursor.
+                                    // `win` is a PanelWindow (QObject, not Item)
+                                    // so win.mapToItem() does not exist; but the
+                                    // surface is anchored to all four edges, so
+                                    // win's origin IS the output/screen origin.
+                                    // Therefore item-local -> screen is just
+                                    // "where is this MouseArea within win".
+                                    const p = rowMouse.mapToItem(win.contentItem, mouse.x, mouse.y);
+                                    root.openContextMenu(root.rowMenuItems(), p.x, p.y);
+                                    return;
+                                }
                                 appList.currentIndex = index;
                                 searchInput.forceActiveFocus();
                             }
@@ -2282,7 +3079,7 @@ Scope {
             }
         }
 
-        // Quick Look pane (Ctrl+Space), sibling of the card. It is part of
+        // Quick Look pane (Ctrl+Alt+Space), sibling of the card. It is part of
         // this PanelWindow, so the surface keeps Exclusive keyboard focus and
         // the launcher stays fully interactive while the preview is up.
         // Placed right of the card, height-matched, click-swallowing (see the
@@ -2327,10 +3124,51 @@ Scope {
             root.close();
         }
 
-        // Ctrl+Space parity for scripts/tests: toggles the preview for the
-        // currently selected row (no-op unless it is a file row).
+        // Quick Look parity for scripts/tests: toggles the preview for the
+        // currently selected row (no-op unless it is a file row). The chord
+        // itself moved to Ctrl+Alt+Space on 2026-10-05, but the verb keeps
+        // its name — this is "preview a file", not a keybinding.
         function preview(): void {
             root.togglePreview();
+        }
+
+        // Ctrl+Space (niri/binds-quickshell.kdl -> `launcher websearch`):
+        // files mode previews the highlighted file, anything else opens web
+        // search. `qs -c sunset ipc call launcher websearch`
+        function websearch(): void {
+            root.websearch();
+        }
+
+        // Ctrl+Tab parity for scripts/tests: seed a site search from the
+        // currently highlighted row (a site in the "@" list, or a saved
+        // bookmark whose URL maps to a known site). No-op on every other
+        // row, exactly like the key itself.
+        // `qs -c sunset ipc call launcher seedSiteSearch`
+        function seedSiteSearch(): void {
+            root.seedSiteSearch();
+        }
+
+        // Execute one item of the contextual row menu (right click / F10).
+        // shell.qml's dispatch() calls the verb name on the popup ROOT, which
+        // is why rowMenuItem() lives out here and not inside this handler —
+        // a method defined only in the IpcHandler is undefined to dispatch()
+        // and the menu would silently do nothing.
+        //   qs -c sunset ipc call launcher rowMenuItem <op>
+        // `op` is typed string because an IPC verb cannot express an optional
+        // argument (an untyped one is refused outright, and a default value is
+        // refused too), so an omitted op arrives as the text "undefined" and
+        // rowMenuItem's closed allowlist drops it — which is the correct
+        // no-op, not a crash.
+        function rowMenuItem(op: string): void {
+            root.rowMenuItem(op);
+        }
+
+        // Open the help menu ("what can I do here") at a fixed point. Used by
+        // the `menu openRow` verb so a keybind can reach it; the F10 chord
+        // picks the row menu instead when a row is highlighted, and falls
+        // back to this.
+        function helpMenu(): void {
+            root.helpMenu();
         }
     }
 }

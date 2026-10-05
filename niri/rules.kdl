@@ -31,13 +31,13 @@ window-rule {
     open-floating true
 }
 
-// Sushi quick-look preview (launcher Ctrl+Space fallback for audio, office
-// docs, HTML, ...). A real toplevel, but it must never tile and must never
-// steal the keyboard from the launcher's overlay surface
+// Sushi quick-look preview (launcher Ctrl+Alt+Space fallback for audio,
+// office docs, HTML, ...). A real toplevel, but it must never tile and must
+// never steal the keyboard from the launcher's overlay surface
 // (WlrKeyboardFocus.Exclusive) — with open-focused true the launcher would
-// lose Ctrl+Space/Esc the moment the preview appeared. Without a parent
-// window Sushi sizes itself to ~400x420, which is uselessly small for a
-// "Quick Look", so the rule sizes it proportionally (Mac Quick Look is
+// lose the preview chord/Esc the moment the preview appeared. Without a
+// parent window Sushi sizes itself to ~400x420, which is uselessly small for
+// a "Quick Look", so the rule sizes it proportionally (Mac Quick Look is
 // roughly a large centered panel, not a fullscreen take-over).
 window-rule {
     match app-id="org.gnome.NautilusPreviewer"

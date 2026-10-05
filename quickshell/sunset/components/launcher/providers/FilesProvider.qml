@@ -59,6 +59,10 @@
 //   function copyFile(row: var): void  (Ctrl+C path: copies the file's
 //     contents to the clipboard for text/image types via
 //     scripts/copy-file.sh, the path string for anything else.)
+//   function openTerminal(row: var): void  (Ctrl+T path: opens the
+//     default terminal in the file's own directory — the directory
+//     itself for a directory row, its parent folder for a file row,
+//     resolved in sh like reveal().)
 // Drag-and-drop: Launcher.qml makes every row with data.path draggable
 //   (Wayland text/uri-list + text/plain, Copy/Move/Link). This provider
 //   only supplies data.path — no drag code lives here.
@@ -88,6 +92,10 @@ Scope {
     // Ctrl+C "copy this file" verb.
     readonly property string setupHome: Quickshell.env("NIRI_SETUP_HOME") ?? ((Quickshell.env("HOME") || "") + "/niri-setup")
     readonly property string copyFileScript: setupHome + "/scripts/copy-file.sh"
+    // Terminal for the Ctrl+T verb. Mirrors Launcher.qml's own
+    // `terminal` property (both are plain literals — QML Scopes
+    // cannot see each other's properties).
+    readonly property string terminal: "alacritty"
     // Index freshness: key -> epochMs. At most one fd build in flight
     // (buildKey, "" = idle); fzf runs carry a generation + query guard.
     property var indexMs: ({})
@@ -260,7 +268,7 @@ Scope {
         return {
             "kind": "file",
             "name": base,
-            "detail": path + " — Enter to open · Ctrl+Enter reveal · Ctrl+C copy · drag to drop elsewhere" + suffix,
+            "detail": path + " — Enter to open · Ctrl+Enter reveal · Ctrl+C copy · Ctrl+T terminal · drag to drop elsewhere" + suffix,
             "icon": null,
             "score": 100,
             "section": "Files",
@@ -432,6 +440,26 @@ Scope {
         if (p === "")
             return;
         Quickshell.execDetached(["sh", "-c", 'p="$1"; if [ -d "$p" ]; then xdg-open "$p"; else xdg-open "$(dirname "$p")"; fi', "sunset-reveal", p]);
+    }
+
+    // Ctrl+T on a file row: open the default terminal sitting in the
+    // file's own directory — a directory row starts a shell there, a
+    // file row starts it in the parent folder, which is why this
+    // resolves dir-vs-file in sh exactly like reveal() above rather
+    // than handing the path straight to `workingDirectory` (a file
+    // path is not a cwd, and the terminal would fail to spawn).
+    // The path rides as "$1" and the terminal as "$2", so nothing is
+    // ever interpolated into the command line (spaces, quotes, $ in a
+    // filename are fine). `exec` in place of a trailing `&` means no
+    // shell survives to leak, and the terminal inherits the cwd from
+    // the exec rather than from a passing parent.
+    function openTerminal(row: var): void {
+        if (!row || !row.data || !row.data.path)
+            return;
+        const p = String(row.data.path);
+        if (p === "" || p[0] !== "/")
+            return;
+        Quickshell.execDetached(["sh", "-c", 'p="$1"; if [ -d "$p" ]; then d="$p"; else d="${p%/*}"; fi; [ -d "$d" ] && cd -- "$d" && exec "$2"', "sunset-terminal", p, root.terminal]);
     }
 
     // Ctrl+C on a file row (Launcher.copyCurrent): copy the file's

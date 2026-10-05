@@ -32,7 +32,7 @@
 
   Updated 2026-10-04 to cover the utilities added since it was written:
   voice dictation (whisrs, Mod+Alt+D / Mod+Alt+Shift+D / Mod+Alt+Escape),
-  the launcher Quick Look preview (Ctrl+Space), the screenshot menu's real
+  the launcher Quick Look preview (Ctrl+Alt+Space), the screenshot menu's real
   row list, the Now Playing card as a player AND a downloader (Mod+Alt+M),
   and the launcher's pinned Controls section. Also updated for the
   Config Editor (tune niri itself — gaps, focus ring, animations,
@@ -387,7 +387,7 @@
       <div><dt>Popup</dt><dd>A small panel over the desktop. <kbd>Esc</kbd> closes it.</dd></div>
       <div><dt>Screenshot menu</dt><dd>The one panel holding every capture tool — region, window, screen, scrolling, recording and text extraction. <kbd>Mod+Shift+5</kbd>.</dd></div>
       <div><dt>Dictation</dt><dd>You talk, the words are typed into whatever you were already typing in. Entirely on this machine — no account, no internet. <kbd>Mod+Alt+D</kbd>.</dd></div>
-      <div><dt>Preview</dt><dd>Look at a file without opening it. Inside the launcher, <kbd>Ctrl+Space</kbd>.</dd></div>
+      <div><dt>Preview</dt><dd>Look at a file without opening it. Inside the launcher, <kbd>Ctrl+Alt+Space</kbd>.</dd></div>
       <div><dt>Now Playing</dt><dd>The music card under the bar — what is playing, plus a player for your own <code>~/Music</code>. <kbd>Mod+Alt+M</kbd>.</dd></div>
     </div>
   </details>
@@ -401,9 +401,9 @@
         <span class="sec-num">00</span>
         <span class="sec-main">
           <span class="sec-title">Start here</span>
-          <span class="sec-hint">the eleven you will use most</span>
+          <span class="sec-hint">the twelve you will use most</span>
         </span>
-        <span class="sec-meta"><span class="sec-count"><span class="n">11</span></span><span class="chev">&#8250;</span></span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">12</span></span><span class="chev">&#8250;</span></span>
           <button class="star" type="button" aria-pressed="false" aria-label="Save this section" title="Save this section">&#9734;</button>
       </summary>
       <div class="sec-body">
@@ -417,7 +417,8 @@
           <div class="row"><span class="desc">Wi-Fi, sound, brightness</span><span class="keys"><kbd>Mod+I</kbd></span></div>
           <div class="row"><span class="desc">All system settings</span><span class="keys"><kbd>Mod+Alt+S</kbd></span></div>
           <div class="row"><span class="desc">Speak instead of typing — press again to stop, the words are typed for you</span><span class="keys"><kbd>Mod+Alt+D</kbd></span></div>
-          <div class="row"><span class="desc">Look at a file without opening it</span><span class="keys"><kbd>Alt+Space</kbd><kbd>Ctrl+Space</kbd></span></div>
+          <div class="row"><span class="desc">Look at a file without opening it</span><span class="keys"><kbd>Alt+Space</kbd><kbd>Ctrl+Alt+Space</kbd></span></div>
+          <div class="row"><span class="desc">Search the web — straight to a search box, no symbols to remember</span><span class="keys"><kbd>Ctrl+Space</kbd><span class="hint">type, then</span><kbd>Enter</kbd></span></div>
           <div class="row"><span class="desc">Walk away from the computer</span><span class="keys"><kbd>Mod+L</kbd></span></div>
         </div>
         <div class="note">Popups close with <kbd>Esc</kbd>, or with the same button you opened them with. A desktop that looks stuck is usually a popup waiting for <kbd>Esc</kbd>.</div>
@@ -628,7 +629,7 @@
           <span class="sec-title">The launcher</span>
           <span class="sec-hint">one box for apps, files, maths, the web</span>
         </span>
-        <span class="sec-meta"><span class="sec-count"><span class="n">58</span></span><span class="chev">&#8250;</span></span>
+        <span class="sec-meta"><span class="sec-count"><span class="n">59</span></span><span class="chev">&#8250;</span></span>
           <button class="star" type="button" aria-pressed="false" aria-label="Save this section" title="Save this section">&#9734;</button>
       </summary>
       <div class="sec-body">
@@ -651,7 +652,7 @@
 
         <div class="sub">Before you open it</div>
         <div class="rows">
-          <div class="row"><span class="desc">Look at a file without opening it — move with the arrows, close with <kbd>Esc</kbd></span><span class="keys"><kbd>Ctrl+Space</kbd></span></div>
+          <div class="row"><span class="desc">Look at a file without opening it — move with the arrows, close with <kbd>Esc</kbd></span><span class="keys"><kbd>Ctrl+Alt+Space</kbd></span></div>
           <div class="row"><span class="desc">See a picture, a PDF or a text file right here in the launcher</span><span class="keys"><span class="hint">preview pane, beside the list</span></span></div>
           <div class="row"><span class="desc">Audio, video, office documents and fonts</span><span class="keys"><span class="hint">opens the system previewer</span></span></div>
           <div class="row"><span class="desc">Turn through the pages of a PDF</span><span class="keys"><kbd>Ctrl+F</kbd><kbd>Ctrl+R</kbd></span></div>
@@ -680,13 +681,15 @@
           <div class="row"><span class="desc">Drag a file row into a chat or a document</span><span class="keys"><span class="hint">press and drag</span></span></div>
           <div class="row"><span class="desc">Copy a file row — text and pictures copy their contents, anything else copies the path</span><span class="keys"><kbd>Ctrl</kbd><kbd>C</kbd></span></div>
           <div class="row"><span class="desc">Search the web, or jump straight to one site</span><span class="keys"><kbd>@</kbd><span class="hint">then</span><span class="pill">@gh @yt @wiki</span></span></div>
+          <div class="row"><span class="desc">Highlight a site — or one of your saved sites — and go straight to searching <b>it</b>, instead of opening its homepage first</span><span class="keys"><kbd>Ctrl</kbd><kbd>Tab</kbd><span class="hint">then type</span></span></div>
+          <div class="row"><span class="desc">Start already in web search — <kbd>@</kbd> is filled in for you, so you go straight to typing</span><span class="keys"><kbd>Ctrl+Space</kbd><span class="hint">then</span><span class="pill">google weather</span></span></div>
           <div class="row"><span class="desc">Your saved websites</span><span class="keys"><kbd>%</kbd></span></div>
           <div class="row"><span class="desc">Save a site you use often</span><span class="keys"><kbd>@</kbd><span class="hint">then type</span><span class="pill">-bookmark</span></span></div>
           <div class="row"><span class="desc">Write a note without leaving the keyboard</span><span class="keys"><kbd>!</kbd><span class="hint">add milk</span></span></div>
         </div>
 
         <div class="note">
-          <kbd>Enter</kbd> opens · <kbd>Ctrl</kbd><kbd>Enter</kbd> reveals a file in its folder · <kbd>Ctrl</kbd><kbd>C</kbd> copies a file row · <kbd>↑</kbd> <kbd>↓</kbd> move · <kbd>Esc</kbd> closes.
+          <kbd>Enter</kbd> opens · <kbd>Ctrl</kbd><kbd>Enter</kbd> reveals a file in its folder · <kbd>Ctrl</kbd><kbd>T</kbd> opens a terminal there · <kbd>Ctrl</kbd><kbd>C</kbd> copies a file row · <kbd>↑</kbd> <kbd>↓</kbd> move · <kbd>Esc</kbd> closes.
           Typing <kbd>/</kbd> in the middle of your words switches to file search without starting over.
         </div>
 
@@ -707,7 +710,12 @@
               <div class="row"><span class="desc">See them all at once</span><span class="keys"><kbd>@</kbd><span class="hint">on its own</span></span></div>
               <div class="row"><span class="desc">Something not on the list — a pasted link opens it, anything else searches DuckDuckGo</span><span class="keys"><span class="pill">@ https://… &nbsp;·&nbsp; @ a question</span></span></div>
             </div>
-            <p><b>Saving a site.</b> Add <span class="pill">-bookmark</span> to the end and press <kbd>Enter</kbd> instead of opening it. It works with a plain link, with a site shortcut, and with a search you have typed.</p>
+            <p><b>Searching one site.</b> Highlight any site in the list and press <kbd>Ctrl</kbd><kbd>Tab</kbd>: its shortcut is filled in for you with a space after it, so you type your words and press <kbd>Enter</kbd> — no need to remember which shortcut goes with which site. It works the same way on your saved sites, so a bookmark of your favourite site searches it too. <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Tab</kbd> does the same thing.</p>
+              <div class="rows">
+                <div class="row"><span class="desc">Fill in the highlighted site so you can search it</span><span class="keys"><kbd>@</kbd><span class="hint">highlight a site</span><kbd>Ctrl+Tab</kbd><span class="hint">then type</span></span></div>
+                <div class="row"><span class="desc">Same thing for a site you saved</span><span class="keys"><kbd>%</kbd><span class="hint">highlight it</span><kbd>Ctrl+Tab</kbd></span></div>
+              </div>
+              <p><b>Saving a site.</b> Add <span class="pill">-bookmark</span> to the end and press <kbd>Enter</kbd> instead of opening it. It works with a plain link, with a site shortcut, and with a search you have typed.</p>
             <div class="rows">
               <div class="row"><span class="desc">Save a site without opening it</span><span class="keys"><span class="pill">@ github.com -bookmark</span></span></div>
               <div class="row"><span class="desc">Save a search you have already typed</span><span class="keys"><span class="pill">@dd how to tile windows -bookmark</span></span></div>

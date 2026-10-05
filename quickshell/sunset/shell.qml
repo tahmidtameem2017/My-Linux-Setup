@@ -249,6 +249,29 @@ ShellRoot {
         source: Qt.resolvedUrl("components/Launcher.qml")
         onItemChanged: root.runPending(launcherLoader)
     }
+
+    // The launcher cannot call contextMenu.openRow() itself: two sibling
+    // Scopes cannot read each other's properties, so it emits rowMenuRequested
+    // and the shell routes it. Same shape as Bar.qml's contextMenuRequested
+    // below, and the reason both exist rather than the launcher holding its own
+    // reference.
+    //
+    // Connections, NOT `onRowMenuRequested:` on the LazyLoader itself: a
+    // LazyLoader exposes only its own signals (item/loading/active/component/
+    // source), never the loaded item's. An `onFoo:` handler on it compiles,
+    // then warns "no signal of the target matches the name" at runtime and
+    // never fires — the same silent-dead-handler trap as Pipewire's
+    // nodeAdded in MicService. `target: launcherLoader.item` binds to the real
+    // object and is inert while the loader is empty.
+    Connections {
+        target: launcherLoader.item
+        function onRowMenuRequested(items, x, y) {
+            if (!launcherLoader.item)
+                return;
+            launcherLoader.item.markMenuOpen();
+            contextMenu.openRow(items, x, y);
+        }
+    }
     LazyLoader {
         id: whipLoader
         active: false
@@ -568,9 +591,47 @@ ShellRoot {
             root.scheduleUnload(launcherLoader);
         }
 
-        // Ctrl+Space parity (`qs -c sunset ipc call launcher preview`).
+        // Ctrl+Alt+Space parity (`qs -c sunset ipc call launcher preview`).
         function preview(): void {
             root.dispatch(launcherLoader, "preview");
+        }
+
+        // Ctrl+Space (`qs -c sunset ipc call launcher websearch`): files mode
+        // previews the highlighted file, anything else opens web search. The
+        // verb keeps its name because it names the bind, not the action —
+        // Launcher.websearch() is where the mode decides. Builds the popup
+        // when closed — a keybind asking for a search has no use for a card.
+        function websearch(): void {
+            root.dispatch(launcherLoader, "websearch");
+        }
+
+        // Ctrl+Tab (`qs -c sunset ipc call launcher seedSiteSearch`): fill
+        // the query with a search on the highlighted website. Shims the
+        // launcher's own verb verb-for-verb like every other target here —
+        // the popup's IpcHandler only exists once the card has been built,
+        // and this shim wins the target, so a verb missing from this file is
+        // simply not callable. No-op unless a seedable row is highlighted.
+        function seedSiteSearch(): void {
+            root.dispatch(launcherLoader, "seedSiteSearch");
+        }
+
+        // Contextual menu (right click / F10).
+        //   qs -c sunset ipc call launcher rowMenuItem <op>
+        // Runs ONE item of the menu by op name. The `op` string is typed
+        // because an IPC verb cannot express an optional argument (an untyped
+        // one is refused outright; a default value is refused too), so a
+        // missing op arrives as the text "undefined" — which
+        // Launcher.rowMenuItem's closed allowlist drops, i.e. a no-op rather
+        // than a crash. Only ever fed by ContextMenu's runLauncherOp.
+        function rowMenuItem(op: string): void {
+            root.dispatch(launcherLoader, "rowMenuItem", op);
+        }
+
+        // The "how to use this" menu, at a fixed point (the `menu openRow`
+        // verb routes here). F10 prefers the row menu and falls back to this
+        // when no row is actionable.
+        function helpMenu(): void {
+            root.dispatch(launcherLoader, "helpMenu");
         }
     }
 
@@ -687,6 +748,22 @@ ShellRoot {
     // must be mapped from startup.
     ContextMenu {
         id: contextMenu
+        // Second half of the launcher's focus handshake (see
+        // launcherLoader.onRowMenuRequested): when the menu closes for ANY
+        // reason — backdrop click, Esc, an item that opened a popup — tell the
+        // launcher, so it can take the keyboard back. Watched here rather than
+        // signalled from ContextMenu because the launcher is the one that
+        // needs to know, and only the shell can see both.
+        //
+        // Guarded on menuKind so a DESKTOP or BAR right click (which can
+        // happen while the launcher is open, e.g. the bar above it) never
+        // fires the launcher's refocus.
+        onIsOpenChanged: {
+            if (isOpen || menuKind !== "launcher")
+                return;
+            if (launcherLoader.item)
+                launcherLoader.item.markMenuClosed();
+        }
     }
 
     // NowPlaying slides below the toast stack instead of covering a toast.

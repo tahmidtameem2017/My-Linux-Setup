@@ -106,6 +106,23 @@ binds {
     Mod+Shift+Q { spawn-sh "pkill quickshell; quickshell -c sunset &"; }
 
 
+    // Ctrl+Space: instant web search, unless you are already browsing files.
+    //
+    // Outside files mode it opens the launcher already in web-search mode
+    // (query "@"), so you type the query and press Enter. This is the same
+    // WebProvider the typed "@" prefix uses, so every site bang still works:
+    // `google weather` -> bang -> Google, `how to tile windows` ->
+    // DuckDuckGo, `https://…` -> opens the link. The result opens with
+    // xdg-open, i.e. a tab in your real browser.
+    //
+    // IN files mode (query starts with "/") it is Quick Look on the
+    // highlighted file instead — the chord's original job, which predates web
+    // search here and is the fastest way to eyeball a hit. The split lives in
+    // Launcher.websearch(), not in a key handler: this bind is
+    // COMPOSITOR-side, so Ctrl+Space never reaches the launcher's QML key
+    // handlers at all. Quick Look also stays on Ctrl+Alt+Space everywhere.
+    Ctrl+Space   { spawn-sh "qs -c sunset ipc call launcher websearch"; }
+
     // Quickshell menus (mirrors binds.kdl, must stay in sync):
     // Mod+Ctrl+Return { spawn-sh "fuzzel --config /home/me/niri-setup/fuzzel/fuzzel.ini"; }
     Mod+Ctrl+Return { spawn-sh "qs -c sunset ipc call launcher toggle"; }
